@@ -1,0 +1,5540 @@
+﻿WARNING: The IDF_PYTHON_ENV_PATH is missing in environmental variables!
+Executing action: monitor
+Serial port COM4
+Connecting....
+Detecting chip type... ESP32-S3
+--- Warning: GDB cannot open serial ports accessed as COMx
+
+--- Using \\.\COM4 instead...
+
+--- esp-idf-monitor 1.8.0 on \\.\COM4 115200
+
+--- Quit: Ctrl+] | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+Running idf_monitor in directory C:\vscode\sub_monitor
+Executing "C:\Users\kskim\esp32\.espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe C:\Users\kskim\esp\v5.5.1\esp-idf\tools/idf_monitor.py -p COM4 -b 115200 --toolchain-prefix xtensa-esp32s3-elf- --target esp32s3 --revision 0 C:\vscode\sub_monitor\build\sub_monitor.elf C:\vscode\sub_monitor\build\bootloader\bootloader.elf --force-color -m 'C:\Users\kskim\esp32\.espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe' 'C:\Users\kskim\esp\v5.5.1\esp-idf\tools\idf.py'"...
+ESP-ROM:esp32s3-20210327
+
+Build:Mar 27 2021
+
+rst:0x15 (USB_UART_CHIP_RESET),boot:0x2b (SPI_FAST_FLASH_BOOT)
+
+Saved PC:0x40048d06
+
+SPIWP:0xee
+
+mode:DIO, clock div:1
+
+load:0x3fce2820,len:0x158c
+
+load:0x403c8700,len:0xd24
+
+xtensa-esp32s3-elf-addr2line -fiaC -e C:\vscode\sub_monitor\build\bootloader\bootloader.elf 0x403c8700: [WinError 2] 지정된 파일을 찾을 수 없습니다
+load:0x403cb700,len:0x2f34
+
+xtensa-esp32s3-elf-addr2line -fiaC -e C:\vscode\sub_monitor\build\bootloader\bootloader.elf 0x403cb700: [WinError 2] 지정된 파일을 찾을 수 없습니다
+entry 0x403c8924
+
+xtensa-esp32s3-elf-addr2line -fiaC -e C:\vscode\sub_monitor\build\bootloader\bootloader.elf 0x403c8924: [WinError 2] 지정된 파일을 찾을 수 없습니다
+I (24) boot: ESP-IDF v5.5.1 2nd stage bootloader
+
+I (24) boot: compile time Dec 29 2025 14:43:50
+
+I (25) boot: Multicore bootloader
+
+I (25) boot: chip revision: v0.2
+
+I (28) boot: efuse block revision: v1.3
+
+I (31) boot.esp32s3: Boot SPI Speed : 80MHz
+
+I (35) boot.esp32s3: SPI Mode       : DIO
+
+I (39) boot.esp32s3: SPI Flash Size : 16MB
+
+I (43) boot: Enabling RNG early entropy source...
+
+I (47) boot: Partition Table:
+
+I (50) boot: ## Label            Usage          Type ST Offset   Length
+
+I (56) boot:  0 nvs              WiFi data        01 02 00009000 00006000
+
+I (63) boot:  1 phy_init         RF data          01 01 0000f000 00001000
+
+I (69) boot:  2 factory          factory app      00 00 00010000 00300000
+
+I (76) boot:  3 storage          Unknown data     01 83 00310000 00b00000
+
+I (82) boot: End of partition table
+
+I (85) esp_image: segment 0: paddr=00010020 vaddr=3c0c0020 size=160bech (1444844) map
+
+I (347) esp_image: segment 1: paddr=00170c14 vaddr=3fc9b100 size=04514h ( 17684) load
+
+I (352) esp_image: segment 2: paddr=00175130 vaddr=40374000 size=0aee8h ( 44776) load
+
+I (362) esp_image: segment 3: paddr=00180020 vaddr=42000020 size=b7a18h (752152) map
+
+I (495) esp_image: segment 4: paddr=00237a40 vaddr=4037eee8 size=0c1a8h ( 49576) load
+
+I (506) esp_image: segment 5: paddr=00243bf0 vaddr=50000000 size=00020h (    32) load
+
+I (515) boot: Loaded app from partition at offset 0x10000
+
+I (515) boot: Disabling RNG early entropy source...
+
+I (525) octal_psram: vendor id    : 0x0d (AP)
+
+I (526) octal_psram: dev id       : 0x02 (generation 3)
+
+I (526) octal_psram: density      : 0x03 (64 Mbit)
+
+I (531) octal_psram: good-die     : 0x01 (Pass)
+
+I (536) octal_psram: Latency      : 0x01 (Fixed)
+
+I (541) octal_psram: VCC          : 0x01 (3V)
+
+I (546) octal_psram: SRF          : 0x01 (Fast Refresh)
+
+I (552) octal_psram: BurstType    : 0x01 (Hybrid Wrap)
+
+I (558) octal_psram: BurstLen     : 0x01 (32 Byte)
+
+I (563) octal_psram: Readlatency  : 0x02 (10 cycles@Fixed)
+
+I (569) octal_psram: DriveStrength: 0x00 (1/1)
+
+I (575) MSPI Timing: PSRAM timing tuning index: 5
+
+I (580) esp_psram: Found 8MB PSRAM device
+
+I (585) esp_psram: Speed: 80MHz
+
+I (589) cpu_start: Multicore app
+
+I (1015) esp_psram: SPI SRAM memory test OK
+
+I (1024) cpu_start: Pro cpu start user code
+
+I (1024) cpu_start: cpu freq: 160000000 Hz
+
+I (1024) app_init: Application information:
+
+I (1027) app_init: Project name:     sub_monitor
+
+I (1033) app_init: App version:      1
+
+I (1037) app_init: Compile time:     Dec 29 2025 14:41:37
+
+I (1043) app_init: ELF file SHA256:  b2fd5dcb4...
+
+I (1048) app_init: ESP-IDF:          v5.5.1
+
+I (1053) efuse_init: Min chip rev:     v0.0
+
+I (1058) efuse_init: Max chip rev:     v0.99 
+
+I (1063) efuse_init: Chip rev:         v0.2
+
+I (1068) heap_init: Initializing. RAM available for dynamic allocation:
+
+I (1075) heap_init: At 3FCA3D80 len 00045990 (278 KiB): RAM
+
+I (1082) heap_init: At 3FCE9710 len 00005724 (21 KiB): RAM
+
+I (1088) heap_init: At 3FCF0000 len 00008000 (32 KiB): DRAM
+
+I (1094) heap_init: At 600FE000 len 00001FE8 (7 KiB): RTCRAM
+
+I (1101) esp_psram: Adding pool of 8192K of PSRAM memory to heap allocator
+
+I (1109) spi_flash: detected chip: winbond
+
+I (1113) spi_flash: flash io: dio
+
+I (1117) sleep_gpio: Configure to isolate all GPIO pins in sleep state
+
+I (1124) sleep_gpio: Enable automatic switching of GPIO sleep configuration
+
+I (1132) coexist: coex firmware version: b0bcc39
+
+I (1137) coexist: coexist rom version e7ae62f
+
+I (1143) main_task: Started on CPU0
+
+I (1147) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations
+
+I (1156) main_task: Calling app_main()
+
+I (1160) BLE_ONLY: Reset reason: UNKNOWN (11)
+
+I (1165) BLE_ONLY: Booting BLE-only...
+
+I (1170) sh8601: LCD panel create success, version: 1.0.0
+
+W (1386) sh8601: The 3Ah command has been used and will be overwritten by external initialization sequence
+
+W (1386) sh8601: The 36h command has been used and will be overwritten by external initialization sequence
+
+I (2386) BLE_ONLY: LCD: Initial brightness set to maximum (level 7)
+
+I (2386) BLE_ONLY: LCD: panel initialized successfully
+
+I (2388) BLE_ONLY: LVGL: POSIX file system driver initialized (letter='L', path='/littlefs')
+
+I (2397) BLE_ONLY: LVGL: PNG decoder initialized (lodepng library, uses PSRAM via custom allocator)
+
+I (2424) BLE_ONLY: LVGL: Outer ring created (5pt gray)
+
+I (2425) BLE_ONLY: Display mode switched to: HUD
+
+I (2425) BLE_ONLY: LVGL: Initialized successfully
+
+I (2430) BLE_ONLY: Image update queue created
+
+I (2435) BLE_ONLY: Safety update queue created
+
+I (2441) BLE_ONLY: Boot button initialized (GPIO0)
+
+I (2452) BLE_INIT: BT controller compile version [2edb0b0]
+
+I (2453) BLE_INIT: Using main XTAL as clock source
+
+I (2458) BLE_INIT: Feature Config, ADV:1, BLE_50:1, DTM:1, SCAN:1, CCA:0, SMP:1, CONNECT:1
+
+I (2467) BLE_INIT: Bluetooth MAC: 10:20:ba:44:8e:be
+
+I (2473) phy_init: phy_version 701,f4f1da3a,Mar  3 2025,15:50:10
+
+I (2554) BLE_ONLY: Requested HID service (0x1812) creation
+
+I (2555) BLE_ONLY: Requested HUD service (0xFFEA) creation
+
+I (2559) BLE_ONLY: ADV data set
+
+I (2560) BLE_ONLY: ScanRsp data set
+
+I (2564) BLE_ONLY: HID service created handle=40
+
+I (2569) BLE_ONLY: HUD(128) service created handle=56
+
+I (2575) BLE_ONLY: HID Info added handle=42
+
+I (2580) BLE_ONLY: ★ FFF1 (Read/Notify) characteristic added handle=58 ★
+
+I (2587) BLE_ONLY: ★ Requesting CCCD (0x2902) descriptor addition for FFF1 (handle=58) ★
+
+I (2597) BLE_ONLY: ★ CCCD descriptor addition requested successfully ★
+
+I (2605) BLE_ONLY: HID ReportMap added handle=44
+
+I (2609) BLE_ONLY: ★ CCCD (0x2902) descriptor for FFF1 added handle=59 (should be right after FFF1 handle=58) ★
+
+I (2621) BLE_ONLY: ★ Requesting FFF2 (Write) characteristic addition after CCCD ★
+
+I (2629) BLE_ONLY: Requested FFF2 (Write) characteristic addition after CCCD
+
+I (2637) BLE_ONLY: HID ControlPoint added handle=46
+
+I (2642) BLE_ONLY: ★ FFF2 (Write) characteristic added handle=61 (after CCCD handle=59) ★
+
+I (2652) BLE_ONLY: HID Report(2A4D) added handle=48
+
+I (2657) BLE_ONLY: HUD service started=1
+
+I (2662) BLE_ONLY: HID CCCD(Report) added handle=49
+
+I (2667) BLE_ONLY: HID service started=1
+
+I (2675) BLE_ONLY: Advertising started
+
+I (2676) BLE_ONLY: Initializing LittleFS
+
+I (2977) BLE_ONLY: LittleFS mounted at /littlefs
+
+I (2977) BLE_ONLY: Partition size: total: 11534336 bytes, used: 8937472 bytes
+
+I (2979) BLE_ONLY: Mounting SD card (SDMMC 1-bit) at /sdcard ...
+
+I (3027) BLE_ONLY: SD card mounted at /sdcard
+
+Name: asdfg
+
+Type: SDHC
+
+Speed: 20.00 MHz (limit: 20.00 MHz)
+
+Size: 7680MB
+
+CSD: ver=2, sector_size=512, capacity=15728640 read_bl_len=9
+
+SSR: bus_width=1
+
+I (3035) BLE_ONLY: SD card initialization complete
+
+I (3041) BLE_ONLY: Attempting to load CSV file from littlefs...
+
+I (3048) BLE_ONLY: Listing files in /littlefs:
+
+I (3055) BLE_ONLY:   Found: Safety_DRV.CSV (type=1)
+
+I (3059) BLE_ONLY:   Found: TBT.CSV (type=1)
+
+I (3064) BLE_ONLY:   Found: font (type=2)
+
+I (3069) BLE_ONLY:   Found: image (type=2)
+
+I (3073) BLE_ONLY:   Found: intro (type=2)
+
+I (3080) BLE_ONLY: Listing files in /littlefs/image:
+
+I (3085) BLE_ONLY:   Found: Group_4.png (type=1)
+
+I (3091) BLE_ONLY:   Found: arrow_00.png (type=1)
+
+I (3097) BLE_ONLY:   Found: arrow_01.png (type=1)
+
+I (3102) BLE_ONLY:   Found: arrow_02.png (type=1)
+
+I (3107) BLE_ONLY:   Found: arrow_03.png (type=1)
+
+I (3113) BLE_ONLY:   Found: arrow_04.png (type=1)
+
+I (3118) BLE_ONLY:   Found: arrow_05.png (type=1)
+
+I (3123) BLE_ONLY:   Found: arrow_06.png (type=1)
+
+I (3129) BLE_ONLY:   Found: arrow_07.png (type=1)
+
+I (3134) BLE_ONLY:   Found: arrow_08.png (type=1)
+
+I (3139) BLE_ONLY:   Found: arrow_09.png (type=1)
+
+I (3145) BLE_ONLY:   Found: arrow_10.png (type=1)
+
+I (3150) BLE_ONLY:   Found: arrow_100.png (type=1)
+
+I (3156) BLE_ONLY:   Found: arrow_11.png (type=1)
+
+I (3161) BLE_ONLY:   Found: arrow_12.png (type=1)
+
+I (3166) BLE_ONLY:   Found: arrow_13.png (type=1)
+
+I (3172) BLE_ONLY:   Found: arrow_14.png (type=1)
+
+I (3177) BLE_ONLY:   Found: arrow_15.png (type=1)
+
+I (3182) BLE_ONLY:   Found: arrow_16.png (type=1)
+
+I (3188) BLE_ONLY:   Found: arrow_17.png (type=1)
+
+I (3193) BLE_ONLY:   Found: arrow_18.png (type=1)
+
+I (3198) BLE_ONLY:   Found: ban.png (type=1)
+
+I (3203) BLE_ONLY:   Found: camera_100.png (type=1)
+
+I (3209) BLE_ONLY:   Found: camera_110.png (type=1)
+
+I (3214) BLE_ONLY:   Found: camera_120.png (type=1)
+
+I (3220) BLE_ONLY:   Found: camera_30.png (type=1)
+
+I (3225) BLE_ONLY:   Found: camera_40.png (type=1)
+
+I (3231) BLE_ONLY:   Found: camera_50.png (type=1)
+
+I (3236) BLE_ONLY:   Found: camera_60.png (type=1)
+
+I (3241) BLE_ONLY:   Found: camera_70.png (type=1)
+
+I (3247) BLE_ONLY:   Found: camera_80.png (type=1)
+
+I (3252) BLE_ONLY:   Found: camera_90.png (type=1)
+
+I (3258) BLE_ONLY:   Found: children.png (type=1)
+
+I (3263) BLE_ONLY:   Found: detail_arrow_40.png (type=1)
+
+I (3269) BLE_ONLY:   Found: exclusive_bus.png (type=1)
+
+I (3275) BLE_ONLY:   Found: section_100.png (type=1)
+
+I (3280) BLE_ONLY:   Found: section_110.png (type=1)
+
+I (3286) BLE_ONLY:   Found: section_120.png (type=1)
+
+I (3292) BLE_ONLY:   Found: section_30.png (type=1)
+
+I (3297) BLE_ONLY:   Found: section_40.png (type=1)
+
+I (3302) BLE_ONLY:   Found: section_50.png (type=1)
+
+I (3308) BLE_ONLY:   Found: section_60.png (type=1)
+
+I (3313) BLE_ONLY:   Found: section_70.png (type=1)
+
+I (3319) BLE_ONLY:   Found: section_80.png (type=1)
+
+I (3325) BLE_ONLY:   Found: section_90.png (type=1)
+
+I (3330) BLE_ONLY:   Found: signal_100.png (type=1)
+
+I (3336) BLE_ONLY:   Found: signal_110.png (type=1)
+
+I (3341) BLE_ONLY:   Found: signal_120.png (type=1)
+
+I (3347) BLE_ONLY:   Found: signal_30.png (type=1)
+
+I (3352) BLE_ONLY:   Found: signal_40.png (type=1)
+
+I (3357) BLE_ONLY:   Found: signal_50.png (type=1)
+
+I (3363) BLE_ONLY:   Found: signal_60.png (type=1)
+
+I (3368) BLE_ONLY:   Found: signal_70.png (type=1)
+
+I (3374) BLE_ONLY:   Found: signal_80.png (type=1)
+
+I (3379) BLE_ONLY:   Found: signal_90.png (type=1)
+
+I (3385) BLE_ONLY:   Found: speed_100.png (type=1)
+
+I (3390) BLE_ONLY:   Found: speed_110.png (type=1)
+
+I (3396) BLE_ONLY:   Found: speed_120.png (type=1)
+
+I (3401) BLE_ONLY:   Found: speed_30.png (type=1)
+
+I (3406) BLE_ONLY:   Found: speed_40.png (type=1)
+
+I (3412) BLE_ONLY:   Found: speed_50.png (type=1)
+
+I (3417) BLE_ONLY:   Found: speed_60.png (type=1)
+
+I (3422) BLE_ONLY:   Found: speed_70.png (type=1)
+
+I (3428) BLE_ONLY:   Found: speed_80.png (type=1)
+
+I (3433) BLE_ONLY:   Found: speed_90.png (type=1)
+
+I (3440) BLE_ONLY: CSV file found at: /littlefs/TBT.CSV
+
+I (3446) BLE_ONLY: CSV file opened, first 63 bytes (hex):
+
+I (3450) BLE_ONLY:   0000: 
+
+I (3453) BLE_ONLY: 73 
+
+I (3456) BLE_ONLY: 74 
+
+I (3459) BLE_ONLY: 61 
+
+I (3462) BLE_ONLY: 72 
+
+I (3465) BLE_ONLY: 74 
+
+I (3468) BLE_ONLY: 2C 
+
+I (3471) BLE_ONLY: 49 
+
+I (3475) BLE_ONLY: 44 
+
+I (3478) BLE_ONLY: 2C 
+
+I (3481) BLE_ONLY: 63 
+
+I (3484) BLE_ONLY: 6F 
+
+I (3487) BLE_ONLY: 6D 
+
+I (3490) BLE_ONLY: 6D 
+
+I (3493) BLE_ONLY: 65 
+
+I (3496) BLE_ONLY: 6E 
+
+I (3499) BLE_ONLY: 64 
+
+I (3502) BLE_ONLY: 
+
+I (3505) BLE_ONLY:   0016: 
+
+I (3508) BLE_ONLY: 2C 
+
+I (3511) BLE_ONLY: 64 
+
+I (3514) BLE_ONLY: 61 
+
+I (3517) BLE_ONLY: 74 
+
+I (3520) BLE_ONLY: 61 
+
+I (3523) BLE_ONLY: 5F 
+
+I (3526) BLE_ONLY: 6C 
+
+I (3529) BLE_ONLY: 65 
+
+I (3532) BLE_ONLY: 6E 
+
+I (3535) BLE_ONLY: 67 
+
+I (3538) BLE_ONLY: 74 
+
+I (3542) BLE_ONLY: 68 
+
+I (3545) BLE_ONLY: 2C 
+
+I (3548) BLE_ONLY: 64 
+
+I (3551) BLE_ONLY: 61 
+
+I (3554) BLE_ONLY: 74 
+
+I (3557) BLE_ONLY: 
+
+I (3559) BLE_ONLY:   0032: 
+
+I (3563) BLE_ONLY: 61 
+
+I (3566) BLE_ONLY: 31 
+
+I (3569) BLE_ONLY: 2C 
+
+I (3572) BLE_ONLY: 64 
+
+I (3575) BLE_ONLY: 61 
+
+I (3578) BLE_ONLY: 74 
+
+I (3581) BLE_ONLY: 61 
+
+I (3584) BLE_ONLY: 32 
+
+I (3587) BLE_ONLY: 2C 
+
+I (3590) BLE_ONLY: 64 
+
+I (3593) BLE_ONLY: 61 
+
+I (3596) BLE_ONLY: 74 
+
+I (3599) BLE_ONLY: 61 
+
+I (3602) BLE_ONLY: 33 
+
+I (3605) BLE_ONLY: 2C 
+
+I (3609) BLE_ONLY: 64 
+
+I (3612) BLE_ONLY: 
+
+I (3614) BLE_ONLY:   0048: 
+
+I (3618) BLE_ONLY: 61 
+
+I (3621) BLE_ONLY: 74 
+
+I (3624) BLE_ONLY: 61 
+
+I (3627) BLE_ONLY: 34 
+
+I (3630) BLE_ONLY: 2C 
+
+I (3633) BLE_ONLY: 64 
+
+I (3636) BLE_ONLY: 61 
+
+I (3639) BLE_ONLY: 74 
+
+I (3642) BLE_ONLY: 61 
+
+I (3645) BLE_ONLY: 35 
+
+I (3648) BLE_ONLY: 2C 
+
+I (3651) BLE_ONLY: 65 
+
+I (3654) BLE_ONLY: 6E 
+
+I (3657) BLE_ONLY: 64 
+
+I (3660) BLE_ONLY: 2C 
+
+I (3663) BLE_ONLY: 
+
+I (3666) BLE_ONLY: CSV file first 63 bytes (text): start,ID,commend,data_length,data1,data2,data3,data4,data5,end,
+
+I (3678) BLE_ONLY: CSV line 0: field_idx=12
+
+I (3682) BLE_ONLY:   field[0]='0x19'
+
+I (3686) BLE_ONLY:   field[1]='0x4D'
+
+I (3691) BLE_ONLY:   field[2]='0x01'
+
+I (3695) BLE_ONLY:   field[3]='0x05'
+
+I (3699) BLE_ONLY:   field[4]=''
+
+I (3703) BLE_ONLY:   field[5]=''
+
+I (3707) BLE_ONLY:   field[6]=''
+
+I (3711) BLE_ONLY:   field[7]=''
+
+I (3715) BLE_ONLY:   field[8]=''
+
+I (3719) BLE_ONLY:   field[9]='2f'
+
+I (3723) BLE_ONLY:   field[10]='arrow_tt.png'
+
+I (3728) BLE_ONLY:   field[11]='0
+'
+
+I (3732) BLE_ONLY: CSV line 0 fields: start='0x19' id='0x4D' commend='0x01' dlen='0x05' data1='' data2=''
+
+I (3742) BLE_ONLY: CSV line 0 fields: filename='arrow_tt.png' sector='0
+'
+
+I (3750) BLE_ONLY: CSV line 1: field_idx=12
+
+I (3754) BLE_ONLY:   field[0]='0x19'
+
+I (3759) BLE_ONLY:   field[1]='0x4D'
+
+I (3763) BLE_ONLY:   field[2]='0x01'
+
+I (3767) BLE_ONLY:   field[3]='0x05'
+
+I (3771) BLE_ONLY:   field[4]=''
+
+I (3775) BLE_ONLY:   field[5]=''
+
+I (3779) BLE_ONLY:   field[6]=''
+
+I (3783) BLE_ONLY:   field[7]=''
+
+I (3787) BLE_ONLY:   field[8]=''
+
+I (3791) BLE_ONLY:   field[9]='2f'
+
+I (3795) BLE_ONLY:   field[10]='arrow_tt.png'
+
+I (3800) BLE_ONLY:   field[11]='0
+'
+
+I (3804) BLE_ONLY: CSV line 1 fields: start='0x19' id='0x4D' commend='0x01' dlen='0x05' data1='' data2=''
+
+I (3815) BLE_ONLY: CSV line 1 fields: filename='arrow_tt.png' sector='0
+'
+
+I (3822) BLE_ONLY: CSV line 2: field_idx=12
+
+I (3827) BLE_ONLY:   field[0]='0x19'
+
+I (3831) BLE_ONLY:   field[1]='0x4D'
+
+I (3835) BLE_ONLY:   field[2]='0x01'
+
+I (3840) BLE_ONLY:   field[3]='0x05'
+
+I (3844) BLE_ONLY:   field[4]=''
+
+I (3848) BLE_ONLY:   field[5]=''
+
+I (3852) BLE_ONLY:   field[6]=''
+
+I (3856) BLE_ONLY:   field[7]=''
+
+I (3859) BLE_ONLY:   field[8]=''
+
+I (3863) BLE_ONLY:   field[9]='2f'
+
+I (3867) BLE_ONLY:   field[10]='arrow_tt.png'
+
+I (3873) BLE_ONLY:   field[11]='0
+'
+
+I (3877) BLE_ONLY: CSV line 2 fields: start='0x19' id='0x4D' commend='0x01' dlen='0x05' data1='' data2=''
+
+I (3887) BLE_ONLY: CSV line 2 fields: filename='arrow_tt.png' sector='0
+'
+
+I (3895) BLE_ONLY: Loaded 19 image data entries from CSV
+
+I (3900) BLE_ONLY:   Entry 0: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (3912) BLE_ONLY:   Entry 1: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (3925) BLE_ONLY:   Entry 2: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (3937) BLE_ONLY:   Entry 3: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (3949) BLE_ONLY:   Entry 4: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (3961) BLE_ONLY:   Entry 5: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (3973) BLE_ONLY:   Entry 6: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (3985) BLE_ONLY:   Entry 7: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (3998) BLE_ONLY:   Entry 8: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4010) BLE_ONLY:   Entry 9: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4022) BLE_ONLY:   Entry 10: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4034) BLE_ONLY:   Entry 11: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4046) BLE_ONLY:   Entry 12: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4059) BLE_ONLY:   Entry 13: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4071) BLE_ONLY:   Entry 14: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4083) BLE_ONLY:   Entry 15: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4095) BLE_ONLY:   Entry 16: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4108) BLE_ONLY:   Entry 17: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4120) BLE_ONLY:   Entry 18: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4132) BLE_ONLY: CSV file loaded successfully, entries=19
+
+I (4138) BLE_ONLY: Attempting to load Safety_DRV CSV file from littlefs...
+
+I (4149) BLE_ONLY: Safety_DRV CSV file found at: /littlefs/Safety_DRV.CSV
+
+I (4157) BLE_ONLY: Loaded 11 safety data entries from CSV
+
+I (4159) BLE_ONLY: Safety_DRV CSV file loaded successfully, entries=11
+
+I (4167) BLE_ONLY: Image path initialized (empty), will be set when HUD mode is activated
+
+I (4176) BLE_ONLY: Initialization complete
+
+I (18105) BLE_ONLY: peer_bda=4c:5f:70:d1:88:04
+
+I (18106) BLE_ONLY: Requesting encryption for 4c:5f:70:d1:88:04
+
+I (18107) BLE_ONLY: esp_ble_set_encryption request sent successfully
+
+I (18114) BLE_ONLY: Connection parameters updated: min_int=16 max_int=32 latency=0 timeout=500
+
+I (18123) BLE_ONLY: connected
+
+I (18332) BLE_ONLY: AUTH_CMPL success=1 (encryption COMPLETE)
+
+I (18333) BLE_ONLY: AUTH_CMPL SUCCESS - addr=4c:5f:70:d1:88:04, key_type=0
+
+I (18404) BLE_ONLY: MTU=247
+
+I (18554) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (6 bytes):
+
+I (18555) BLE_ONLY:    len=6: 19 4D 06 01 03 2F
+
+I (18555) BLE_ONLY: client_started: first WRITE (handle=61)
+
+I (18562) BLE_ONLY: feature_active=1 (trigger handle=61)
+
+I (18568) BLE_ONLY: HUD cmd from phone: cmd=0x06 dlen=1
+
+W (18573) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (19116) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (19117) BLE_ONLY:    len=7: 19 4D 07 02 01 01 2F
+
+I (19117) BLE_ONLY: HUD cmd from phone: cmd=0x07 dlen=2
+
+W (19124) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (19678) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (19679) BLE_ONLY:    len=7: 19 4D 08 02 00 06 2F
+
+I (19680) BLE_ONLY: HUD cmd from phone: cmd=0x08 dlen=2
+
+W (19686) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (20354) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (6 bytes):
+
+I (20355) BLE_ONLY:    len=6: 19 4D 06 01 03 2F
+
+I (20355) BLE_ONLY: HUD cmd from phone: cmd=0x06 dlen=1
+
+W (20361) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (20916) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (6 bytes):
+
+I (20917) BLE_ONLY:    len=6: 19 4D 04 01 00 2F
+
+I (20917) BLE_ONLY: HUD cmd from phone: cmd=0x04 dlen=1
+
+I (20923) BLE_ONLY: circle_dwg called: start=0x19 id=0x4D commend=0x04 dlen=0x01 data1=0x00
+
+I (20933) BLE_ONLY: Circle ring: Blue (GPS 수신 불가)
+
+W (20939) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (21479) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (6 bytes):
+
+I (21480) BLE_ONLY:    len=6: 19 4D 05 01 02 2F
+
+I (21480) BLE_ONLY: HUD cmd from phone: cmd=0x05 dlen=1
+
+I (21486) BLE_ONLY: clear_display called: data1=0x02
+
+I (21492) BLE_ONLY: clear_display: safety_drive 모든 요소 숨김 (이미지, safety거리값, safety단위)
+
+W (21503) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (22041) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (22042) BLE_ONLY:    len=7: 19 4D 03 02 00 00 2F
+
+I (22043) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (22049) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x00
+
+W (22060) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (22604) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (6 bytes):
+
+I (22604) BLE_ONLY:    len=6: 19 4D 04 01 01 2F
+
+I (22605) BLE_ONLY: HUD cmd from phone: cmd=0x04 dlen=1
+
+I (22611) BLE_ONLY: circle_dwg called: start=0x19 id=0x4D commend=0x04 dlen=0x01 data1=0x01
+
+I (22620) BLE_ONLY: Circle ring: Green (GPS 수신 가능)
+
+W (22626) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (23166) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (23167) BLE_ONLY:    len=7: 19 4D 03 02 00 03 2F
+
+I (23168) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (23174) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x03
+
+W (23185) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (23729) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (23730) BLE_ONLY:    len=7: 19 4D 03 02 00 02 2F
+
+I (23730) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (23736) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x02
+
+W (23748) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (24329) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (24330) BLE_ONLY:    len=7: 19 4D 03 02 00 03 2F
+
+I (24330) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (24336) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x03
+
+W (24347) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (24892) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (6 bytes):
+
+I (24893) BLE_ONLY:    len=6: 19 4D 0B 01 00 2F
+
+I (24893) BLE_ONLY: HUD cmd from phone: cmd=0x0B dlen=1
+
+W (24899) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (25454) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (6 bytes):
+
+I (25454) BLE_ONLY:    len=6: 19 4D 05 01 07 2F
+
+I (25455) BLE_ONLY: HUD cmd from phone: cmd=0x05 dlen=1
+
+I (25461) BLE_ONLY: clear_display called: data1=0x07
+
+I (25468) BLE_ONLY: clear_display: 검정색 오버레이 생성
+
+I (25473) BLE_ONLY: clear_display: LCD 전체 화면을 검정색으로 채움 (모든 화면 요소 숨김)
+
+W (25484) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (26054) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (6 bytes):
+
+I (26055) BLE_ONLY:    len=6: 19 4D 04 01 01 2F
+
+I (26055) BLE_ONLY: HUD cmd from phone: cmd=0x04 dlen=1
+
+I (26061) BLE_ONLY: circle_dwg called: start=0x19 id=0x4D commend=0x04 dlen=0x01 data1=0x01
+
+I (26070) BLE_ONLY: Circle ring: Green (GPS 수신 가능)
+
+W (26076) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (26616) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (26617) BLE_ONLY:    len=10: 19 4D 0A 05 00 00 00 00 00 2F
+
+I (26619) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (26625) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x00 data3=0x00 data4=0x00 data5=0x00
+
+I (26635) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x00 data3=0x00 data4=0x00 data5=0x00
+
+I (26645) BLE_ONLY: 목적지정보: time_minutes=0 (data1=0x00 data2=0x00)
+
+I (26653) BLE_ONLY: 목적지정보: distance_m=0 (data3=0x00 data4=0x00 data5=0x00)
+
+W (26662) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (27217) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (27217) BLE_ONLY:    len=7: 19 4D 03 02 00 03 2F
+
+I (27218) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (27224) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x03
+
+W (27235) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (27779) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (27780) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F E2 2F
+
+I (27782) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (27788) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xE2
+
+I (27798) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xE2
+
+I (27808) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (27816) BLE_ONLY: 목적지정보: distance_m=4066 (data3=0x00 data4=0x0F data5=0xE2)
+
+W (27827) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (28379) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (28380) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 64 2F
+
+I (28381) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (28387) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (28395) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (28475) BLE_ONLY: update_hud_image_for_data called: arrow_tt.png (sector=0, size=), s_hud_image=0x3fced874, mode=0, force_update=0
+
+I (28477) BLE_ONLY: HUD: Starting image load: L:/image/arrow_05.png (sector=0)
+
+I (28501) BLE_ONLY: HUD: lv_img_set_src() took 6 ms for L:/image/arrow_05.png
+
+I (28522) BLE_ONLY: [IMAGE LOAD TIME] HUD: Image file=L:/image/arrow_05.png, decode=19 ms, total=44 ms
+
+I (28942) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (28943) BLE_ONLY:    len=7: 19 4D 03 02 00 08 2F
+
+I (28943) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (28949) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x08
+
+W (28960) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (29504) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (29505) BLE_ONLY:    len=7: 19 4D 03 02 00 01 2F
+
+I (29506) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (29512) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x01
+
+W (29523) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (30067) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (30068) BLE_ONLY:    len=7: 19 4D 03 02 00 00 2F
+
+I (30068) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (30074) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x00
+
+W (30085) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (30629) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (30630) BLE_ONLY:    len=7: 19 4D 03 02 00 02 2F
+
+I (30631) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (30636) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x02
+
+W (30648) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (31192) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (31193) BLE_ONLY:    len=7: 19 4D 03 02 00 09 2F
+
+I (31193) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (31199) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x09
+
+W (31210) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (31754) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (31755) BLE_ONLY:    len=7: 19 4D 03 02 00 03 2F
+
+I (31756) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (31762) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x03
+
+W (31773) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (32316) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (32317) BLE_ONLY:    len=7: 19 4D 03 02 00 00 2F
+
+I (32318) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (32324) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x00
+
+W (32335) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (32879) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (32880) BLE_ONLY:    len=7: 19 4D 03 02 00 01 2F
+
+I (32881) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (32887) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x01
+
+W (32898) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (33442) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (33443) BLE_ONLY:    len=7: 19 4D 03 02 00 06 2F
+
+I (33444) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (33450) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x06
+
+W (33461) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (34005) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (34006) BLE_ONLY:    len=7: 19 4D 03 02 00 01 2F
+
+I (34007) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (34013) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x01
+
+W (34024) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (34567) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (34567) BLE_ONLY:    len=7: 19 4D 03 02 00 04 2F
+
+I (34568) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (34574) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x04
+
+W (34585) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (35129) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (35130) BLE_ONLY:    len=7: 19 4D 03 02 00 06 2F
+
+I (35131) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (35137) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x06
+
+W (35148) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (35767) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (35768) BLE_ONLY:    len=7: 19 4D 03 02 00 10 2F
+
+I (35768) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (35774) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x10
+
+W (35786) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (36330) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (36330) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F DD 2F
+
+I (36332) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (36338) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xDD
+
+I (36348) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xDD
+
+I (36358) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (36366) BLE_ONLY: 목적지정보: distance_m=4061 (data3=0x00 data4=0x0F data5=0xDD)
+
+W (36377) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (36967) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (36968) BLE_ONLY:    len=7: 19 4D 03 02 00 1C 2F
+
+I (36969) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (36975) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x1C
+
+W (36986) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (37642) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (37643) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F DA 2F
+
+I (37645) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (37650) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xDA
+
+I (37661) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xDA
+
+I (37671) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (37678) BLE_ONLY: 목적지정보: distance_m=4058 (data3=0x00 data4=0x0F data5=0xDA)
+
+W (37689) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (38242) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (38243) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F D6 2F
+
+I (38245) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (38251) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xD6
+
+I (38261) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xD6
+
+I (38271) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (38279) BLE_ONLY: 목적지정보: distance_m=4054 (data3=0x00 data4=0x0F data5=0xD6)
+
+W (38289) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (38842) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (38843) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 5A 2F
+
+I (38845) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (38851) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (38858) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (39405) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (39405) BLE_ONLY:    len=7: 19 4D 03 02 00 17 2F
+
+I (39406) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (39412) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x17
+
+W (39423) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (39967) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (39968) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F D3 2F
+
+I (39970) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (39976) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xD3
+
+I (39986) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xD3
+
+I (39996) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (40004) BLE_ONLY: 목적지정보: distance_m=4051 (data3=0x00 data4=0x0F data5=0xD3)
+
+W (40015) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (40567) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (40568) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F D0 2F
+
+I (40569) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (40575) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xD0
+
+I (40586) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xD0
+
+I (40596) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (40603) BLE_ONLY: 목적지정보: distance_m=4048 (data3=0x00 data4=0x0F data5=0xD0)
+
+W (40615) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (41168) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (41169) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F CD 2F
+
+I (41170) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (41176) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xCD
+
+I (41186) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xCD
+
+I (41197) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (41204) BLE_ONLY: 목적지정보: distance_m=4045 (data3=0x00 data4=0x0F data5=0xCD)
+
+W (41215) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (41767) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (41768) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 50 2F
+
+I (41770) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (41776) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (41783) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (42329) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (42330) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F CA 2F
+
+I (42332) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (42338) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xCA
+
+I (42348) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xCA
+
+I (42358) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (42366) BLE_ONLY: 목적지정보: distance_m=4042 (data3=0x00 data4=0x0F data5=0xCA)
+
+W (42377) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (42967) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (42968) BLE_ONLY:    len=7: 19 4D 03 02 00 16 2F
+
+I (42969) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (42975) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x16
+
+W (42986) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (43567) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (43568) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F C7 2F
+
+I (43570) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (43576) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xC7
+
+I (43586) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xC7
+
+I (43596) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (43604) BLE_ONLY: 목적지정보: distance_m=4039 (data3=0x00 data4=0x0F data5=0xC7)
+
+W (43615) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (44167) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (44168) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F C4 2F
+
+I (44170) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (44176) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xC4
+
+I (44186) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xC4
+
+I (44196) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (44204) BLE_ONLY: 목적지정보: distance_m=4036 (data3=0x00 data4=0x0F data5=0xC4)
+
+W (44215) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (44767) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (44768) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 46 2F
+
+I (44770) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (44776) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (44783) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (45330) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (45331) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F C1 2F
+
+I (45333) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (45338) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xC1
+
+I (45349) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xC1
+
+I (45359) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (45366) BLE_ONLY: 목적지정보: distance_m=4033 (data3=0x00 data4=0x0F data5=0xC1)
+
+W (45377) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (45930) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (45931) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F BC 2F
+
+I (45933) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (45939) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xBC
+
+I (45949) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xBC
+
+I (45959) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (45966) BLE_ONLY: 목적지정보: distance_m=4028 (data3=0x00 data4=0x0F data5=0xBC)
+
+W (45977) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (46568) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (46568) BLE_ONLY:    len=7: 19 4D 03 02 00 14 2F
+
+I (46569) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (46575) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x14
+
+W (46586) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (47130) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (47131) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F B9 2F
+
+I (47133) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (47139) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xB9
+
+I (47149) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xB9
+
+I (47159) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (47167) BLE_ONLY: 목적지정보: distance_m=4025 (data3=0x00 data4=0x0F data5=0xB9)
+
+W (47178) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (47730) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (47731) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 3C 2F
+
+I (47733) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (47738) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (47746) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (48292) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (48293) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F B6 2F
+
+I (48295) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (48301) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xB6
+
+I (48311) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xB6
+
+I (48321) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (48329) BLE_ONLY: 목적지정보: distance_m=4022 (data3=0x00 data4=0x0F data5=0xB6)
+
+W (48339) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (48892) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (48893) BLE_ONLY:    len=7: 19 4D 03 02 00 13 2F
+
+I (48894) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (48900) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x13
+
+W (48911) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (49455) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (49456) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F B3 2F
+
+I (49458) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (49464) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xB3
+
+I (49474) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xB3
+
+I (49484) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (49492) BLE_ONLY: 목적지정보: distance_m=4019 (data3=0x00 data4=0x0F data5=0xB3)
+
+W (49502) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (50055) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (50056) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F B0 2F
+
+I (50058) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (50064) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xB0
+
+I (50074) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xB0
+
+I (50084) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (50092) BLE_ONLY: 목적지정보: distance_m=4016 (data3=0x00 data4=0x0F data5=0xB0)
+
+W (50102) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (50655) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (50656) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 32 2F
+
+I (50657) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (50663) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (50671) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (51218) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (51219) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F AD 2F
+
+I (51221) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (51227) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xAD
+
+I (51237) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xAD
+
+I (51247) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (51255) BLE_ONLY: 목적지정보: distance_m=4013 (data3=0x00 data4=0x0F data5=0xAD)
+
+W (51265) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (51818) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (51819) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F AC 2F
+
+I (51820) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (51826) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xAC
+
+I (51837) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xAC
+
+I (51847) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (51854) BLE_ONLY: 목적지정보: distance_m=4012 (data3=0x00 data4=0x0F data5=0xAC)
+
+W (51865) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (52455) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (52456) BLE_ONLY:    len=7: 19 4D 03 02 00 10 2F
+
+I (52456) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (52462) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x10
+
+W (52474) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (53018) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (53019) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F AA 2F
+
+I (53020) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (53026) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xAA
+
+I (53037) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xAA
+
+I (53047) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (53054) BLE_ONLY: 목적지정보: distance_m=4010 (data3=0x00 data4=0x0F data5=0xAA)
+
+W (53066) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (53618) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (53619) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F A8 2F
+
+I (53620) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (53626) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xA8
+
+I (53637) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xA8
+
+I (53647) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (53654) BLE_ONLY: 목적지정보: distance_m=4008 (data3=0x00 data4=0x0F data5=0xA8)
+
+W (53666) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (54218) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (54219) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F A5 2F
+
+I (54220) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (54226) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xA5
+
+I (54237) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xA5
+
+I (54247) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (54254) BLE_ONLY: 목적지정보: distance_m=4005 (data3=0x00 data4=0x0F data5=0xA5)
+
+W (54266) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (54818) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (54819) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 28 2F
+
+I (54821) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (54827) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (54834) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (55380) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (55381) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F A3 2F
+
+I (55383) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (55389) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xA3
+
+I (55399) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xA3
+
+I (55409) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (55417) BLE_ONLY: 목적지정보: distance_m=4003 (data3=0x00 data4=0x0F data5=0xA3)
+
+W (55428) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (55980) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (55981) BLE_ONLY:    len=7: 19 4D 03 02 00 0F 2F
+
+I (55982) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (55988) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x0F
+
+W (55999) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (56542) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (56543) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F A1 2F
+
+I (56545) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (56551) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xA1
+
+I (56561) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0xA1
+
+I (56571) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (56579) BLE_ONLY: 목적지정보: distance_m=4001 (data3=0x00 data4=0x0F data5=0xA1)
+
+W (56590) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (57180) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (57181) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 9E 2F
+
+I (57183) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (57189) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x9E
+
+I (57199) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x9E
+
+I (57209) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (57217) BLE_ONLY: 목적지정보: distance_m=3998 (data3=0x00 data4=0x0F data5=0x9E)
+
+W (57228) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (57780) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (57781) BLE_ONLY:    len=7: 19 4D 03 02 00 11 2F
+
+I (57782) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (57788) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x11
+
+W (57799) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (58343) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (58343) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 9C 2F
+
+I (58345) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (58351) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x9C
+
+I (58361) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x9C
+
+I (58371) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (58379) BLE_ONLY: 목적지정보: distance_m=3996 (data3=0x00 data4=0x0F data5=0x9C)
+
+W (58391) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (58943) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (58944) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 1E 2F
+
+I (58946) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (58952) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (58959) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (59505) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (59506) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 99 2F
+
+I (59508) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (59514) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x99
+
+I (59524) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x99
+
+I (59534) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (59542) BLE_ONLY: 목적지정보: distance_m=3993 (data3=0x00 data4=0x0F data5=0x99)
+
+W (59553) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (60105) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (60106) BLE_ONLY:    len=7: 19 4D 03 02 00 12 2F
+
+I (60107) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (60113) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x12
+
+W (60124) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (60668) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (60669) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 97 2F
+
+I (60670) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (60676) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x97
+
+I (60686) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x97
+
+I (60697) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (60704) BLE_ONLY: 목적지정보: distance_m=3991 (data3=0x00 data4=0x0F data5=0x97)
+
+W (60715) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (61268) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (61269) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 94 2F
+
+I (61271) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (61277) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x94
+
+I (61287) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x94
+
+I (61297) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (61305) BLE_ONLY: 목적지정보: distance_m=3988 (data3=0x00 data4=0x0F data5=0x94)
+
+W (61316) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (61868) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (61869) BLE_ONLY:    len=7: 19 4D 03 02 00 11 2F
+
+I (61870) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (61876) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x11
+
+W (61887) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (62468) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (62469) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 92 2F
+
+I (62470) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (62476) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x92
+
+I (62487) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x92
+
+I (62497) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (62504) BLE_ONLY: 목적지정보: distance_m=3986 (data3=0x00 data4=0x0F data5=0x92)
+
+W (62515) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (63068) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (63069) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 14 2F
+
+I (63071) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (63077) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (63084) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (63631) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (63632) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 90 2F
+
+I (63633) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (63639) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x90
+
+I (63649) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x90
+
+I (63660) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (63667) BLE_ONLY: 목적지정보: distance_m=3984 (data3=0x00 data4=0x0F data5=0x90)
+
+W (63678) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (64231) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (64232) BLE_ONLY:    len=7: 19 4D 03 02 00 10 2F
+
+I (64233) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (64239) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x10
+
+W (64250) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (64793) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (64794) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 8E 2F
+
+I (64796) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (64802) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x8E
+
+I (64812) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x8E
+
+I (64822) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (64830) BLE_ONLY: 목적지정보: distance_m=3982 (data3=0x00 data4=0x0F data5=0x8E)
+
+W (64841) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (65393) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (65394) BLE_ONLY:    len=7: 19 4D 03 02 00 0B 2F
+
+I (65395) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (65401) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x0B
+
+W (65412) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (65956) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (65957) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 8D 2F
+
+I (65958) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (65964) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x8D
+
+I (65975) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x8D
+
+I (65985) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (65992) BLE_ONLY: 목적지정보: distance_m=3981 (data3=0x00 data4=0x0F data5=0x8D)
+
+W (66003) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (66555) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (66556) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 8B 2F
+
+I (66558) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (66564) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x8B
+
+I (66574) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x8B
+
+I (66584) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (66592) BLE_ONLY: 목적지정보: distance_m=3979 (data3=0x00 data4=0x0F data5=0x8B)
+
+W (66603) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (67156) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (67157) BLE_ONLY:    len=7: 19 4D 03 02 00 09 2F
+
+I (67157) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (67163) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x09
+
+W (67175) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (67718) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (67719) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 8A 2F
+
+I (67721) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (67727) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x8A
+
+I (67737) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x8A
+
+I (67747) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (67755) BLE_ONLY: 목적지정보: distance_m=3978 (data3=0x00 data4=0x0F data5=0x8A)
+
+W (67767) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (68319) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (68319) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 89 2F
+
+I (68321) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (68327) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x89
+
+I (68337) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x89
+
+I (68347) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (68355) BLE_ONLY: 목적지정보: distance_m=3977 (data3=0x00 data4=0x0F data5=0x89)
+
+W (68366) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (68918) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (68919) BLE_ONLY:    len=7: 19 4D 03 02 00 06 2F
+
+I (68920) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (68926) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x06
+
+W (68937) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (69556) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (69557) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 88 2F
+
+I (69559) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (69564) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x88
+
+I (69575) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x88
+
+I (69585) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (69592) BLE_ONLY: 목적지정보: distance_m=3976 (data3=0x00 data4=0x0F data5=0x88)
+
+W (69603) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (70156) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (70157) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 0A 2F
+
+I (70159) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (70164) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (70172) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (70718) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (70719) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 86 2F
+
+I (70721) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (70727) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x86
+
+I (70737) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x86
+
+I (70747) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (70755) BLE_ONLY: 목적지정보: distance_m=3974 (data3=0x00 data4=0x0F data5=0x86)
+
+W (70766) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (71318) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (71319) BLE_ONLY:    len=7: 19 4D 03 02 00 08 2F
+
+I (71320) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (71326) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x08
+
+W (71337) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (71881) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (71882) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 84 2F
+
+I (71884) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (71890) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x84
+
+I (71900) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x84
+
+I (71910) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (71918) BLE_ONLY: 목적지정보: distance_m=3972 (data3=0x00 data4=0x0F data5=0x84)
+
+W (71928) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (72481) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (72482) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 81 2F
+
+I (72483) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (72489) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x81
+
+I (72499) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x81
+
+I (72510) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (72517) BLE_ONLY: 목적지정보: distance_m=3969 (data3=0x00 data4=0x0F data5=0x81)
+
+W (72528) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (73118) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (73119) BLE_ONLY:    len=7: 19 4D 03 02 00 0C 2F
+
+I (73120) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (73126) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x0C
+
+W (73137) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (73719) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (73719) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 80 2F
+
+I (73721) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (73727) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x80
+
+I (73737) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x80
+
+I (73747) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (73755) BLE_ONLY: 목적지정보: distance_m=3968 (data3=0x00 data4=0x0F data5=0x80)
+
+W (73766) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (74318) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (74319) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 7D 2F
+
+I (74321) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (74327) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x7D
+
+I (74337) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x7D
+
+I (74347) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (74355) BLE_ONLY: 목적지정보: distance_m=3965 (data3=0x00 data4=0x0F data5=0x7D)
+
+W (74366) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (74919) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (74920) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 00 2F
+
+I (74921) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (74927) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (74934) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (75481) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (75482) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 7B 2F
+
+I (75484) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (75490) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x7B
+
+I (75500) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x7B
+
+I (75510) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (75518) BLE_ONLY: 목적지정보: distance_m=3963 (data3=0x00 data4=0x0F data5=0x7B)
+
+W (75528) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (76081) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (76082) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 7A 2F
+
+I (76084) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (76090) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x7A
+
+I (76100) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x7A
+
+I (76110) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (76118) BLE_ONLY: 목적지정보: distance_m=3962 (data3=0x00 data4=0x0F data5=0x7A)
+
+W (76129) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (76681) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (76682) BLE_ONLY:    len=7: 19 4D 03 02 00 0D 2F
+
+I (76682) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (76688) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x0D
+
+W (76700) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (77244) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (77245) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 78 2F
+
+I (77246) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (77252) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x78
+
+I (77263) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x78
+
+I (77273) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (77280) BLE_ONLY: 목적지정보: distance_m=3960 (data3=0x00 data4=0x0F data5=0x78)
+
+W (77291) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (77844) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (77845) BLE_ONLY:    len=10: 19 4D 01 05 00 07 00 00 28 2F
+
+I (77846) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (77852) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (77860) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (77994) BLE_ONLY: update_hud_image_for_data called: arrow_tt.png (sector=0, size=), s_hud_image=0x3fced874, mode=0, force_update=0
+
+I (77996) BLE_ONLY: HUD: Starting image load: L:/image/arrow_07.png (sector=0)
+
+I (78020) BLE_ONLY: HUD: lv_img_set_src() took 6 ms for L:/image/arrow_07.png
+
+I (78117) BLE_ONLY: [IMAGE LOAD TIME] HUD: Image file=L:/image/arrow_07.png, decode=96 ms, total=120 ms
+
+I (78406) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (78407) BLE_ONLY:    len=7: 19 4D 03 02 00 0B 2F
+
+I (78408) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (78413) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x0B
+
+W (78425) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (78969) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (78970) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 76 2F
+
+I (78971) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (78977) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x76
+
+I (78988) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x76
+
+I (78998) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (79005) BLE_ONLY: 목적지정보: distance_m=3958 (data3=0x00 data4=0x0F data5=0x76)
+
+W (79016) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (79569) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (79570) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 73 2F
+
+I (79572) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (79578) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x73
+
+I (79588) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x73
+
+I (79598) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (79606) BLE_ONLY: 목적지정보: distance_m=3955 (data3=0x00 data4=0x0F data5=0x73)
+
+W (79617) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (80206) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (80207) BLE_ONLY:    len=7: 19 4D 03 02 00 0E 2F
+
+I (80208) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (80214) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x0E
+
+W (80225) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (80769) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (80770) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 72 2F
+
+I (80771) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (80777) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x72
+
+I (80788) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x72
+
+I (80798) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (80805) BLE_ONLY: 목적지정보: distance_m=3954 (data3=0x00 data4=0x0F data5=0x72)
+
+W (80816) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (81369) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (81370) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 6F 2F
+
+I (81372) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (81377) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x6F
+
+I (81388) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x6F
+
+I (81398) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (81405) BLE_ONLY: 목적지정보: distance_m=3951 (data3=0x00 data4=0x0F data5=0x6F)
+
+W (81417) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (82044) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (82045) BLE_ONLY:    len=10: 19 4D 01 05 00 07 00 00 1E 2F
+
+I (82047) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (82052) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (82060) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (82606) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (82607) BLE_ONLY:    len=7: 19 4D 03 02 00 10 2F
+
+I (82608) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (82614) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x10
+
+W (82625) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (83169) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (83170) BLE_ONLY:    len=10: 19 4D 0A 05 00 0E 00 0F 6D 2F
+
+I (83172) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (83178) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x6D
+
+I (83188) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0E data3=0x00 data4=0x0F data5=0x6D
+
+I (83198) BLE_ONLY: 목적지정보: time_minutes=14 (data1=0x00 data2=0x0E)
+
+I (83205) BLE_ONLY: 목적지정보: distance_m=3949 (data3=0x00 data4=0x0F data5=0x6D)
+
+W (83216) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (83769) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (83770) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 69 2F
+
+I (83772) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (83778) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x69
+
+I (83788) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x69
+
+I (83798) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (83806) BLE_ONLY: 목적지정보: distance_m=3945 (data3=0x00 data4=0x0F data5=0x69)
+
+W (83817) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (84369) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (11 bytes):
+
+I (84370) BLE_ONLY:    len=11: 19 4D 02 06 04 00 00 00 00 96 2F
+
+I (84372) BLE_ONLY: HUD cmd from phone: cmd=0x02 dlen=6
+
+I (84378) BLE_ONLY: Safety_DRV 패킷 매칭: data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x96
+
+I (84388) BLE_ONLY: safety_drive: called with start=0x19 id=0x4D cmd=0x02 dlen=0x06 data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x96
+
+I (84402) BLE_ONLY: Safety_DRV: Found matching entry, image=children.png sector=12
+
+W (84411) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (84412) BLE_ONLY: Safety_DRV: data1=0x04 data2=0x00(0) -> filename=children.png (sector=12)
+
+I (84427) BLE_ONLY: Safety_DRV: Starting image load: L:/image/children.png (sector=12)
+
+I (84451) BLE_ONLY: Safety_DRV: lv_img_set_src() took 5 ms for L:/image/children.png
+
+I (84472) BLE_ONLY: [IMAGE LOAD TIME] Safety_DRV: Image file=children.png, decode=19 ms, total=44 ms
+
+I (84472) BLE_ONLY: Safety_DRV: Image positioned at sector=12 (offset_x=0, offset_y=-150)
+
+I (84969) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (84970) BLE_ONLY:    len=7: 19 4D 03 02 00 12 2F
+
+I (84971) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (84977) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x12
+
+W (84988) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (85570) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (85570) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 67 2F
+
+I (85572) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (85578) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x67
+
+I (85588) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x67
+
+I (85598) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (85606) BLE_ONLY: 목적지정보: distance_m=3943 (data3=0x00 data4=0x0F data5=0x67)
+
+W (85617) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (86169) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (86170) BLE_ONLY:    len=10: 19 4D 01 05 00 07 00 00 14 2F
+
+I (86172) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (86178) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (86185) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (86732) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (86733) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 63 2F
+
+I (86734) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (86740) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x63
+
+I (86750) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x63
+
+I (86760) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (86768) BLE_ONLY: 목적지정보: distance_m=3939 (data3=0x00 data4=0x0F data5=0x63)
+
+W (86780) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (87332) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (11 bytes):
+
+I (87333) BLE_ONLY:    len=11: 19 4D 02 06 04 00 00 00 00 8C 2F
+
+I (87335) BLE_ONLY: HUD cmd from phone: cmd=0x02 dlen=6
+
+I (87341) BLE_ONLY: Safety_DRV 패킷 매칭: data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x8C
+
+I (87351) BLE_ONLY: safety_drive: called with start=0x19 id=0x4D cmd=0x02 dlen=0x06 data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x8C
+
+I (87365) BLE_ONLY: Safety_DRV: Found matching entry, image=children.png sector=12
+
+W (87374) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (87378) BLE_ONLY: Safety_DRV: data1=0x04 data2=0x00(0) -> filename=children.png (sector=12)
+
+I (87390) BLE_ONLY: Safety_DRV: Image path unchanged, skipping reload: L:/image/children.png
+
+I (87932) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (87933) BLE_ONLY:    len=7: 19 4D 03 02 00 17 2F
+
+I (87933) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (87939) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x17
+
+W (87950) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (88494) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (88495) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 60 2F
+
+I (88496) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (88502) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x60
+
+I (88513) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x60
+
+I (88523) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (88530) BLE_ONLY: 목적지정보: distance_m=3936 (data3=0x00 data4=0x0F data5=0x60)
+
+W (88541) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (89094) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (89095) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 5B 2F
+
+I (89097) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (89103) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x5B
+
+I (89113) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x5B
+
+I (89123) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (89131) BLE_ONLY: 목적지정보: distance_m=3931 (data3=0x00 data4=0x0F data5=0x5B)
+
+W (89142) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (89694) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (89695) BLE_ONLY:    len=10: 19 4D 01 05 00 07 00 00 0A 2F
+
+I (89697) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (89703) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (89710) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (90257) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (11 bytes):
+
+I (90258) BLE_ONLY:    len=11: 19 4D 02 06 04 00 00 00 00 82 2F
+
+I (90260) BLE_ONLY: HUD cmd from phone: cmd=0x02 dlen=6
+
+I (90266) BLE_ONLY: Safety_DRV 패킷 매칭: data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x82
+
+I (90276) BLE_ONLY: safety_drive: called with start=0x19 id=0x4D cmd=0x02 dlen=0x06 data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x82
+
+I (90290) BLE_ONLY: Safety_DRV: Found matching entry, image=children.png sector=12
+
+W (90299) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (90301) BLE_ONLY: Safety_DRV: data1=0x04 data2=0x00(0) -> filename=children.png (sector=12)
+
+I (90315) BLE_ONLY: Safety_DRV: Image path unchanged, skipping reload: L:/image/children.png
+
+I (90857) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (90858) BLE_ONLY:    len=7: 19 4D 03 02 00 19 2F
+
+I (90858) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (90864) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x19
+
+W (90875) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (91419) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (91420) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 58 2F
+
+I (91422) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (91428) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x58
+
+I (91438) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x58
+
+I (91448) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (91456) BLE_ONLY: 목적지정보: distance_m=3928 (data3=0x00 data4=0x0F data5=0x58)
+
+W (91467) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (92019) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (92020) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 54 2F
+
+I (92022) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (92028) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x54
+
+I (92038) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x54
+
+I (92048) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (92056) BLE_ONLY: 목적지정보: distance_m=3924 (data3=0x00 data4=0x0F data5=0x54)
+
+W (92067) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (92619) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (92620) BLE_ONLY:    len=7: 19 4D 03 02 00 17 2F
+
+I (92621) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (92627) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x17
+
+W (92638) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (93182) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (93183) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 51 2F
+
+I (93185) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (93191) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x51
+
+I (93201) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x51
+
+I (93211) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (93219) BLE_ONLY: 목적지정보: distance_m=3921 (data3=0x00 data4=0x0F data5=0x51)
+
+W (93230) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (93782) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (93783) BLE_ONLY:    len=10: 19 4D 01 05 00 07 00 00 00 2F
+
+I (93785) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (93790) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (93797) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (94344) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (11 bytes):
+
+I (94345) BLE_ONLY:    len=11: 19 4D 02 06 04 00 00 00 00 78 2F
+
+I (94347) BLE_ONLY: HUD cmd from phone: cmd=0x02 dlen=6
+
+I (94353) BLE_ONLY: Safety_DRV 패킷 매칭: data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x78
+
+I (94364) BLE_ONLY: safety_drive: called with start=0x19 id=0x4D cmd=0x02 dlen=0x06 data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x78
+
+I (94378) BLE_ONLY: Safety_DRV: Found matching entry, image=children.png sector=12
+
+W (94386) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (94388) BLE_ONLY: Safety_DRV: data1=0x04 data2=0x00(0) -> filename=children.png (sector=12)
+
+I (94402) BLE_ONLY: Safety_DRV: Image path unchanged, skipping reload: L:/image/children.png
+
+I (94944) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (94945) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 4E 2F
+
+I (94947) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (94953) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x4E
+
+I (94963) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x4E
+
+I (94973) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (94981) BLE_ONLY: 목적지정보: distance_m=3918 (data3=0x00 data4=0x0F data5=0x4E)
+
+W (94992) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (95544) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (95545) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 AA 2F
+
+I (95547) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (95553) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (95560) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (95751) BLE_ONLY: update_hud_image_for_data called: arrow_tt.png (sector=0, size=), s_hud_image=0x3fced874, mode=0, force_update=0
+
+I (95754) BLE_ONLY: HUD: Starting image load: L:/image/arrow_05.png (sector=0)
+
+I (95777) BLE_ONLY: HUD: lv_img_set_src() took 6 ms for L:/image/arrow_05.png
+
+I (95928) BLE_ONLY: [IMAGE LOAD TIME] HUD: Image file=L:/image/arrow_05.png, decode=149 ms, total=173 ms
+
+I (96144) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (96145) BLE_ONLY:    len=7: 19 4D 03 02 00 15 2F
+
+I (96146) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (96152) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x15
+
+W (96163) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (96707) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (96708) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 4A 2F
+
+I (96710) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (96716) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x4A
+
+I (96726) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x4A
+
+I (96736) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (96744) BLE_ONLY: 목적지정보: distance_m=3914 (data3=0x00 data4=0x0F data5=0x4A)
+
+W (96754) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (97307) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (97308) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 A0 2F
+
+I (97310) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (97316) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (97323) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (97870) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (97870) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 47 2F
+
+I (97872) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (97878) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x47
+
+I (97888) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x47
+
+I (97898) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (97906) BLE_ONLY: 목적지정보: distance_m=3911 (data3=0x00 data4=0x0F data5=0x47)
+
+W (97917) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (98469) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (11 bytes):
+
+I (98470) BLE_ONLY:    len=11: 19 4D 02 06 04 00 00 00 00 6E 2F
+
+I (98472) BLE_ONLY: HUD cmd from phone: cmd=0x02 dlen=6
+
+I (98478) BLE_ONLY: Safety_DRV 패킷 매칭: data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x6E
+
+I (98489) BLE_ONLY: safety_drive: called with start=0x19 id=0x4D cmd=0x02 dlen=0x06 data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x6E
+
+I (98503) BLE_ONLY: Safety_DRV: Found matching entry, image=children.png sector=12
+
+W (98511) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (98515) BLE_ONLY: Safety_DRV: data1=0x04 data2=0x00(0) -> filename=children.png (sector=12)
+
+I (98527) BLE_ONLY: Safety_DRV: Image path unchanged, skipping reload: L:/image/children.png
+
+I (99070) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (99070) BLE_ONLY:    len=7: 19 4D 03 02 00 14 2F
+
+I (99071) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (99077) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x14
+
+W (99088) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (99632) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (99633) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 44 2F
+
+I (99635) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (99641) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x44
+
+I (99651) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x44
+
+I (99661) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (99669) BLE_ONLY: 목적지정보: distance_m=3908 (data3=0x00 data4=0x0F data5=0x44)
+
+W (99680) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (100233) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (100234) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 40 2F
+
+I (100235) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (100242) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x40
+
+I (100252) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x40
+
+I (100262) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (100270) BLE_ONLY: 목적지정보: distance_m=3904 (data3=0x00 data4=0x0F data5=0x40)
+
+W (100281) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (100832) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (100833) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 96 2F
+
+I (100835) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (100841) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (100848) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (101395) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (101396) BLE_ONLY:    len=7: 19 4D 03 02 00 13 2F
+
+I (101397) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (101403) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x13
+
+W (101414) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (101957) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (101958) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 3E 2F
+
+I (101960) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (101966) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x3E
+
+I (101976) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x3E
+
+I (101987) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (101994) BLE_ONLY: 목적지정보: distance_m=3902 (data3=0x00 data4=0x0F data5=0x3E)
+
+W (102005) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (102557) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (11 bytes):
+
+I (102558) BLE_ONLY:    len=11: 19 4D 02 06 04 00 00 00 00 64 2F
+
+I (102560) BLE_ONLY: HUD cmd from phone: cmd=0x02 dlen=6
+
+I (102566) BLE_ONLY: Safety_DRV 패킷 매칭: data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x64
+
+I (102577) BLE_ONLY: safety_drive: called with start=0x19 id=0x4D cmd=0x02 dlen=0x06 data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x64
+
+I (102591) BLE_ONLY: Safety_DRV: Found matching entry, image=children.png sector=12
+
+W (102599) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (102603) BLE_ONLY: Safety_DRV: data1=0x04 data2=0x00(0) -> filename=children.png (sector=12)
+
+I (102616) BLE_ONLY: Safety_DRV: Image path unchanged, skipping reload: L:/image/children.png
+
+I (103157) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (103158) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 3A 2F
+
+I (103160) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (103166) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x3A
+
+I (103176) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x3A
+
+I (103187) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (103194) BLE_ONLY: 목적지정보: distance_m=3898 (data3=0x00 data4=0x0F data5=0x3A)
+
+W (103205) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (103757) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (103758) BLE_ONLY:    len=7: 19 4D 03 02 00 18 2F
+
+I (103759) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (103765) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x18
+
+W (103776) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (104319) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (104320) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 37 2F
+
+I (104322) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (104328) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x37
+
+I (104339) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x37
+
+I (104349) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (104357) BLE_ONLY: 목적지정보: distance_m=3895 (data3=0x00 data4=0x0F data5=0x37)
+
+W (104368) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (104920) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (104921) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 8C 2F
+
+I (104923) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (104929) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (104936) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (105483) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (105484) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 32 2F
+
+I (105486) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (105492) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x32
+
+I (105502) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x32
+
+I (105512) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (105520) BLE_ONLY: 목적지정보: distance_m=3890 (data3=0x00 data4=0x0F data5=0x32)
+
+W (105531) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (106082) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (11 bytes):
+
+I (106083) BLE_ONLY:    len=11: 19 4D 02 06 04 00 00 00 00 5A 2F
+
+I (106085) BLE_ONLY: HUD cmd from phone: cmd=0x02 dlen=6
+
+I (106092) BLE_ONLY: Safety_DRV 패킷 매칭: data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x5A
+
+I (106102) BLE_ONLY: safety_drive: called with start=0x19 id=0x4D cmd=0x02 dlen=0x06 data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x5A
+
+I (106116) BLE_ONLY: Safety_DRV: Found matching entry, image=children.png sector=12
+
+W (106125) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (106126) BLE_ONLY: Safety_DRV: data1=0x04 data2=0x00(0) -> filename=children.png (sector=12)
+
+I (106141) BLE_ONLY: Safety_DRV: Image path unchanged, skipping reload: L:/image/children.png
+
+I (106682) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (106683) BLE_ONLY:    len=7: 19 4D 03 02 00 0F 2F
+
+I (106684) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (106690) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x0F
+
+W (106701) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (107245) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (107246) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 2F 2F
+
+I (107248) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (107254) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x2F
+
+I (107264) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x2F
+
+I (107274) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (107282) BLE_ONLY: 목적지정보: distance_m=3887 (data3=0x00 data4=0x0F data5=0x2F)
+
+W (107293) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (107845) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (107846) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 2C 2F
+
+I (107848) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (107854) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x2C
+
+I (107864) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x2C
+
+I (107874) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (107882) BLE_ONLY: 목적지정보: distance_m=3884 (data3=0x00 data4=0x0F data5=0x2C)
+
+W (107893) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (108482) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (108483) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 82 2F
+
+I (108485) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (108491) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (108498) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (109045) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (109046) BLE_ONLY:    len=7: 19 4D 03 02 00 12 2F
+
+I (109047) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (109053) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x12
+
+W (109064) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (109608) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (109608) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 26 2F
+
+I (109610) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (109616) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x26
+
+I (109627) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x26
+
+I (109637) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (109645) BLE_ONLY: 목적지정보: distance_m=3878 (data3=0x00 data4=0x0F data5=0x26)
+
+W (109656) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (110208) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (11 bytes):
+
+I (110209) BLE_ONLY:    len=11: 19 4D 02 06 04 00 00 00 00 50 2F
+
+I (110211) BLE_ONLY: HUD cmd from phone: cmd=0x02 dlen=6
+
+I (110217) BLE_ONLY: Safety_DRV 패킷 매칭: data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x50
+
+I (110228) BLE_ONLY: safety_drive: called with start=0x19 id=0x4D cmd=0x02 dlen=0x06 data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x50
+
+I (110242) BLE_ONLY: Safety_DRV: Found matching entry, image=children.png sector=12
+
+W (110250) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (110253) BLE_ONLY: Safety_DRV: data1=0x04 data2=0x00(0) -> filename=children.png (sector=12)
+
+I (110266) BLE_ONLY: Safety_DRV: Image path unchanged, skipping reload: L:/image/children.png
+
+I (110808) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (110809) BLE_ONLY:    len=7: 19 4D 03 02 00 19 2F
+
+I (110809) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (110815) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x19
+
+W (110827) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (111370) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (111371) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 23 2F
+
+I (111373) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (111379) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x23
+
+I (111389) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x23
+
+I (111399) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (111407) BLE_ONLY: 목적지정보: distance_m=3875 (data3=0x00 data4=0x0F data5=0x23)
+
+W (111418) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (111970) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (111971) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 78 2F
+
+I (111973) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (111979) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (111986) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (112532) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (112533) BLE_ONLY:    len=7: 19 4D 03 02 00 1F 2F
+
+I (112534) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (112540) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x1F
+
+W (112551) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (113095) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (113096) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 18 2F
+
+I (113098) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (113104) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x18
+
+I (113114) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x18
+
+I (113125) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (113132) BLE_ONLY: 목적지정보: distance_m=3864 (data3=0x00 data4=0x0F data5=0x18)
+
+W (113144) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (113695) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (113696) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 6E 2F
+
+I (113698) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (113704) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (113711) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (114258) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (11 bytes):
+
+I (114259) BLE_ONLY:    len=11: 19 4D 02 06 04 00 00 00 00 46 2F
+
+I (114261) BLE_ONLY: HUD cmd from phone: cmd=0x02 dlen=6
+
+I (114267) BLE_ONLY: Safety_DRV 패킷 매칭: data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x46
+
+I (114278) BLE_ONLY: safety_drive: called with start=0x19 id=0x4D cmd=0x02 dlen=0x06 data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x46
+
+I (114292) BLE_ONLY: Safety_DRV: Found matching entry, image=children.png sector=12
+
+W (114301) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (114302) BLE_ONLY: Safety_DRV: data1=0x04 data2=0x00(0) -> filename=children.png (sector=12)
+
+I (114317) BLE_ONLY: Safety_DRV: Image path unchanged, skipping reload: L:/image/children.png
+
+I (114858) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (114859) BLE_ONLY:    len=7: 19 4D 03 02 00 21 2F
+
+I (114860) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (114866) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x21
+
+W (114877) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (115458) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (115459) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 15 2F
+
+I (115461) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (115467) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x15
+
+I (115477) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x15
+
+I (115487) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (115495) BLE_ONLY: 목적지정보: distance_m=3861 (data3=0x00 data4=0x0F data5=0x15)
+
+W (115506) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (116058) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (11 bytes):
+
+I (116059) BLE_ONLY:    len=11: 19 4D 02 06 04 00 00 00 00 3C 2F
+
+I (116061) BLE_ONLY: HUD cmd from phone: cmd=0x02 dlen=6
+
+I (116067) BLE_ONLY: Safety_DRV 패킷 매칭: data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x3C
+
+I (116078) BLE_ONLY: safety_drive: called with start=0x19 id=0x4D cmd=0x02 dlen=0x06 data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x3C
+
+I (116092) BLE_ONLY: Safety_DRV: Found matching entry, image=children.png sector=12
+
+W (116100) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (116103) BLE_ONLY: Safety_DRV: data1=0x04 data2=0x00(0) -> filename=children.png (sector=12)
+
+I (116117) BLE_ONLY: Safety_DRV: Image path unchanged, skipping reload: L:/image/children.png
+
+I (116695) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (116696) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 14 2F
+
+I (116698) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (116704) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x14
+
+I (116714) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x14
+
+I (116724) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (116732) BLE_ONLY: 목적지정보: distance_m=3860 (data3=0x00 data4=0x0F data5=0x14)
+
+W (116743) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (117295) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (117296) BLE_ONLY:    len=7: 19 4D 03 02 00 23 2F
+
+I (117297) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (117303) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x23
+
+W (117314) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (117858) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (117859) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 0C 2F
+
+I (117861) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (117867) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x0C
+
+I (117877) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x0C
+
+I (117887) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (117895) BLE_ONLY: 목적지정보: distance_m=3852 (data3=0x00 data4=0x0F data5=0x0C)
+
+W (117906) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (118458) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (118458) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 64 2F
+
+I (118460) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (118466) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (118474) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (119020) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (119021) BLE_ONLY:    len=7: 19 4D 03 02 00 1B 2F
+
+I (119022) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (119028) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x1B
+
+W (119039) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (119583) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (119584) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 05 2F
+
+I (119586) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (119592) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x05
+
+I (119602) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x05
+
+I (119612) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (119620) BLE_ONLY: 목적지정보: distance_m=3845 (data3=0x00 data4=0x0F data5=0x05)
+
+W (119631) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (120184) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (11 bytes):
+
+I (120184) BLE_ONLY:    len=11: 19 4D 02 06 04 00 00 00 00 32 2F
+
+I (120187) BLE_ONLY: HUD cmd from phone: cmd=0x02 dlen=6
+
+I (120193) BLE_ONLY: Safety_DRV 패킷 매칭: data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x32
+
+I (120203) BLE_ONLY: safety_drive: called with start=0x19 id=0x4D cmd=0x02 dlen=0x06 data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x32
+
+I (120217) BLE_ONLY: Safety_DRV: Found matching entry, image=children.png sector=12
+
+W (120226) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (120228) BLE_ONLY: Safety_DRV: data1=0x04 data2=0x00(0) -> filename=children.png (sector=12)
+
+I (120242) BLE_ONLY: Safety_DRV: Image path unchanged, skipping reload: L:/image/children.png
+
+I (120821) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (120821) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0F 01 2F
+
+I (120823) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (120829) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x01
+
+I (120840) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0F data5=0x01
+
+I (120850) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (120858) BLE_ONLY: 목적지정보: distance_m=3841 (data3=0x00 data4=0x0F data5=0x01)
+
+W (120869) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (121421) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (121421) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 5A 2F
+
+I (121423) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (121429) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (121437) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (121983) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (11 bytes):
+
+I (121984) BLE_ONLY:    len=11: 19 4D 02 06 04 00 00 00 00 28 2F
+
+I (121986) BLE_ONLY: HUD cmd from phone: cmd=0x02 dlen=6
+
+I (121992) BLE_ONLY: Safety_DRV 패킷 매칭: data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x28
+
+I (122003) BLE_ONLY: safety_drive: called with start=0x19 id=0x4D cmd=0x02 dlen=0x06 data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x28
+
+I (122017) BLE_ONLY: Safety_DRV: Found matching entry, image=children.png sector=12
+
+W (122026) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (122028) BLE_ONLY: Safety_DRV: data1=0x04 data2=0x00(0) -> filename=children.png (sector=12)
+
+I (122042) BLE_ONLY: Safety_DRV: Image path unchanged, skipping reload: L:/image/children.png
+
+I (122583) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (122584) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E FD 2F
+
+I (122586) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (122592) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xFD
+
+I (122602) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xFD
+
+I (122612) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (122620) BLE_ONLY: 목적지정보: distance_m=3837 (data3=0x00 data4=0x0E data5=0xFD)
+
+W (122631) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (123183) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (123184) BLE_ONLY:    len=7: 19 4D 03 02 00 19 2F
+
+I (123185) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (123191) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x19
+
+W (123202) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (123746) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (123747) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E F9 2F
+
+I (123748) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (123755) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xF9
+
+I (123765) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xF9
+
+I (123775) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (123783) BLE_ONLY: 목적지정보: distance_m=3833 (data3=0x00 data4=0x0E data5=0xF9)
+
+W (123795) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (124345) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (124346) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 50 2F
+
+I (124348) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (124354) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (124362) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (124908) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (124909) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E F5 2F
+
+I (124911) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (124917) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xF5
+
+I (124927) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xF5
+
+I (124938) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (124945) BLE_ONLY: 목적지정보: distance_m=3829 (data3=0x00 data4=0x0E data5=0xF5)
+
+W (124956) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (125508) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (11 bytes):
+
+I (125509) BLE_ONLY:    len=11: 19 4D 02 06 04 00 00 00 00 1E 2F
+
+I (125511) BLE_ONLY: HUD cmd from phone: cmd=0x02 dlen=6
+
+I (125517) BLE_ONLY: Safety_DRV 패킷 매칭: data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x1E
+
+I (125528) BLE_ONLY: safety_drive: called with start=0x19 id=0x4D cmd=0x02 dlen=0x06 data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x1E
+
+I (125542) BLE_ONLY: Safety_DRV: Found matching entry, image=children.png sector=12
+
+W (125551) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (125555) BLE_ONLY: Safety_DRV: data1=0x04 data2=0x00(0) -> filename=children.png (sector=12)
+
+I (125567) BLE_ONLY: Safety_DRV: Image path unchanged, skipping reload: L:/image/children.png
+
+I (126108) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (126109) BLE_ONLY:    len=7: 19 4D 03 02 00 1A 2F
+
+I (126110) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (126116) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x1A
+
+W (126127) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (126671) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (126671) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E F1 2F
+
+I (126673) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (126679) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xF1
+
+I (126690) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xF1
+
+I (126700) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (126708) BLE_ONLY: 목적지정보: distance_m=3825 (data3=0x00 data4=0x0E data5=0xF1)
+
+W (126718) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (127271) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (127272) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E ED 2F
+
+I (127274) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (127280) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xED
+
+I (127290) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xED
+
+I (127300) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (127308) BLE_ONLY: 목적지정보: distance_m=3821 (data3=0x00 data4=0x0E data5=0xED)
+
+W (127319) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (127871) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (127872) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 46 2F
+
+I (127874) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (127880) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (127887) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (128433) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (11 bytes):
+
+I (128434) BLE_ONLY:    len=11: 19 4D 02 06 04 00 00 00 00 14 2F
+
+I (128436) BLE_ONLY: HUD cmd from phone: cmd=0x02 dlen=6
+
+I (128442) BLE_ONLY: Safety_DRV 패킷 매칭: data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x14
+
+I (128453) BLE_ONLY: safety_drive: called with start=0x19 id=0x4D cmd=0x02 dlen=0x06 data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x14
+
+I (128467) BLE_ONLY: Safety_DRV: Found matching entry, image=children.png sector=12
+
+W (128475) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (128478) BLE_ONLY: Safety_DRV: data1=0x04 data2=0x00(0) -> filename=children.png (sector=12)
+
+I (128492) BLE_ONLY: Safety_DRV: Image path unchanged, skipping reload: L:/image/children.png
+
+I (129033) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (129034) BLE_ONLY:    len=7: 19 4D 03 02 00 1B 2F
+
+I (129035) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (129041) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x1B
+
+W (129052) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (129596) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (129597) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E E9 2F
+
+I (129599) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (129605) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xE9
+
+I (129615) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xE9
+
+I (129625) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (129633) BLE_ONLY: 목적지정보: distance_m=3817 (data3=0x00 data4=0x0E data5=0xE9)
+
+W (129644) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (130196) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (130197) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E E5 2F
+
+I (130199) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (130205) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xE5
+
+I (130215) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xE5
+
+I (130225) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (130233) BLE_ONLY: 목적지정보: distance_m=3813 (data3=0x00 data4=0x0E data5=0xE5)
+
+W (130244) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (130796) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (130797) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 3C 2F
+
+I (130799) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (130805) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (130812) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (131358) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (131359) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E E1 2F
+
+I (131361) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (131367) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xE1
+
+I (131378) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xE1
+
+I (131388) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (131396) BLE_ONLY: 목적지정보: distance_m=3809 (data3=0x00 data4=0x0E data5=0xE1)
+
+W (131406) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (131959) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (11 bytes):
+
+I (131959) BLE_ONLY:    len=11: 19 4D 02 06 04 00 00 00 00 0A 2F
+
+I (131962) BLE_ONLY: HUD cmd from phone: cmd=0x02 dlen=6
+
+I (131968) BLE_ONLY: Safety_DRV 패킷 매칭: data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x0A
+
+I (131978) BLE_ONLY: safety_drive: called with start=0x19 id=0x4D cmd=0x02 dlen=0x06 data1=0x04 data2=0x00 data3=0x00 data4=0x00 data5=0x00 data6=0x0A
+
+I (131992) BLE_ONLY: Safety_DRV: Found matching entry, image=children.png sector=12
+
+W (132001) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (132005) BLE_ONLY: Safety_DRV: data1=0x04 data2=0x00(0) -> filename=children.png (sector=12)
+
+I (132017) BLE_ONLY: Safety_DRV: Image path unchanged, skipping reload: L:/image/children.png
+
+I (132558) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (132559) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E DE 2F
+
+I (132561) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (132567) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xDE
+
+I (132577) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xDE
+
+I (132588) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (132595) BLE_ONLY: 목적지정보: distance_m=3806 (data3=0x00 data4=0x0E data5=0xDE)
+
+W (132607) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (133159) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (133159) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E DB 2F
+
+I (133161) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (133167) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xDB
+
+I (133178) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xDB
+
+I (133188) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (133196) BLE_ONLY: 목적지정보: distance_m=3803 (data3=0x00 data4=0x0E data5=0xDB)
+
+W (133206) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (133759) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (133759) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 32 2F
+
+I (133761) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (133767) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (133775) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (134321) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (134322) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E D7 2F
+
+I (134324) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (134330) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xD7
+
+I (134340) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xD7
+
+I (134350) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (134358) BLE_ONLY: 목적지정보: distance_m=3799 (data3=0x00 data4=0x0E data5=0xD7)
+
+W (134369) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (134921) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (134922) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E D6 2F
+
+I (134924) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (134930) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xD6
+
+I (134940) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xD6
+
+I (134950) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (134958) BLE_ONLY: 목적지정보: distance_m=3798 (data3=0x00 data4=0x0E data5=0xD6)
+
+W (134969) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (135559) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (6 bytes):
+
+I (135559) BLE_ONLY:    len=6: 19 4D 05 01 02 2F
+
+I (135560) BLE_ONLY: HUD cmd from phone: cmd=0x05 dlen=1
+
+I (135566) BLE_ONLY: clear_display called: data1=0x02
+
+I (135572) BLE_ONLY: clear_display: safety_drive 모든 요소 숨김 (이미지, safety거리값, safety단위)
+
+W (135583) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (136121) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (136122) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E CE 2F
+
+I (136124) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (136130) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xCE
+
+I (136140) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xCE
+
+I (136150) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (136158) BLE_ONLY: 목적지정보: distance_m=3790 (data3=0x00 data4=0x0E data5=0xCE)
+
+W (136169) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (136721) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (136722) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 28 2F
+
+I (136724) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (136730) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (136737) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (137284) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (137285) BLE_ONLY:    len=7: 19 4D 03 02 00 19 2F
+
+I (137286) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (137292) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x19
+
+W (137303) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (137846) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (137847) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E CA 2F
+
+I (137849) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (137855) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xCA
+
+I (137865) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xCA
+
+I (137876) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (137883) BLE_ONLY: 목적지정보: distance_m=3786 (data3=0x00 data4=0x0E data5=0xCA)
+
+W (137894) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (138446) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (138447) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E C6 2F
+
+I (138449) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (138455) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xC6
+
+I (138465) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xC6
+
+I (138475) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (138483) BLE_ONLY: 목적지정보: distance_m=3782 (data3=0x00 data4=0x0E data5=0xC6)
+
+W (138494) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (139046) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (139047) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 1E 2F
+
+I (139049) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (139055) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (139062) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (139609) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (139610) BLE_ONLY:    len=7: 19 4D 03 02 00 18 2F
+
+I (139611) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (139617) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x18
+
+W (139628) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (140209) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (140210) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E C3 2F
+
+I (140212) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (140218) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xC3
+
+I (140228) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xC3
+
+I (140238) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (140246) BLE_ONLY: 목적지정보: distance_m=3779 (data3=0x00 data4=0x0E data5=0xC3)
+
+W (140257) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (140809) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (140810) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E BF 2F
+
+I (140812) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (140818) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xBF
+
+I (140828) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xBF
+
+I (140838) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (140846) BLE_ONLY: 목적지정보: distance_m=3775 (data3=0x00 data4=0x0E data5=0xBF)
+
+W (140857) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (141409) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (141410) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 14 2F
+
+I (141412) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (141418) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (141425) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (141971) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (141972) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E BC 2F
+
+I (141974) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (141980) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xBC
+
+I (141991) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xBC
+
+I (142001) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (142009) BLE_ONLY: 목적지정보: distance_m=3772 (data3=0x00 data4=0x0E data5=0xBC)
+
+W (142019) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (142571) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (142572) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E B8 2F
+
+I (142574) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (142580) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xB8
+
+I (142590) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xB8
+
+I (142600) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (142608) BLE_ONLY: 목적지정보: distance_m=3768 (data3=0x00 data4=0x0E data5=0xB8)
+
+W (142619) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (143171) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (143172) BLE_ONLY:    len=7: 19 4D 03 02 00 16 2F
+
+I (143173) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (143179) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x16
+
+W (143191) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (143734) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (143735) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E B5 2F
+
+I (143737) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (143743) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xB5
+
+I (143753) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xB5
+
+I (143763) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (143771) BLE_ONLY: 목적지정보: distance_m=3765 (data3=0x00 data4=0x0E data5=0xB5)
+
+W (143782) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (144334) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (144335) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E B2 2F
+
+I (144336) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (144343) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xB2
+
+I (144353) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xB2
+
+I (144363) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (144371) BLE_ONLY: 목적지정보: distance_m=3762 (data3=0x00 data4=0x0E data5=0xB2)
+
+W (144382) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (144934) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (144935) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 0A 2F
+
+I (144937) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (144943) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (144950) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (145497) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (145498) BLE_ONLY:    len=7: 19 4D 03 02 00 15 2F
+
+I (145498) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (145504) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x15
+
+W (145516) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (146059) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (146060) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E AF 2F
+
+I (146062) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (146068) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xAF
+
+I (146078) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xAF
+
+I (146088) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (146096) BLE_ONLY: 목적지정보: distance_m=3759 (data3=0x00 data4=0x0E data5=0xAF)
+
+W (146107) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (146659) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (146660) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E AC 2F
+
+I (146662) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (146668) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xAC
+
+I (146678) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xAC
+
+I (146688) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (146696) BLE_ONLY: 목적지정보: distance_m=3756 (data3=0x00 data4=0x0E data5=0xAC)
+
+W (146707) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (147259) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (147260) BLE_ONLY:    len=7: 19 4D 03 02 00 12 2F
+
+I (147261) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (147267) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x12
+
+W (147278) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (147859) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (147860) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E A9 2F
+
+I (147862) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (147868) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xA9
+
+I (147878) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xA9
+
+I (147889) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (147896) BLE_ONLY: 목적지정보: distance_m=3753 (data3=0x00 data4=0x0E data5=0xA9)
+
+W (147907) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (148459) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (148460) BLE_ONLY:    len=10: 19 4D 01 05 00 05 00 00 00 2F
+
+I (148462) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (148468) BLE_ONLY: TBT로터리: rr=0, hiding arrow_100.png
+
+W (148474) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (149022) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (149023) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E A7 2F
+
+I (149025) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (149031) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xA7
+
+I (149041) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0xA7
+
+I (149051) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (149059) BLE_ONLY: 목적지정보: distance_m=3751 (data3=0x00 data4=0x0E data5=0xA7)
+
+W (149070) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (149622) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (149623) BLE_ONLY:    len=10: 19 4D 0A 05 00 0D 00 0E 9C 2F
+
+I (149625) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (149631) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0x9C
+
+I (149641) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0D data3=0x00 data4=0x0E data5=0x9C
+
+I (149651) BLE_ONLY: 목적지정보: time_minutes=13 (data1=0x00 data2=0x0D)
+
+I (149659) BLE_ONLY: 목적지정보: distance_m=3740 (data3=0x00 data4=0x0E data5=0x9C)
+
+W (149670) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (150222) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (150223) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 05 5A 2F
+
+I (150225) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (150243) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (150245) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (150443) BLE_ONLY: update_hud_image_for_data called: arrow_tt.png (sector=0, size=), s_hud_image=0x3fced874, mode=0, force_update=0
+
+I (150446) BLE_ONLY: HUD: Starting image load: L:/image/arrow_00.png (sector=0)
+
+I (150470) BLE_ONLY: HUD: lv_img_set_src() took 6 ms for L:/image/arrow_00.png
+
+I (150630) BLE_ONLY: [IMAGE LOAD TIME] HUD: Image file=L:/image/arrow_00.png, decode=158 ms, total=183 ms
+
+I (150785) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (150786) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 9B 2F
+
+I (150788) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (150794) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x9B
+
+I (150804) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x9B
+
+I (150814) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (150822) BLE_ONLY: 목적지정보: distance_m=3739 (data3=0x00 data4=0x0E data5=0x9B)
+
+W (150833) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (151384) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (151385) BLE_ONLY:    len=7: 19 4D 03 02 00 0E 2F
+
+I (151386) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (151392) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x0E
+
+W (151403) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (151947) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (151948) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 99 2F
+
+I (151950) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (151956) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x99
+
+I (151966) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x99
+
+I (151976) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (151984) BLE_ONLY: 목적지정보: distance_m=3737 (data3=0x00 data4=0x0E data5=0x99)
+
+W (151995) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (152547) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (152547) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 05 50 2F
+
+I (152549) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (152568) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (152571) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (153109) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (153110) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 98 2F
+
+I (153112) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (153118) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x98
+
+I (153129) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x98
+
+I (153139) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (153147) BLE_ONLY: 목적지정보: distance_m=3736 (data3=0x00 data4=0x0E data5=0x98)
+
+W (153158) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (153709) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (153710) BLE_ONLY:    len=7: 19 4D 03 02 00 0C 2F
+
+I (153711) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (153717) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x0C
+
+W (153728) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (154309) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (154310) BLE_ONLY:    len=7: 19 4D 03 02 00 0E 2F
+
+I (154311) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (154317) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x0E
+
+W (154328) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (154873) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (154874) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 92 2F
+
+I (154875) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (154881) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x92
+
+I (154892) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x92
+
+I (154902) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (154910) BLE_ONLY: 목적지정보: distance_m=3730 (data3=0x00 data4=0x0E data5=0x92)
+
+W (154921) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (155472) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (155473) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 91 2F
+
+I (155475) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (155481) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x91
+
+I (155491) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x91
+
+I (155501) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (155509) BLE_ONLY: 목적지정보: distance_m=3729 (data3=0x00 data4=0x0E data5=0x91)
+
+W (155520) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (156072) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (156073) BLE_ONLY:    len=7: 19 4D 03 02 00 0D 2F
+
+I (156074) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (156080) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x0D
+
+W (156091) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (156634) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (156635) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 8F 2F
+
+I (156637) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (156643) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x8F
+
+I (156653) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x8F
+
+I (156664) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (156671) BLE_ONLY: 목적지정보: distance_m=3727 (data3=0x00 data4=0x0E data5=0x8F)
+
+W (156682) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (157235) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (157235) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 8D 2F
+
+I (157237) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (157243) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x8D
+
+I (157254) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x8D
+
+I (157264) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (157272) BLE_ONLY: 목적지정보: distance_m=3725 (data3=0x00 data4=0x0E data5=0x8D)
+
+W (157283) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (157835) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (157835) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 05 46 2F
+
+I (157837) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (157856) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (157859) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (158397) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (158398) BLE_ONLY:    len=7: 19 4D 03 02 00 0F 2F
+
+I (158399) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (158405) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x0F
+
+W (158416) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (158960) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (158961) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 8C 2F
+
+I (158962) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (158969) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x8C
+
+I (158979) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x8C
+
+I (158989) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (158997) BLE_ONLY: 목적지정보: distance_m=3724 (data3=0x00 data4=0x0E data5=0x8C)
+
+W (159008) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (159560) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (159561) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 86 2F
+
+I (159563) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (159569) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x86
+
+I (159579) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x86
+
+I (159589) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (159597) BLE_ONLY: 목적지정보: distance_m=3718 (data3=0x00 data4=0x0E data5=0x86)
+
+W (159608) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (160160) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (160161) BLE_ONLY:    len=7: 19 4D 03 02 00 13 2F
+
+I (160161) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (160168) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x13
+
+W (160179) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (160722) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (160723) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 84 2F
+
+I (160725) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (160731) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x84
+
+I (160741) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x84
+
+I (160751) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (160759) BLE_ONLY: 목적지정보: distance_m=3716 (data3=0x00 data4=0x0E data5=0x84)
+
+W (160770) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (161322) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (161323) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 05 3C 2F
+
+I (161325) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (161344) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (161347) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (161885) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (161886) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 80 2F
+
+I (161888) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (161894) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x80
+
+I (161904) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x80
+
+I (161914) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (161922) BLE_ONLY: 목적지정보: distance_m=3712 (data3=0x00 data4=0x0E data5=0x80)
+
+W (161934) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (162484) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (162485) BLE_ONLY:    len=7: 19 4D 03 02 00 17 2F
+
+I (162486) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (162492) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x17
+
+W (162503) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (163047) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (163048) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 7D 2F
+
+I (163050) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (163056) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x7D
+
+I (163066) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x7D
+
+I (163077) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (163084) BLE_ONLY: 목적지정보: distance_m=3709 (data3=0x00 data4=0x0E data5=0x7D)
+
+W (163095) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (163647) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (163648) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 77 2F
+
+I (163650) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (163656) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x77
+
+I (163666) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x77
+
+I (163677) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (163684) BLE_ONLY: 목적지정보: distance_m=3703 (data3=0x00 data4=0x0E data5=0x77)
+
+W (163695) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (164247) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (164248) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 05 32 2F
+
+I (164250) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (164269) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (164272) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (164810) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (164811) BLE_ONLY:    len=7: 19 4D 03 02 00 1C 2F
+
+I (164812) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (164818) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x1C
+
+W (164829) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (165372) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (165373) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 73 2F
+
+I (165375) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (165381) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x73
+
+I (165392) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x73
+
+I (165402) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (165409) BLE_ONLY: 목적지정보: distance_m=3699 (data3=0x00 data4=0x0E data5=0x73)
+
+W (165421) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (165973) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (165974) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 6F 2F
+
+I (165976) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (165982) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x6F
+
+I (165992) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x6F
+
+I (166002) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (166010) BLE_ONLY: 목적지정보: distance_m=3695 (data3=0x00 data4=0x0E data5=0x6F)
+
+W (166021) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (166572) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (166573) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 05 28 2F
+
+I (166575) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (166594) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (166597) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (167135) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (167136) BLE_ONLY:    len=7: 19 4D 03 02 00 1F 2F
+
+I (167137) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (167143) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x1F
+
+W (167154) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (167698) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (167698) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 6B 2F
+
+I (167700) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (167706) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x6B
+
+I (167717) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x6B
+
+I (167727) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (167735) BLE_ONLY: 목적지정보: distance_m=3691 (data3=0x00 data4=0x0E data5=0x6B)
+
+W (167745) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (168298) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (168298) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 65 2F
+
+I (168300) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (168306) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x65
+
+I (168317) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x65
+
+I (168327) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (168335) BLE_ONLY: 목적지정보: distance_m=3685 (data3=0x00 data4=0x0E data5=0x65)
+
+W (168345) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (168898) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (168898) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 05 1E 2F
+
+I (168900) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (168919) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (168922) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (169460) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (169461) BLE_ONLY:    len=7: 19 4D 03 02 00 22 2F
+
+I (169462) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (169468) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x22
+
+W (169479) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (170023) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (170024) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 61 2F
+
+I (170025) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (170032) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x61
+
+I (170042) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x61
+
+I (170052) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (170060) BLE_ONLY: 목적지정보: distance_m=3681 (data3=0x00 data4=0x0E data5=0x61)
+
+W (170071) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (170622) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (170623) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 5C 2F
+
+I (170625) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (170631) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x5C
+
+I (170641) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x5C
+
+I (170652) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (170659) BLE_ONLY: 목적지정보: distance_m=3676 (data3=0x00 data4=0x0E data5=0x5C)
+
+W (170670) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (171223) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (171224) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 05 14 2F
+
+I (171226) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (171245) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (171247) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (171785) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (171786) BLE_ONLY:    len=7: 19 4D 03 02 00 23 2F
+
+I (171787) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (171793) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x23
+
+W (171804) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (172347) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (172348) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 57 2F
+
+I (172350) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (172356) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x57
+
+I (172366) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x57
+
+I (172377) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (172384) BLE_ONLY: 목적지정보: distance_m=3671 (data3=0x00 data4=0x0E data5=0x57)
+
+W (172396) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (172948) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (172949) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 52 2F
+
+I (172951) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (172957) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x52
+
+I (172967) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x52
+
+I (172977) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (172985) BLE_ONLY: 목적지정보: distance_m=3666 (data3=0x00 data4=0x0E data5=0x52)
+
+W (172997) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (173585) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (173586) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 05 0A 2F
+
+I (173588) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (173607) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (173610) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (174148) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (174149) BLE_ONLY:    len=7: 19 4D 03 02 00 22 2F
+
+I (174150) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (174156) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x22
+
+W (174167) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (174710) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (174711) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 4D 2F
+
+I (174713) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (174719) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x4D
+
+I (174729) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x4D
+
+I (174740) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (174747) BLE_ONLY: 목적지정보: distance_m=3661 (data3=0x00 data4=0x0E data5=0x4D)
+
+W (174759) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (175310) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (175311) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 49 2F
+
+I (175313) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (175319) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x49
+
+I (175329) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x49
+
+I (175340) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (175347) BLE_ONLY: 목적지정보: distance_m=3657 (data3=0x00 data4=0x0E data5=0x49)
+
+W (175358) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (175910) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (175911) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 05 00 2F
+
+I (175913) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (175933) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (175935) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (176473) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (176473) BLE_ONLY:    len=7: 19 4D 03 02 00 24 2F
+
+I (176474) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (176480) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x24
+
+W (176492) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (177035) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (177036) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 44 2F
+
+I (177038) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (177044) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x44
+
+I (177055) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x44
+
+I (177065) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (177072) BLE_ONLY: 목적지정보: distance_m=3652 (data3=0x00 data4=0x0E data5=0x44)
+
+W (177083) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (177635) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (177636) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 3E 2F
+
+I (177638) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (177644) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x3E
+
+I (177655) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x3E
+
+I (177665) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (177673) BLE_ONLY: 목적지정보: distance_m=3646 (data3=0x00 data4=0x0E data5=0x3E)
+
+W (177683) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (178235) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (178236) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 04 F6 2F
+
+I (178238) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (178258) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (178261) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (178798) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (178799) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 39 2F
+
+I (178801) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (178807) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x39
+
+I (178817) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x39
+
+I (178827) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (178835) BLE_ONLY: 목적지정보: distance_m=3641 (data3=0x00 data4=0x0E data5=0x39)
+
+W (178846) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (179399) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (179400) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 35 2F
+
+I (179401) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (179407) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x35
+
+I (179418) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x35
+
+I (179428) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (179436) BLE_ONLY: 목적지정보: distance_m=3637 (data3=0x00 data4=0x0E data5=0x35)
+
+W (179447) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (179998) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (179999) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 04 EC 2F
+
+I (180001) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (180020) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (180023) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (180560) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (180561) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 30 2F
+
+I (180563) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (180569) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x30
+
+I (180579) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x30
+
+I (180590) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (180597) BLE_ONLY: 목적지정보: distance_m=3632 (data3=0x00 data4=0x0E data5=0x30)
+
+W (180608) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (181161) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (181161) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 2B 2F
+
+I (181163) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (181169) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x2B
+
+I (181180) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x2B
+
+I (181190) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (181198) BLE_ONLY: 목적지정보: distance_m=3627 (data3=0x00 data4=0x0E data5=0x2B)
+
+W (181209) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (181761) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (181761) BLE_ONLY:    len=7: 19 4D 03 02 00 23 2F
+
+I (181762) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (181768) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x23
+
+W (181780) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (182323) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (182324) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 27 2F
+
+I (182326) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (182332) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x27
+
+I (182342) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x27
+
+I (182352) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (182360) BLE_ONLY: 목적지정보: distance_m=3623 (data3=0x00 data4=0x0E data5=0x27)
+
+W (182371) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (182923) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (182924) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 04 E2 2F
+
+I (182926) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (182945) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (182948) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (183486) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (183487) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 23 2F
+
+I (183489) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (183495) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x23
+
+I (183505) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x23
+
+I (183515) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (183523) BLE_ONLY: 목적지정보: distance_m=3619 (data3=0x00 data4=0x0E data5=0x23)
+
+W (183535) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (184086) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (184087) BLE_ONLY:    len=7: 19 4D 03 02 00 21 2F
+
+I (184087) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (184093) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x21
+
+W (184105) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (184648) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (184649) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 1E 2F
+
+I (184651) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (184657) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x1E
+
+I (184667) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x1E
+
+I (184677) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (184685) BLE_ONLY: 목적지정보: distance_m=3614 (data3=0x00 data4=0x0E data5=0x1E)
+
+W (184696) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (185286) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (185287) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 04 D8 2F
+
+I (185289) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (185308) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (185311) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (185848) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (185849) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 1A 2F
+
+I (185851) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (185857) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x1A
+
+I (185867) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x1A
+
+I (185878) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (185885) BLE_ONLY: 목적지정보: distance_m=3610 (data3=0x00 data4=0x0E data5=0x1A)
+
+W (185896) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (186448) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (186449) BLE_ONLY:    len=7: 19 4D 03 02 00 1E 2F
+
+I (186450) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (186456) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x1E
+
+W (186467) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (187011) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (187012) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 16 2F
+
+I (187014) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (187020) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x16
+
+I (187030) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x16
+
+I (187040) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (187048) BLE_ONLY: 목적지정보: distance_m=3606 (data3=0x00 data4=0x0E data5=0x16)
+
+W (187059) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (187611) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (187612) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 04 CE 2F
+
+I (187614) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (187633) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (187635) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (188173) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (188174) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 13 2F
+
+I (188176) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (188182) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x13
+
+I (188193) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x13
+
+I (188203) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (188210) BLE_ONLY: 목적지정보: distance_m=3603 (data3=0x00 data4=0x0E data5=0x13)
+
+W (188221) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (188773) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (188774) BLE_ONLY:    len=7: 19 4D 03 02 00 1C 2F
+
+I (188775) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (188781) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x1C
+
+W (188792) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (189336) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (189337) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 0F 2F
+
+I (189339) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (189345) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x0F
+
+I (189355) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x0F
+
+I (189365) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (189373) BLE_ONLY: 목적지정보: distance_m=3599 (data3=0x00 data4=0x0E data5=0x0F)
+
+W (189384) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (189936) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (189937) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 0B 2F
+
+I (189939) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (189945) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x0B
+
+I (189955) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x0B
+
+I (189965) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (189973) BLE_ONLY: 목적지정보: distance_m=3595 (data3=0x00 data4=0x0E data5=0x0B)
+
+W (189984) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (190536) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (190537) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 04 C4 2F
+
+I (190538) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (190558) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (190560) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (191098) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (191099) BLE_ONLY:    len=7: 19 4D 03 02 00 19 2F
+
+I (191100) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (191106) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x19
+
+W (191118) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (191661) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (191662) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 07 2F
+
+I (191664) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (191670) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x07
+
+I (191680) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x07
+
+I (191690) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (191698) BLE_ONLY: 목적지정보: distance_m=3591 (data3=0x00 data4=0x0E data5=0x07)
+
+W (191710) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (192261) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (192262) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 05 2F
+
+I (192264) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (192270) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x05
+
+I (192280) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x05
+
+I (192290) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (192298) BLE_ONLY: 목적지정보: distance_m=3589 (data3=0x00 data4=0x0E data5=0x05)
+
+W (192309) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (192861) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (192862) BLE_ONLY:    len=7: 19 4D 03 02 00 15 2F
+
+I (192863) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (192869) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x15
+
+W (192880) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (193424) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (193425) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 02 2F
+
+I (193426) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (193432) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x02
+
+I (193443) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x02
+
+I (193453) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (193461) BLE_ONLY: 목적지정보: distance_m=3586 (data3=0x00 data4=0x0E data5=0x02)
+
+W (193472) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (194062) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (194063) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 04 BA 2F
+
+I (194064) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (194084) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (194087) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (194623) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (194624) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0E 00 2F
+
+I (194626) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (194632) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x00
+
+I (194642) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0E data5=0x00
+
+I (194653) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (194660) BLE_ONLY: 목적지정보: distance_m=3584 (data3=0x00 data4=0x0E data5=0x00)
+
+W (194671) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (195224) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (195225) BLE_ONLY:    len=7: 19 4D 03 02 00 0F 2F
+
+I (195225) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (195231) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x0F
+
+W (195243) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (195786) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (195787) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D FE 2F
+
+I (195789) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (195795) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xFE
+
+I (195805) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xFE
+
+I (195816) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (195823) BLE_ONLY: 목적지정보: distance_m=3582 (data3=0x00 data4=0x0D data5=0xFE)
+
+W (195834) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (196386) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (196387) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D FD 2F
+
+I (196389) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (196395) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xFD
+
+I (196405) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xFD
+
+I (196416) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (196423) BLE_ONLY: 목적지정보: distance_m=3581 (data3=0x00 data4=0x0D data5=0xFD)
+
+W (196434) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (196986) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (196987) BLE_ONLY:    len=7: 19 4D 03 02 00 0C 2F
+
+I (196988) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (196994) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x0C
+
+W (197005) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (197549) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (197550) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D FB 2F
+
+I (197552) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (197558) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xFB
+
+I (197568) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xFB
+
+I (197578) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (197586) BLE_ONLY: 목적지정보: distance_m=3579 (data3=0x00 data4=0x0D data5=0xFB)
+
+W (197597) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (198149) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (198150) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D FA 2F
+
+I (198152) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (198158) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xFA
+
+I (198168) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xFA
+
+I (198178) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (198186) BLE_ONLY: 목적지정보: distance_m=3578 (data3=0x00 data4=0x0D data5=0xFA)
+
+W (198197) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (198749) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (198750) BLE_ONLY:    len=7: 19 4D 03 02 00 0B 2F
+
+I (198751) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (198757) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x0B
+
+W (198768) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (199311) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (199312) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D F9 2F
+
+I (199314) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (199320) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF9
+
+I (199330) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF9
+
+I (199341) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (199348) BLE_ONLY: 목적지정보: distance_m=3577 (data3=0x00 data4=0x0D data5=0xF9)
+
+W (199359) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (199911) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (199912) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 04 B0 2F
+
+I (199914) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (199933) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (199936) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (200474) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (200474) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D F8 2F
+
+I (200476) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (200482) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF8
+
+I (200493) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF8
+
+I (200503) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (200511) BLE_ONLY: 목적지정보: distance_m=3576 (data3=0x00 data4=0x0D data5=0xF8)
+
+W (200521) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (201074) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (201075) BLE_ONLY:    len=7: 19 4D 03 02 00 07 2F
+
+I (201076) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (201082) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x07
+
+W (201093) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (201636) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (201637) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D F7 2F
+
+I (201639) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (201645) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF7
+
+I (201656) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF7
+
+I (201666) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (201673) BLE_ONLY: 목적지정보: distance_m=3575 (data3=0x00 data4=0x0D data5=0xF7)
+
+W (201685) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (202236) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (202237) BLE_ONLY:    len=7: 19 4D 03 02 00 03 2F
+
+I (202238) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (202244) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x03
+
+W (202255) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (202799) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (202800) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D F6 2F
+
+I (202802) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (202808) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF6
+
+I (202818) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF6
+
+I (202828) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (202836) BLE_ONLY: 목적지정보: distance_m=3574 (data3=0x00 data4=0x0D data5=0xF6)
+
+W (202847) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (203399) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (203400) BLE_ONLY:    len=7: 19 4D 03 02 00 01 2F
+
+I (203401) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (203407) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x01
+
+W (203418) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (203962) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (203962) BLE_ONLY:    len=7: 19 4D 03 02 00 00 2F
+
+I (203963) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (203969) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x00
+
+W (203981) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (204524) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (204525) BLE_ONLY:    len=7: 19 4D 03 02 00 01 2F
+
+I (204525) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (204532) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x01
+
+W (204543) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (205087) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (205087) BLE_ONLY:    len=7: 19 4D 03 02 00 00 2F
+
+I (205088) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (205094) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x00
+
+W (205106) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (205649) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (205650) BLE_ONLY:    len=7: 19 4D 03 02 00 01 2F
+
+I (205651) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (205657) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x01
+
+W (205668) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (206212) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (206212) BLE_ONLY:    len=7: 19 4D 03 02 00 00 2F
+
+I (206213) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (206219) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x00
+
+W (206231) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (206774) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (206775) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D F5 2F
+
+I (206777) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (206783) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF5
+
+I (206793) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF5
+
+I (206803) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (206811) BLE_ONLY: 목적지정보: distance_m=3573 (data3=0x00 data4=0x0D data5=0xF5)
+
+W (206822) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (207374) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (207375) BLE_ONLY:    len=7: 19 4D 03 02 00 08 2F
+
+I (207376) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (207382) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x08
+
+W (207393) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (207937) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (207938) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D F4 2F
+
+I (207940) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (207946) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF4
+
+I (207956) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF4
+
+I (207966) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (207974) BLE_ONLY: 목적지정보: distance_m=3572 (data3=0x00 data4=0x0D data5=0xF4)
+
+W (207985) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (208536) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (208537) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D F3 2F
+
+I (208539) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (208545) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF3
+
+I (208556) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF3
+
+I (208566) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (208573) BLE_ONLY: 목적지정보: distance_m=3571 (data3=0x00 data4=0x0D data5=0xF3)
+
+W (208584) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (209137) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (209138) BLE_ONLY:    len=7: 19 4D 03 02 00 06 2F
+
+I (209139) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (209145) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x06
+
+W (209156) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (209699) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (209700) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D F2 2F
+
+I (209702) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (209708) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF2
+
+I (209718) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF2
+
+I (209729) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (209736) BLE_ONLY: 목적지정보: distance_m=3570 (data3=0x00 data4=0x0D data5=0xF2)
+
+W (209747) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (210299) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (210300) BLE_ONLY:    len=7: 19 4D 03 02 00 05 2F
+
+I (210301) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (210307) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x05
+
+W (210318) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (210862) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (210863) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D F1 2F
+
+I (210865) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (210871) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF1
+
+I (210881) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF1
+
+I (210891) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (210899) BLE_ONLY: 목적지정보: distance_m=3569 (data3=0x00 data4=0x0D data5=0xF1)
+
+W (210910) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (211462) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (211463) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D F0 2F
+
+I (211465) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (211471) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF0
+
+I (211481) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xF0
+
+I (211491) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (211499) BLE_ONLY: 목적지정보: distance_m=3568 (data3=0x00 data4=0x0D data5=0xF0)
+
+W (211510) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (212062) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (212063) BLE_ONLY:    len=7: 19 4D 03 02 00 06 2F
+
+I (212064) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (212070) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x06
+
+W (212081) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (212624) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (212625) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D EF 2F
+
+I (212627) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (212633) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xEF
+
+I (212643) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xEF
+
+I (212653) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (212661) BLE_ONLY: 목적지정보: distance_m=3567 (data3=0x00 data4=0x0D data5=0xEF)
+
+W (212673) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (213224) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (213225) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D ED 2F
+
+I (213227) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (213233) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xED
+
+I (213244) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xED
+
+I (213254) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (213261) BLE_ONLY: 목적지정보: distance_m=3565 (data3=0x00 data4=0x0D data5=0xED)
+
+W (213273) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (213824) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (213825) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 04 A6 2F
+
+I (213827) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (213847) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (213850) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (214387) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (214387) BLE_ONLY:    len=7: 19 4D 03 02 00 09 2F
+
+I (214388) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (214394) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x09
+
+W (214406) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (214949) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (214950) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D EC 2F
+
+I (214952) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (214958) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xEC
+
+I (214969) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xEC
+
+I (214979) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (214987) BLE_ONLY: 목적지정보: distance_m=3564 (data3=0x00 data4=0x0D data5=0xEC)
+
+W (214998) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (215550) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (215550) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D EA 2F
+
+I (215552) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (215558) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xEA
+
+I (215569) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xEA
+
+I (215579) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (215587) BLE_ONLY: 목적지정보: distance_m=3562 (data3=0x00 data4=0x0D data5=0xEA)
+
+W (215598) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (216150) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (216150) BLE_ONLY:    len=7: 19 4D 03 02 00 0B 2F
+
+I (216151) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (216157) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x0B
+
+W (216169) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (216713) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (216713) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D E9 2F
+
+I (216715) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (216721) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE9
+
+I (216732) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE9
+
+I (216742) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (216750) BLE_ONLY: 목적지정보: distance_m=3561 (data3=0x00 data4=0x0D data5=0xE9)
+
+W (216761) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (217312) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (217313) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D E8 2F
+
+I (217315) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (217321) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE8
+
+I (217331) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE8
+
+I (217341) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (217349) BLE_ONLY: 목적지정보: distance_m=3560 (data3=0x00 data4=0x0D data5=0xE8)
+
+W (217360) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (217912) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (217913) BLE_ONLY:    len=7: 19 4D 03 02 00 08 2F
+
+I (217914) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (217920) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x08
+
+W (217931) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (218474) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (218475) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D E7 2F
+
+I (218477) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (218483) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE7
+
+I (218493) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE7
+
+I (218504) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (218511) BLE_ONLY: 목적지정보: distance_m=3559 (data3=0x00 data4=0x0D data5=0xE7)
+
+W (218522) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (219075) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (219076) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D E6 2F
+
+I (219078) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (219084) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE6
+
+I (219094) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE6
+
+I (219104) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (219112) BLE_ONLY: 목적지정보: distance_m=3558 (data3=0x00 data4=0x0D data5=0xE6)
+
+W (219123) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (219675) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (219676) BLE_ONLY:    len=7: 19 4D 03 02 00 06 2F
+
+I (219676) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (219682) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x06
+
+W (219694) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (220237) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (220238) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D E5 2F
+
+I (220240) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (220246) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE5
+
+I (220256) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE5
+
+I (220267) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (220274) BLE_ONLY: 목적지정보: distance_m=3557 (data3=0x00 data4=0x0D data5=0xE5)
+
+W (220286) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (220837) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (220838) BLE_ONLY:    len=10: 19 4D 01 05 01 00 00 04 9C 2F
+
+I (220840) BLE_ONLY: HUD cmd from phone: cmd=0x01 dlen=5
+
+I (220860) BLE_ONLY: TBT로터리: rr=1, showing arrow_100.png at sector 9
+
+W (220862) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (221400) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (221401) BLE_ONLY:    len=7: 19 4D 03 02 00 05 2F
+
+I (221402) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (221408) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x05
+
+W (221419) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (221962) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (221963) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D E4 2F
+
+I (221965) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (221971) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE4
+
+I (221981) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE4
+
+I (221992) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (221999) BLE_ONLY: 목적지정보: distance_m=3556 (data3=0x00 data4=0x0D data5=0xE4)
+
+W (222011) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (222563) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (222563) BLE_ONLY:    len=7: 19 4D 03 02 00 04 2F
+
+I (222564) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (222570) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x04
+
+W (222582) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (223125) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (223126) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D E3 2F
+
+I (223128) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (223134) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE3
+
+I (223144) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE3
+
+I (223154) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (223162) BLE_ONLY: 목적지정보: distance_m=3555 (data3=0x00 data4=0x0D data5=0xE3)
+
+W (223173) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (223725) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (223726) BLE_ONLY:    len=7: 19 4D 03 02 00 00 2F
+
+I (223727) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (223733) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x00
+
+W (223744) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (224288) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (224289) BLE_ONLY:    len=7: 19 4D 03 02 00 03 2F
+
+I (224290) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (224296) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x03
+
+W (224307) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (224850) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (224851) BLE_ONLY:    len=7: 19 4D 03 02 00 05 2F
+
+I (224852) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (224858) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x05
+
+W (224869) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (225412) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (225413) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D E2 2F
+
+I (225415) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (225421) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE2
+
+I (225432) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE2
+
+I (225442) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (225449) BLE_ONLY: 목적지정보: distance_m=3554 (data3=0x00 data4=0x0D data5=0xE2)
+
+W (225461) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (226050) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (226051) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D E1 2F
+
+I (226053) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (226059) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE1
+
+I (226069) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE1
+
+I (226079) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (226087) BLE_ONLY: 목적지정보: distance_m=3553 (data3=0x00 data4=0x0D data5=0xE1)
+
+W (226098) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (226650) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (226650) BLE_ONLY:    len=7: 19 4D 03 02 00 07 2F
+
+I (226651) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (226657) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x07
+
+W (226669) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (227212) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (227213) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D E0 2F
+
+I (227215) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (227221) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE0
+
+I (227232) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xE0
+
+I (227242) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (227250) BLE_ONLY: 목적지정보: distance_m=3552 (data3=0x00 data4=0x0D data5=0xE0)
+
+W (227260) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (227812) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (227813) BLE_ONLY:    len=7: 19 4D 03 02 00 08 2F
+
+I (227814) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (227820) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x08
+
+W (227832) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (228375) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (10 bytes):
+
+I (228376) BLE_ONLY:    len=10: 19 4D 0A 05 00 0C 00 0D DF 2F
+
+I (228377) BLE_ONLY: HUD cmd from phone: cmd=0x0A dlen=5
+
+I (228384) BLE_ONLY: 목적지정보 패킷 매칭: data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xDF
+
+I (228394) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x0C data3=0x00 data4=0x0D data5=0xDF
+
+I (228404) BLE_ONLY: 목적지정보: time_minutes=12 (data1=0x00 data2=0x0C)
+
+I (228412) BLE_ONLY: 목적지정보: distance_m=3551 (data3=0x00 data4=0x0D data5=0xDF)
+
+W (228423) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+I (228975) BLE_ONLY: [FFF2 채널] 앱->ESP32 데이터 (7 bytes):
+
+I (228976) BLE_ONLY:    len=7: 19 4D 03 02 00 0A 2F
+
+I (228977) BLE_ONLY: HUD cmd from phone: cmd=0x03 dlen=2
+
+I (228983) BLE_ONLY: speed_mark: called with start=0x19 id=0x4D cmd=0x03 dlen=0x02 data1=0x00 data2=0x0A
+
+W (228994) BLE_ONLY: HUD notify skipped: notify_enabled=0 force=0
+
+

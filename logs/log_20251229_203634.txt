@@ -1,0 +1,7 @@
+﻿WARNING: Python interpreter "C:\Users\kskim\esp32\.espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe" used to start idf.py is not from installed venv "C:\Users\kskim\.espressif\python_env\idf5.5_py3.13_env"
+No serial ports found. Connect a device, or use '-p PORT' option to set a specific port.
+Executing action: monitor
+Serial port COM4
+COM4 failed to connect: Could not open COM4, the port is busy or doesn't exist.
+(could not open port 'COM4': PermissionError(13, '액세스가 거부되었습니다.', None, 5))
+

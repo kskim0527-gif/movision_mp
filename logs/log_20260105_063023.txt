@@ -1,0 +1,1723 @@
+﻿WARNING: Python interpreter "C:\Users\kskim\esp32\.espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe" used to start idf.py is not from installed venv "C:\Users\kskim\.espressif\python_env\idf5.5_py3.13_env"
+Executing action: monitor
+Serial port COM9
+Connecting....
+Detecting chip type... ESP32-S3
+--- Warning: GDB cannot open serial ports accessed as COMx
+
+--- Using \\.\COM9 instead...
+
+--- esp-idf-monitor 1.8.0 on \\.\COM9 115200
+
+--- Quit: Ctrl+] | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+Running idf_monitor in directory C:\vscode\sub_monitor
+Executing "C:\Users\kskim\esp32\.espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe C:\Users\kskim\esp\v5.5.1\esp-idf\tools/idf_monitor.py -p COM9 -b 115200 --toolchain-prefix xtensa-esp32s3-elf- --target esp32s3 --revision 0 C:\vscode\sub_monitor\build\sub_monitor.elf C:\vscode\sub_monitor\build\bootloader\bootloader.elf --force-color -m 'C:\Users\kskim\esp32\.espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe' 'C:\Users\kskim\esp\v5.5.1\esp-idf\tools\idf.py'"...
+ESP-ROM:esp32s3-20210327
+
+Build:Mar 27 2021
+
+rst:0x15 (USB_UART_CHIP_RESET),boot:0x2b (SPI_FAST_FLASH_BOOT)
+
+Saved PC:0x40048d03
+
+--- 0x40048d03: uart_rx_one_char in ROM
+SPIWP:0xee
+
+mode:DIO, clock div:1
+
+load:0x3fce2820,len:0x158c
+
+load:0x403c8700,len:0xd24
+
+--- 0x403c8700: _stext at ??:?
+load:0x403cb700,len:0x2f34
+
+entry 0x403c8924
+
+--- 0x403c8924: call_start_cpu0 at C:/Users/kskim/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c:25
+I (24) boot: ESP-IDF v5.5.1 2nd stage bootloader
+
+I (24) boot: compile time Dec 31 2025 05:45:17
+
+I (25) boot: Multicore bootloader
+
+I (25) boot: chip revision: v0.2
+
+I (28) boot: efuse block revision: v1.3
+
+I (31) boot.esp32s3: Boot SPI Speed : 80MHz
+
+I (35) boot.esp32s3: SPI Mode       : DIO
+
+I (39) boot.esp32s3: SPI Flash Size : 16MB
+
+I (43) boot: Enabling RNG early entropy source...
+
+I (47) boot: Partition Table:
+
+I (50) boot: ## Label            Usage          Type ST Offset   Length
+
+I (56) boot:  0 nvs              WiFi data        01 02 00009000 00006000
+
+I (63) boot:  1 phy_init         RF data          01 01 0000f000 00001000
+
+I (69) boot:  2 factory          factory app      00 00 00010000 00300000
+
+I (76) boot:  3 storage          Unknown data     01 83 00310000 00cf0000
+
+I (82) boot: End of partition table
+
+I (85) esp_image: segment 0: paddr=00010020 vaddr=3c0c0020 size=16160ch (1447436) map
+
+I (348) esp_image: segment 1: paddr=00171634 vaddr=3fc9b200 size=04524h ( 17700) load
+
+I (352) esp_image: segment 2: paddr=00175b60 vaddr=40374000 size=0a4b8h ( 42168) load
+
+I (362) esp_image: segment 3: paddr=00180020 vaddr=42000020 size=b9020h (757792) map
+
+I (496) esp_image: segment 4: paddr=00239048 vaddr=4037e4b8 size=0cce0h ( 52448) load
+
+I (507) esp_image: segment 5: paddr=00245d30 vaddr=50000000 size=00020h (    32) load
+
+I (517) boot: Loaded app from partition at offset 0x10000
+
+I (517) boot: Disabling RNG early entropy source...
+
+I (527) octal_psram: vendor id    : 0x0d (AP)
+
+I (527) octal_psram: dev id       : 0x02 (generation 3)
+
+I (528) octal_psram: density      : 0x03 (64 Mbit)
+
+I (532) octal_psram: good-die     : 0x01 (Pass)
+
+I (537) octal_psram: Latency      : 0x01 (Fixed)
+
+I (543) octal_psram: VCC          : 0x01 (3V)
+
+I (548) octal_psram: SRF          : 0x01 (Fast Refresh)
+
+I (554) octal_psram: BurstType    : 0x01 (Hybrid Wrap)
+
+I (559) octal_psram: BurstLen     : 0x01 (32 Byte)
+
+I (565) octal_psram: Readlatency  : 0x02 (10 cycles@Fixed)
+
+I (571) octal_psram: DriveStrength: 0x00 (1/1)
+
+I (577) MSPI Timing: PSRAM timing tuning index: 5
+
+I (582) esp_psram: Found 8MB PSRAM device
+
+I (586) esp_psram: Speed: 80MHz
+
+I (590) cpu_start: Multicore app
+
+I (1017) esp_psram: SPI SRAM memory test OK
+
+I (1026) cpu_start: Pro cpu start user code
+
+I (1026) cpu_start: cpu freq: 160000000 Hz
+
+I (1026) app_init: Application information:
+
+I (1029) app_init: Project name:     sub_monitor
+
+I (1034) app_init: App version:      1
+
+I (1039) app_init: Compile time:     Jan  3 2026 10:44:53
+
+I (1045) app_init: ELF file SHA256:  dc6fbf6d1...
+
+I (1050) app_init: ESP-IDF:          v5.5.1
+
+I (1055) efuse_init: Min chip rev:     v0.0
+
+I (1060) efuse_init: Max chip rev:     v0.99 
+
+I (1065) efuse_init: Chip rev:         v0.2
+
+I (1070) heap_init: Initializing. RAM available for dynamic allocation:
+
+I (1077) heap_init: At 3FCA3FA0 len 00045770 (277 KiB): RAM
+
+I (1083) heap_init: At 3FCE9710 len 00005724 (21 KiB): RAM
+
+I (1089) heap_init: At 3FCF0000 len 00008000 (32 KiB): DRAM
+
+I (1096) heap_init: At 600FE000 len 00001FE8 (7 KiB): RTCRAM
+
+I (1102) esp_psram: Adding pool of 8192K of PSRAM memory to heap allocator
+
+I (1110) spi_flash: detected chip: winbond
+
+I (1114) spi_flash: flash io: dio
+
+I (1119) sleep_gpio: Configure to isolate all GPIO pins in sleep state
+
+I (1126) sleep_gpio: Enable automatic switching of GPIO sleep configuration
+
+I (1133) coexist: coex firmware version: b0bcc39
+
+I (1139) coexist: coexist rom version e7ae62f
+
+I (1144) main_task: Started on CPU0
+
+I (1148) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations
+
+I (1157) main_task: Calling app_main()
+
+I (1161) BLE_ONLY: Reset reason: UNKNOWN (11)
+
+I (1166) BLE_ONLY: Booting BLE-only...
+
+I (1171) sh8601: LCD panel create success, version: 1.0.0
+
+W (1387) sh8601: The 3Ah command has been used and will be overwritten by external initialization sequence
+
+W (1387) sh8601: The 36h command has been used and will be overwritten by external initialization sequence
+
+I (2387) BLE_ONLY: LCD: Initial brightness set to maximum (level 7)
+
+I (2387) BLE_ONLY: LCD: panel initialized successfully
+
+I (2389) BLE_ONLY: LVGL: POSIX file system driver initialized (letter='L', path='/littlefs')
+
+I (2398) BLE_ONLY: LVGL: PNG decoder initialized (lodepng library, uses PSRAM via custom allocator)
+
+I (2407) BLE_ONLY: LVGL: BMP decoder initialized
+
+I (2412) BLE_ONLY: LVGL: 'S:' drive registered for custom path access
+
+I (2440) BLE_ONLY: LVGL: Outer ring created (5pt gray)
+
+I (2441) BLE_ONLY: Display mode switched to: HUD
+
+I (2442) BLE_ONLY: LVGL: Initialized successfully
+
+I (2446) BLE_ONLY: Packet log buffer allocated (128KB in PSRAM)
+
+I (2453) BLE_ONLY: Boot button initialized (GPIO0)
+
+I (2465) BLE_INIT: BT controller compile version [2edb0b0]
+
+I (2465) BLE_INIT: Using main XTAL as clock source
+
+I (2470) BLE_INIT: Feature Config, ADV:1, BLE_50:1, DTM:1, SCAN:1, CCA:0, SMP:1, CONNECT:1
+
+I (2479) BLE_INIT: Bluetooth MAC: 80:b5:4e:da:68:32
+
+I (2485) phy_init: phy_version 701,f4f1da3a,Mar  3 2025,15:50:10
+
+I (2554) BLE_ONLY: Requested HID service (0x1812) creation
+
+I (2555) BLE_ONLY: Requested HUD service (0xFFEA) creation
+
+I (2559) BLE_ONLY: ADV data set
+
+I (2560) BLE_ONLY: ScanRsp data set
+
+I (2564) BLE_ONLY: HID service created handle=40
+
+I (2569) BLE_ONLY: HUD(128) service created handle=56
+
+I (2575) BLE_ONLY: HID Info added handle=42
+
+I (2580) BLE_ONLY: ★ FFF1 (Read/Notify) characteristic added handle=58 ★
+
+I (2588) BLE_ONLY: ★ Requesting CCCD (0x2902) descriptor addition for FFF1 (handle=58) ★
+
+I (2597) BLE_ONLY: ★ CCCD descriptor addition requested successfully ★
+
+I (2605) BLE_ONLY: HID ReportMap added handle=44
+
+I (2610) BLE_ONLY: ★ CCCD (0x2902) descriptor for FFF1 added handle=59 (should be right after FFF1 handle=58) ★
+
+I (2621) BLE_ONLY: ★ Requesting FFF2 (Write) characteristic addition after CCCD ★
+
+I (2629) BLE_ONLY: Requested FFF2 (Write) characteristic addition after CCCD
+
+I (2637) BLE_ONLY: HID ControlPoint added handle=46
+
+I (2643) BLE_ONLY: ★ FFF2 (Write) characteristic added handle=61 (after CCCD handle=59) ★
+
+I (2652) BLE_ONLY: HID Report(2A4D) added handle=48
+
+I (2657) BLE_ONLY: HUD service started=1
+
+I (2662) BLE_ONLY: HID CCCD(Report) added handle=49
+
+I (2668) BLE_ONLY: HID service started=1
+
+I (2675) BLE_ONLY: Advertising started
+
+I (2677) BLE_ONLY: Initializing LittleFS
+
+I (3028) BLE_ONLY: LittleFS mounted at /littlefs
+
+I (3028) BLE_ONLY: Partition size: total: 13565952 bytes, used: 10903552 bytes
+
+I (3030) BLE_ONLY: Mounting SD card (SDMMC 1-bit) at /sdcard ...
+
+E (3065) sdmmc_common: sdmmc_init_ocr: send_op_cond (1) returned 0x107
+
+[0;33mHINT: Please reboot the board and then try again[0m
+E (3066) vfs_fat_sdmmc: sdmmc_card_init failed (0x107).
+
+[0;33mHINT: Please verify if there is an SD card inserted into the SD slot. Then, try rebooting the board.[0m
+E (3068) BLE_ONLY: Failed to initialize SD card (ESP_ERR_TIMEOUT). Check pull-ups and wiring on CLK/CMD/D0.
+
+W (3078) BLE_ONLY: SD card is not available: ESP_ERR_TIMEOUT
+
+I (3084) BLE_ONLY: Attempting to load CSV file from littlefs...
+
+I (3091) BLE_ONLY: Listing files in /littlefs:
+
+I (3098) BLE_ONLY:   Found: Safety_DRV.CSV (type=1)
+
+I (3102) BLE_ONLY:   Found: TBT.CSV (type=1)
+
+I (3107) BLE_ONLY:   Found: font (type=2)
+
+I (3112) BLE_ONLY:   Found: image (type=2)
+
+I (3117) BLE_ONLY:   Found: intro (type=2)
+
+I (3124) BLE_ONLY: Listing files in /littlefs/image:
+
+I (3128) BLE_ONLY:   Found: Group_4.bmp (type=1)
+
+I (3135) BLE_ONLY:   Found: arrow_00.bmp (type=1)
+
+I (3140) BLE_ONLY:   Found: arrow_01.bmp (type=1)
+
+I (3146) BLE_ONLY:   Found: arrow_02.bmp (type=1)
+
+I (3151) BLE_ONLY:   Found: arrow_03.bmp (type=1)
+
+I (3156) BLE_ONLY:   Found: arrow_04.bmp (type=1)
+
+I (3162) BLE_ONLY:   Found: arrow_05.bmp (type=1)
+
+I (3167) BLE_ONLY:   Found: arrow_06.bmp (type=1)
+
+I (3172) BLE_ONLY:   Found: arrow_07.bmp (type=1)
+
+I (3178) BLE_ONLY:   Found: arrow_08.bmp (type=1)
+
+I (3183) BLE_ONLY:   Found: arrow_09.bmp (type=1)
+
+I (3188) BLE_ONLY:   Found: arrow_10.bmp (type=1)
+
+I (3194) BLE_ONLY:   Found: arrow_100.bmp (type=1)
+
+I (3199) BLE_ONLY:   Found: arrow_11.bmp (type=1)
+
+I (3205) BLE_ONLY:   Found: arrow_110.bmp (type=1)
+
+I (3210) BLE_ONLY:   Found: arrow_111.bmp (type=1)
+
+I (3216) BLE_ONLY:   Found: arrow_112.bmp (type=1)
+
+I (3221) BLE_ONLY:   Found: arrow_113.bmp (type=1)
+
+I (3226) BLE_ONLY:   Found: arrow_114.bmp (type=1)
+
+I (3232) BLE_ONLY:   Found: arrow_115.bmp (type=1)
+
+I (3237) BLE_ONLY:   Found: arrow_116.bmp (type=1)
+
+I (3242) BLE_ONLY:   Found: arrow_117.bmp (type=1)
+
+I (3248) BLE_ONLY:   Found: arrow_12.bmp (type=1)
+
+I (3254) BLE_ONLY:   Found: arrow_13.bmp (type=1)
+
+I (3259) BLE_ONLY:   Found: arrow_14.bmp (type=1)
+
+I (3264) BLE_ONLY:   Found: arrow_15.bmp (type=1)
+
+I (3269) BLE_ONLY:   Found: arrow_16.bmp (type=1)
+
+I (3275) BLE_ONLY:   Found: arrow_17.bmp (type=1)
+
+I (3282) BLE_ONLY:   Found: arrow_18.bmp (type=1)
+
+I (3285) BLE_ONLY:   Found: ban.bmp (type=1)
+
+I (3290) BLE_ONLY:   Found: camera_100.bmp (type=1)
+
+I (3296) BLE_ONLY:   Found: camera_110.bmp (type=1)
+
+I (3301) BLE_ONLY:   Found: camera_120.bmp (type=1)
+
+I (3307) BLE_ONLY:   Found: camera_30.bmp (type=1)
+
+I (3312) BLE_ONLY:   Found: camera_40.bmp (type=1)
+
+I (3318) BLE_ONLY:   Found: camera_50.bmp (type=1)
+
+I (3323) BLE_ONLY:   Found: camera_60.bmp (type=1)
+
+I (3328) BLE_ONLY:   Found: camera_70.bmp (type=1)
+
+I (3334) BLE_ONLY:   Found: camera_80.bmp (type=1)
+
+I (3340) BLE_ONLY:   Found: camera_90.bmp (type=1)
+
+I (3345) BLE_ONLY:   Found: children.bmp (type=1)
+
+I (3350) BLE_ONLY:   Found: detail_arrow_40.bmp (type=1)
+
+I (3356) BLE_ONLY:   Found: exclusive_bus.bmp (type=1)
+
+I (3362) BLE_ONLY:   Found: go_to.bmp (type=1)
+
+I (3367) BLE_ONLY:   Found: section_100.bmp (type=1)
+
+I (3373) BLE_ONLY: AUTH_CMPL success=1 (encryption COMPLETE)
+
+I (3377) BLE_ONLY: AUTH_CMPL SUCCESS - addr=38:d5:7a:26:5f:7c, key_type=0
+
+I (3387) BLE_ONLY:   Found: section_110.bmp (type=1)
+
+I (3392) BLE_ONLY:   Found: section_120.bmp (type=1)
+
+I (3398) BLE_ONLY:   Found: section_30.bmp (type=1)
+
+I (3403) BLE_ONLY:   Found: section_40.bmp (type=1)
+
+I (3408) BLE_ONLY:   Found: section_50.bmp (type=1)
+
+I (3414) BLE_ONLY:   Found: section_60.bmp (type=1)
+
+I (3420) BLE_ONLY:   Found: section_70.bmp (type=1)
+
+I (3425) BLE_ONLY:   Found: section_80.bmp (type=1)
+
+I (3433) BLE_ONLY: peer_bda=38:d5:7a:26:5f:7c
+
+I (3435) BLE_ONLY: Requesting encryption for 38:d5:7a:26:5f:7c
+
+I (3441) BLE_ONLY: esp_ble_set_encryption request sent successfully
+
+I (3448) BLE_ONLY: Connection parameters updated: min_int=16 max_int=32 latency=0 timeout=500
+
+I (3457) BLE_ONLY: connected
+
+I (3461) BLE_ONLY: MTU=247
+
+I (3467) BLE_ONLY:   Found: section_90.bmp (type=1)
+
+I (3471) BLE_ONLY:   Found: signal_100.bmp (type=1)
+
+I (3476) BLE_ONLY:   Found: signal_110.bmp (type=1)
+
+I (3478) BLE_ONLY: RSSI read: value=-63 dBm
+
+I (3487) BLE_ONLY:   Found: signal_120.bmp (type=1)
+
+I (3492) BLE_ONLY:   Found: signal_30.bmp (type=1)
+
+I (3498) BLE_ONLY:   Found: signal_40.bmp (type=1)
+
+I (3503) BLE_ONLY:   Found: signal_50.bmp (type=1)
+
+I (3508) BLE_ONLY:   Found: signal_60.bmp (type=1)
+
+I (3514) BLE_ONLY:   Found: signal_70.bmp (type=1)
+
+I (3519) BLE_ONLY:   Found: signal_80.bmp (type=1)
+
+I (3525) BLE_ONLY:   Found: signal_90.bmp (type=1)
+
+I (3530) BLE_ONLY:   Found: speed_100.bmp (type=1)
+
+I (3536) BLE_ONLY:   Found: speed_110.bmp (type=1)
+
+I (3541) BLE_ONLY:   Found: speed_120.bmp (type=1)
+
+I (3546) BLE_ONLY:   Found: speed_30.bmp (type=1)
+
+I (3552) BLE_ONLY:   Found: speed_40.bmp (type=1)
+
+I (3557) BLE_ONLY:   Found: speed_50.bmp (type=1)
+
+I (3563) BLE_ONLY:   Found: speed_60.bmp (type=1)
+
+I (3568) BLE_ONLY:   Found: speed_70.bmp (type=1)
+
+I (3573) BLE_ONLY:   Found: speed_80.bmp (type=1)
+
+I (3579) BLE_ONLY:   Found: speed_90.bmp (type=1)
+
+I (3586) BLE_ONLY: CSV file found at: /littlefs/TBT.CSV
+
+I (3591) BLE_ONLY: CSV file opened, first 63 bytes (hex):
+
+I (3596) BLE_ONLY:   0000: 
+
+I (3599) BLE_ONLY: 73 
+
+I (3602) BLE_ONLY: 74 
+
+I (3605) BLE_ONLY: 61 
+
+I (3608) BLE_ONLY: 72 
+
+I (3611) BLE_ONLY: 74 
+
+I (3614) BLE_ONLY: 2C 
+
+I (3617) BLE_ONLY: 49 
+
+I (3620) BLE_ONLY: 44 
+
+I (3623) BLE_ONLY: 2C 
+
+I (3626) BLE_ONLY: 63 
+
+I (3629) BLE_ONLY: 6F 
+
+I (3632) BLE_ONLY: 6D 
+
+I (3635) BLE_ONLY: 6D 
+
+I (3638) BLE_ONLY: 65 
+
+I (3641) BLE_ONLY: 6E 
+
+I (3645) BLE_ONLY: 64 
+
+I (3648) BLE_ONLY: 
+
+I (3650) BLE_ONLY:   0016: 
+
+I (3654) BLE_ONLY: 2C 
+
+I (3657) BLE_ONLY: 64 
+
+I (3660) BLE_ONLY: 61 
+
+I (3663) BLE_ONLY: 74 
+
+I (3666) BLE_ONLY: 61 
+
+I (3669) BLE_ONLY: 5F 
+
+I (3672) BLE_ONLY: 6C 
+
+I (3675) BLE_ONLY: 65 
+
+I (3678) BLE_ONLY: 6E 
+
+I (3681) BLE_ONLY: 67 
+
+I (3684) BLE_ONLY: 74 
+
+I (3687) BLE_ONLY: 68 
+
+I (3690) BLE_ONLY: 2C 
+
+I (3693) BLE_ONLY: 64 
+
+I (3696) BLE_ONLY: 61 
+
+I (3699) BLE_ONLY: 74 
+
+I (3702) BLE_ONLY: 
+
+I (3705) BLE_ONLY:   0032: 
+
+I (3709) BLE_ONLY: 61 
+
+I (3712) BLE_ONLY: 31 
+
+I (3715) BLE_ONLY: 2C 
+
+I (3718) BLE_ONLY: 64 
+
+I (3721) BLE_ONLY: 61 
+
+I (3724) BLE_ONLY: 74 
+
+I (3727) BLE_ONLY: 61 
+
+I (3730) BLE_ONLY: 32 
+
+I (3733) BLE_ONLY: 2C 
+
+I (3736) BLE_ONLY: 64 
+
+I (3739) BLE_ONLY: 61 
+
+I (3742) BLE_ONLY: 74 
+
+I (3745) BLE_ONLY: 61 
+
+I (3748) BLE_ONLY: 33 
+
+I (3751) BLE_ONLY: 2C 
+
+I (3754) BLE_ONLY: 64 
+
+I (3757) BLE_ONLY: 
+
+I (3760) BLE_ONLY:   0048: 
+
+I (3764) BLE_ONLY: 61 
+
+I (3767) BLE_ONLY: 74 
+
+I (3770) BLE_ONLY: 61 
+
+I (3773) BLE_ONLY: 34 
+
+I (3776) BLE_ONLY: 2C 
+
+I (3779) BLE_ONLY: 64 
+
+I (3782) BLE_ONLY: 61 
+
+I (3785) BLE_ONLY: 74 
+
+I (3788) BLE_ONLY: 61 
+
+I (3791) BLE_ONLY: 35 
+
+I (3794) BLE_ONLY: 2C 
+
+I (3797) BLE_ONLY: 65 
+
+I (3800) BLE_ONLY: 6E 
+
+I (3803) BLE_ONLY: 64 
+
+I (3806) BLE_ONLY: 2C 
+
+I (3809) BLE_ONLY: 
+
+I (3812) BLE_ONLY: CSV file first 63 bytes (text): start,ID,commend,data_length,data1,data2,data3,data4,data5,end,
+
+I (3824) BLE_ONLY: CSV line 0: field_idx=12
+
+I (3828) BLE_ONLY:   field[0]='0x19'
+
+I (3832) BLE_ONLY:   field[1]='0x4D'
+
+I (3836) BLE_ONLY:   field[2]='0x01'
+
+I (3841) BLE_ONLY:   field[3]='0x05'
+
+I (3845) BLE_ONLY:   field[4]='0x00'
+
+I (3849) BLE_ONLY:   field[5]='0x00'
+
+I (3853) BLE_ONLY:   field[6]=''
+
+I (3857) BLE_ONLY:   field[7]=''
+
+I (3861) BLE_ONLY:   field[8]=''
+
+I (3865) BLE_ONLY:   field[9]='2f'
+
+I (3869) BLE_ONLY:   field[10]='arrow_00.bmp'
+
+I (3874) BLE_ONLY:   field[11]='0
+'
+
+I (3878) BLE_ONLY: CSV line 0 fields: start='0x19' id='0x4D' commend='0x01' dlen='0x05' data1='0x00' data2='0x00'
+
+I (3889) BLE_ONLY: CSV line 0 fields: filename='arrow_00.bmp' sector='0
+'
+
+I (3897) BLE_ONLY: CSV line 1: field_idx=12
+
+I (3902) BLE_ONLY:   field[0]='0x19'
+
+I (3906) BLE_ONLY:   field[1]='0x4D'
+
+I (3910) BLE_ONLY:   field[2]='0x01'
+
+I (3914) BLE_ONLY:   field[3]='0x05'
+
+I (3919) BLE_ONLY:   field[4]='0x00'
+
+I (3923) BLE_ONLY:   field[5]='0x01'
+
+I (3927) BLE_ONLY:   field[6]=''
+
+I (3931) BLE_ONLY:   field[7]=''
+
+I (3935) BLE_ONLY:   field[8]=''
+
+I (3939) BLE_ONLY:   field[9]='2f'
+
+I (3943) BLE_ONLY:   field[10]='arrow_01.bmp'
+
+I (3948) BLE_ONLY:   field[11]='0
+'
+
+I (3952) BLE_ONLY: CSV line 1 fields: start='0x19' id='0x4D' commend='0x01' dlen='0x05' data1='0x00' data2='0x01'
+
+I (3963) BLE_ONLY: CSV line 1 fields: filename='arrow_01.bmp' sector='0
+'
+
+I (3971) BLE_ONLY: CSV line 2: field_idx=12
+
+I (3975) BLE_ONLY:   field[0]='0x19'
+
+I (3980) BLE_ONLY:   field[1]='0x4D'
+
+I (3984) BLE_ONLY:   field[2]='0x01'
+
+I (3988) BLE_ONLY:   field[3]='0x05'
+
+I (3992) BLE_ONLY:   field[4]='0x00'
+
+I (3997) BLE_ONLY:   field[5]='0x02'
+
+I (4001) BLE_ONLY:   field[6]=''
+
+I (4005) BLE_ONLY:   field[7]=''
+
+I (4009) BLE_ONLY:   field[8]=''
+
+I (4013) BLE_ONLY:   field[9]='2f'
+
+I (4017) BLE_ONLY:   field[10]='arrow_02.bmp'
+
+I (4022) BLE_ONLY:   field[11]='0
+'
+
+I (4026) BLE_ONLY: CSV line 2 fields: start='0x19' id='0x4D' commend='0x01' dlen='0x05' data1='0x00' data2='0x02'
+
+I (4037) BLE_ONLY: CSV line 2 fields: filename='arrow_02.bmp' sector='0
+'
+
+I (4046) BLE_ONLY: Loaded 27 image data entries from CSV
+
+I (4050) BLE_ONLY:   Entry 0: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x00 data2=0x00 -> arrow_00.bmp (sector=0, size=)
+
+I (4062) BLE_ONLY:   Entry 1: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x00 data2=0x01 -> arrow_01.bmp (sector=0, size=)
+
+I (4074) BLE_ONLY:   Entry 2: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x00 data2=0x02 -> arrow_02.bmp (sector=0, size=)
+
+I (4087) BLE_ONLY:   Entry 3: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x00 data2=0x03 -> arrow_03.bmp (sector=0, size=)
+
+I (4099) BLE_ONLY:   Entry 4: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x00 data2=0x04 -> arrow_04.bmp (sector=0, size=)
+
+I (4111) BLE_ONLY:   Entry 5: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x00 data2=0x05 -> arrow_05.bmp (sector=0, size=)
+
+I (4123) BLE_ONLY:   Entry 6: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x00 data2=0x06 -> arrow_06.bmp (sector=0, size=)
+
+I (4135) BLE_ONLY:   Entry 7: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x00 data2=0x07 -> arrow_07.bmp (sector=0, size=)
+
+I (4147) BLE_ONLY:   Entry 8: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x00 data2=0x08 -> arrow_08.bmp (sector=0, size=)
+
+I (4160) BLE_ONLY:   Entry 9: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x00 data2=0x09 -> arrow_09.bmp (sector=0, size=)
+
+I (4172) BLE_ONLY:   Entry 10: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x00 data2=0x0A -> arrow_10.bmp (sector=0, size=)
+
+I (4184) BLE_ONLY:   Entry 11: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x00 data2=0x0B -> arrow_11.bmp (sector=0, size=)
+
+I (4196) BLE_ONLY:   Entry 12: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x00 data2=0x0C -> arrow_12.bmp (sector=0, size=)
+
+I (4208) BLE_ONLY:   Entry 13: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x00 data2=0x0D -> arrow_13.bmp (sector=0, size=)
+
+I (4221) BLE_ONLY:   Entry 14: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x00 data2=0x0E -> arrow_14.bmp (sector=0, size=)
+
+I (4233) BLE_ONLY:   Entry 15: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x00 data2=0x0F -> arrow_15.bmp (sector=0, size=)
+
+I (4245) BLE_ONLY:   Entry 16: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x00 data2=0x10 -> arrow_16.bmp (sector=0, size=)
+
+I (4257) BLE_ONLY:   Entry 17: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x00 data2=0x11 -> arrow_17.bmp (sector=0, size=)
+
+I (4270) BLE_ONLY:   Entry 18: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x00 data2=0x12 -> arrow_18.bmp (sector=0, size=)
+
+I (4282) BLE_ONLY:   Entry 19: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x01 data2=0x00 -> arrow_110.bmp (sector=0, size=)
+
+I (4294) BLE_ONLY:   Entry 20: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x01 data2=0x01 -> arrow_111.bmp (sector=0, size=)
+
+I (4306) BLE_ONLY:   Entry 21: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x01 data2=0x02 -> arrow_112.bmp (sector=0, size=)
+
+I (4319) BLE_ONLY:   Entry 22: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x01 data2=0x03 -> arrow_113.bmp (sector=0, size=)
+
+I (4331) BLE_ONLY:   Entry 23: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x01 data2=0x04 -> arrow_114.bmp (sector=0, size=)
+
+I (4343) BLE_ONLY:   Entry 24: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x01 data2=0x05 -> arrow_115.bmp (sector=0, size=)
+
+I (4356) BLE_ONLY:   Entry 25: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x01 data2=0x06 -> arrow_116.bmp (sector=0, size=)
+
+I (4368) BLE_ONLY:   Entry 26: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0x01 data2=0x07 -> arrow_117.bmp (sector=0, size=)
+
+I (4380) BLE_ONLY: CSV file loaded successfully, entries=27
+
+I (4387) BLE_ONLY: Attempting to load Safety_DRV CSV file from littlefs...
+
+I (4397) BLE_ONLY: Safety_DRV CSV file found at: /littlefs/Safety_DRV.CSV
+
+I (4405) BLE_ONLY: Loaded 11 safety data entries from CSV
+
+I (4408) BLE_ONLY: Safety_DRV CSV file loaded successfully, entries=11
+
+I (4423) BLE_ONLY: Intro image found: /littlefs/intro/intro.gif
+
+I (4424) BLE_ONLY: Displaying intro (min 1.5s, wait for BLE)...
+
+I (5478) BLE_ONLY: RSSI read: value=-69 dBm
+
+I (5926) BLE_ONLY: BLE connected, ending intro.
+
+I (6009) BLE_ONLY: Intro display complete (elapsed: 1585 ms)
+
+I (6011) BLE_ONLY: RSSI label updated: text='RSSI: -69', connected=1, rssi_read_once=1, rssi_value=-69
+
+I (6015) BLE_ONLY: 버퍼/큐 모니터링 태스크 시작
+
+I (6055) BLE_ONLY: Initialization complete
+
+W (6491) BT_HCI: hcif disc complete: hdl 0x1, rsn 0x13 dev_find 1
+
+I (6492) BLE_ONLY: disconnected reason=0x13
+
+I (6494) BLE_ONLY: RSSI label updated: text='RSSI: --', connected=0, rssi_read_once=0, rssi_value=-128
+
+I (6496) BLE_ONLY: Advertising started
+
+I (36021) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (36022) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.3% (여유: 5464/8192 bytes)
+
+I (36026) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (36036) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 50.7% (여유: 2020/4096 bytes)
+
+I (36046) BLE_ONLY: 총 태스크 수: 15
+
+I (36051) BLE_ONLY: 메모리 상태: 여유=7473004 bytes, 최소여유=7453112 bytes, 최대블록=7208960 bytes
+
+I (36062) BLE_ONLY: PSRAM 상태: 여유=7328036 bytes, 최소여유=7328036 bytes
+
+I (36555) BLE_ONLY: AUTH_CMPL success=1 (encryption COMPLETE)
+
+I (36555) BLE_ONLY: AUTH_CMPL SUCCESS - addr=38:d5:7a:26:5f:7c, key_type=0
+
+I (36614) BLE_ONLY: peer_bda=38:d5:7a:26:5f:7c
+
+I (36615) BLE_ONLY: Requesting encryption for 38:d5:7a:26:5f:7c
+
+I (36616) BLE_ONLY: esp_ble_set_encryption request sent successfully
+
+I (36623) BLE_ONLY: Connection parameters updated: min_int=16 max_int=32 latency=0 timeout=500
+
+I (36632) BLE_ONLY: connected
+
+I (36635) BLE_ONLY: MTU=247
+
+I (36644) BLE_ONLY: client_started: first WRITE (handle=61)
+
+I (36645) BLE_ONLY: feature_active=1 (trigger handle=61)
+
+I (36651) BLE_ONLY: time_set: time set to 2026-01-04 09:31:58
+
+W (36658) BLE_ONLY: time_set: SD card not mounted, skipping packet save
+
+I (36665) BLE_ONLY: Packet logging enabled (time data received)
+
+I (36684) BLE_ONLY: time_set: periodic time update timer started
+
+I (36688) BLE_ONLY: RSSI read: value=-68 dBm
+
+I (36772) BLE_ONLY: RSSI label updated: text='RSSI: -68', connected=1, rssi_read_once=1, rssi_value=-68
+
+I (37153) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4C data3=0x01 data4=0xD0 data5=0xC2
+
+I (37154) BLE_ONLY: 목적지정보: time_minutes=76 (data1=0x00 data2=0x4C)
+
+I (37161) BLE_ONLY: 목적지정보: distance_m=118978 (data3=0x01 data4=0xD0 data5=0xC2)
+
+I (37177) BLE_ONLY: 목적지정보: 이미지 객체 생성 완료
+
+I (37194) BLE_ONLY: 목적지정보: 이미지 로드 완료: L:/image/go_to.bmp
+
+I (37331) BLE_ONLY: HUD: Image change detected:  -> L:/image/arrow_00.bmp (sector=0)
+
+I (37331) BLE_ONLY: HUD: Starting image load: L:/image/arrow_00.bmp (sector=0)
+
+I (37354) BLE_ONLY: HUD: lv_img_set_src() took 6 ms for L:/image/arrow_00.bmp
+
+I (37354) BLE_ONLY: HUD: Image file=L:/image/arrow_00.bmp loaded (decoding in background)
+
+I (37396) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (37575) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (37592) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4C data3=0x01 data4=0xD0 data5=0xB7
+
+I (37593) BLE_ONLY: 목적지정보: time_minutes=76 (data1=0x00 data2=0x4C)
+
+I (37600) BLE_ONLY: 목적지정보: distance_m=118967 (data3=0x01 data4=0xD0 data5=0xB7)
+
+I (37615) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (37697) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (37893) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (38113) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (38171) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (38172) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4C data3=0x01 data4=0xD0 data5=0xAB
+
+I (38180) BLE_ONLY: 목적지정보: time_minutes=76 (data1=0x00 data2=0x4C)
+
+I (38187) BLE_ONLY: 목적지정보: distance_m=118955 (data3=0x01 data4=0xD0 data5=0xAB)
+
+I (38202) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (38207) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4C data3=0x01 data4=0xD0 data5=0xA1
+
+I (38217) BLE_ONLY: 목적지정보: time_minutes=76 (data1=0x00 data2=0x4C)
+
+I (38224) BLE_ONLY: 목적지정보: distance_m=118945 (data3=0x01 data4=0xD0 data5=0xA1)
+
+I (38238) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (38416) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (38515) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (38795) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4C data3=0x01 data4=0xD0 data5=0x95
+
+I (38796) BLE_ONLY: 목적지정보: time_minutes=76 (data1=0x00 data2=0x4C)
+
+I (38802) BLE_ONLY: 목적지정보: distance_m=118933 (data3=0x01 data4=0xD0 data5=0x95)
+
+I (38816) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (38822) BLE_ONLY: clear_display called: data1=0x02
+
+I (38827) BLE_ONLY: clear_display: safety_drive 모든 요소 숨김 (이미지, safety거리값, safety단위)
+
+I (38839) BLE_ONLY: RSSI label updated: text='RSSI: -63', connected=1, rssi_read_once=1, rssi_value=-63
+
+I (39067) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4C data3=0x01 data4=0xD0 data5=0x8B
+
+I (39068) BLE_ONLY: 목적지정보: time_minutes=76 (data1=0x00 data2=0x4C)
+
+I (39074) BLE_ONLY: 목적지정보: distance_m=118923 (data3=0x01 data4=0xD0 data5=0x8B)
+
+I (39088) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (39314) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4C data3=0x01 data4=0xD0 data5=0x7F
+
+I (39314) BLE_ONLY: 목적지정보: time_minutes=76 (data1=0x00 data2=0x4C)
+
+I (39321) BLE_ONLY: 목적지정보: distance_m=118911 (data3=0x01 data4=0xD0 data5=0x7F)
+
+I (39335) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (39557) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4C data3=0x01 data4=0xD0 data5=0x74
+
+I (39558) BLE_ONLY: 목적지정보: time_minutes=76 (data1=0x00 data2=0x4C)
+
+I (39564) BLE_ONLY: 목적지정보: distance_m=118900 (data3=0x01 data4=0xD0 data5=0x74)
+
+I (39578) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (39807) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4C data3=0x01 data4=0xD0 data5=0x6A
+
+I (39807) BLE_ONLY: 목적지정보: time_minutes=76 (data1=0x00 data2=0x4C)
+
+I (39814) BLE_ONLY: 목적지정보: distance_m=118890 (data3=0x01 data4=0xD0 data5=0x6A)
+
+I (39828) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (40050) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xD0 data5=0x5F
+
+I (40051) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (40057) BLE_ONLY: 목적지정보: distance_m=118879 (data3=0x01 data4=0xD0 data5=0x5F)
+
+I (40072) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (40294) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xD0 data5=0x54
+
+I (40295) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (40301) BLE_ONLY: 목적지정보: distance_m=118868 (data3=0x01 data4=0xD0 data5=0x54)
+
+I (40315) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (40538) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xD0 data5=0x49
+
+I (40539) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (40545) BLE_ONLY: 목적지정보: distance_m=118857 (data3=0x01 data4=0xD0 data5=0x49)
+
+I (40559) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (40791) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xD0 data5=0x3E
+
+I (40792) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (40798) BLE_ONLY: 목적지정보: distance_m=118846 (data3=0x01 data4=0xD0 data5=0x3E)
+
+I (40812) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (40818) BLE_ONLY: RSSI label updated: text='RSSI: -64', connected=1, rssi_read_once=1, rssi_value=-64
+
+I (41047) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xD0 data5=0x33
+
+I (41048) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (41054) BLE_ONLY: 목적지정보: distance_m=118835 (data3=0x01 data4=0xD0 data5=0x33)
+
+I (41068) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (41509) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xD0 data5=0x28
+
+I (41510) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (41516) BLE_ONLY: 목적지정보: distance_m=118824 (data3=0x01 data4=0xD0 data5=0x28)
+
+I (41530) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (41536) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xD0 data5=0x1C
+
+I (41546) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (41553) BLE_ONLY: 목적지정보: distance_m=118812 (data3=0x01 data4=0xD0 data5=0x1C)
+
+I (41567) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (42015) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xD0 data5=0x11
+
+I (42016) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (42022) BLE_ONLY: 목적지정보: distance_m=118801 (data3=0x01 data4=0xD0 data5=0x11)
+
+I (42036) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (42042) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xD0 data5=0x06
+
+I (42052) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (42059) BLE_ONLY: 목적지정보: distance_m=118790 (data3=0x01 data4=0xD0 data5=0x06)
+
+I (42073) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (42515) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0xF9
+
+I (42516) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (42522) BLE_ONLY: 목적지정보: distance_m=118777 (data3=0x01 data4=0xCF data5=0xF9)
+
+I (42536) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (42770) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0xEE
+
+I (42770) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (42777) BLE_ONLY: 목적지정보: distance_m=118766 (data3=0x01 data4=0xCF data5=0xEE)
+
+I (42791) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (43013) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0xE2
+
+I (43014) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (43020) BLE_ONLY: 목적지정보: distance_m=118754 (data3=0x01 data4=0xCF data5=0xE2)
+
+I (43037) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (43040) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0xD7
+
+I (43050) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (43057) BLE_ONLY: 목적지정보: distance_m=118743 (data3=0x01 data4=0xCF data5=0xD7)
+
+I (43071) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (43294) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0xCC
+
+I (43295) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (43301) BLE_ONLY: 목적지정보: distance_m=118732 (data3=0x01 data4=0xCF data5=0xCC)
+
+I (43315) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (43538) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0xC1
+
+I (43539) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (43545) BLE_ONLY: 목적지정보: distance_m=118721 (data3=0x01 data4=0xCF data5=0xC1)
+
+I (43559) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (43791) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0xB6
+
+I (43792) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (43798) BLE_ONLY: 목적지정보: distance_m=118710 (data3=0x01 data4=0xCF data5=0xB6)
+
+I (43812) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (44035) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0xAB
+
+I (44036) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (44042) BLE_ONLY: 목적지정보: distance_m=118699 (data3=0x01 data4=0xCF data5=0xAB)
+
+I (44056) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (44502) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0xA0
+
+I (44503) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (44510) BLE_ONLY: 목적지정보: distance_m=118688 (data3=0x01 data4=0xCF data5=0xA0)
+
+I (44524) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (44529) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0x96
+
+I (44539) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (44547) BLE_ONLY: 목적지정보: distance_m=118678 (data3=0x01 data4=0xCF data5=0x96)
+
+I (44560) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (44683) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (44788) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (45082) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0x8A
+
+I (45083) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (45089) BLE_ONLY: 목적지정보: distance_m=118666 (data3=0x01 data4=0xCF data5=0x8A)
+
+I (45103) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (45136) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (45382) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (45384) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0x80
+
+I (45391) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (45399) BLE_ONLY: 목적지정보: distance_m=118656 (data3=0x01 data4=0xCF data5=0x80)
+
+I (45412) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (45497) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (45695) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (45697) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0x76
+
+I (45704) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (45711) BLE_ONLY: 목적지정보: distance_m=118646 (data3=0x01 data4=0xCF data5=0x76)
+
+I (45725) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (45826) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (46007) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (46009) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0x6C
+
+I (46016) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (46024) BLE_ONLY: 목적지정보: distance_m=118636 (data3=0x01 data4=0xCF data5=0x6C)
+
+I (46037) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (46128) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (46314) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (46589) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0x62
+
+I (46590) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (46596) BLE_ONLY: 목적지정보: distance_m=118626 (data3=0x01 data4=0xCF data5=0x62)
+
+I (46603) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (46611) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (46903) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (46905) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0x56
+
+I (46912) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (46920) BLE_ONLY: 목적지정보: distance_m=118614 (data3=0x01 data4=0xCF data5=0x56)
+
+I (46934) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (46935) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (47222) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (47225) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0x4A
+
+I (47231) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (47239) BLE_ONLY: 목적지정보: distance_m=118602 (data3=0x01 data4=0xCF data5=0x4A)
+
+I (47252) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (47327) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (47530) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (47533) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0x3F
+
+I (47539) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (47546) BLE_ONLY: 목적지정보: distance_m=118591 (data3=0x01 data4=0xCF data5=0x3F)
+
+I (47560) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (47657) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (47844) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (48073) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (48122) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (48124) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0x34
+
+I (48131) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (48139) BLE_ONLY: 목적지정보: distance_m=118580 (data3=0x01 data4=0xCF data5=0x34)
+
+I (48153) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (48403) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (48431) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (48433) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0x2A
+
+I (48440) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (48448) BLE_ONLY: 목적지정보: distance_m=118570 (data3=0x01 data4=0xCF data5=0x2A)
+
+I (48462) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (48748) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0x20
+
+I (48748) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (48755) BLE_ONLY: 목적지정보: distance_m=118560 (data3=0x01 data4=0xCF data5=0x20)
+
+I (48769) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (48858) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (49047) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (49049) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0x15
+
+I (49056) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (49063) BLE_ONLY: 목적지정보: distance_m=118549 (data3=0x01 data4=0xCF data5=0x15)
+
+I (49078) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (49183) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (49359) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (49633) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (49637) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (49641) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCF data5=0x0A
+
+I (49650) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (49658) BLE_ONLY: 목적지정보: distance_m=118538 (data3=0x01 data4=0xCF data5=0x0A)
+
+I (49672) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (49933) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (49956) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (49958) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0xFF
+
+I (49965) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (49973) BLE_ONLY: 목적지정보: distance_m=118527 (data3=0x01 data4=0xCE data5=0xFF)
+
+I (49987) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (50233) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (50266) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (50268) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0xF5
+
+I (50275) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (50283) BLE_ONLY: 목적지정보: distance_m=118517 (data3=0x01 data4=0xCE data5=0xF5)
+
+I (50297) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (50533) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (50576) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (50578) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0xE9
+
+I (50585) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (50593) BLE_ONLY: 목적지정보: distance_m=118505 (data3=0x01 data4=0xCE data5=0xE9)
+
+I (50607) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (50888) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0xDE
+
+I (50889) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (50896) BLE_ONLY: 목적지정보: distance_m=118494 (data3=0x01 data4=0xCE data5=0xDE)
+
+I (50909) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (50988) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (51191) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (51193) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0xD3
+
+I (51200) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (51208) BLE_ONLY: 목적지정보: distance_m=118483 (data3=0x01 data4=0xCE data5=0xD3)
+
+I (51222) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (51255) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (51499) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (51501) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0xC8
+
+I (51508) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (51515) BLE_ONLY: 목적지정보: distance_m=118472 (data3=0x01 data4=0xCE data5=0xC8)
+
+I (51530) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (51706) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (51813) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (52033) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (52088) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (52090) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0xBC
+
+I (52097) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (52105) BLE_ONLY: 목적지정보: distance_m=118460 (data3=0x01 data4=0xCE data5=0xBC)
+
+I (52119) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (52399) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0xB1
+
+I (52399) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (52406) BLE_ONLY: 목적지정보: distance_m=118449 (data3=0x01 data4=0xCE data5=0xB1)
+
+I (52420) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (52423) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (52706) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (52708) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0xA5
+
+I (52715) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (52723) BLE_ONLY: 목적지정보: distance_m=118437 (data3=0x01 data4=0xCE data5=0xA5)
+
+I (52737) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (52753) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (53017) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (53019) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0x99
+
+I (53026) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (53033) BLE_ONLY: 목적지정보: distance_m=118425 (data3=0x01 data4=0xCE data5=0x99)
+
+I (53048) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (53207) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (53327) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (53329) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0x8F
+
+I (53336) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (53344) BLE_ONLY: 목적지정보: distance_m=118415 (data3=0x01 data4=0xCE data5=0x8F)
+
+I (53358) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (53537) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (53637) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (53920) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0x84
+
+I (53921) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (53927) BLE_ONLY: 목적지정보: distance_m=118404 (data3=0x01 data4=0xCE data5=0x84)
+
+I (53941) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (53954) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (54222) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (54224) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0x7A
+
+I (54231) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (54239) BLE_ONLY: 목적지정보: distance_m=118394 (data3=0x01 data4=0xCE data5=0x7A)
+
+I (54254) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (54254) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (54540) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (54542) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0x6F
+
+I (54549) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (54557) BLE_ONLY: 목적지정보: distance_m=118383 (data3=0x01 data4=0xCE data5=0x6F)
+
+I (54571) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (54583) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (54856) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (54858) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0x65
+
+I (54865) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (54872) BLE_ONLY: 목적지정보: distance_m=118373 (data3=0x01 data4=0xCE data5=0x65)
+
+I (54887) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (54915) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (55165) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (55167) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0x5B
+
+I (55174) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (55181) BLE_ONLY: 목적지정보: distance_m=118363 (data3=0x01 data4=0xCE data5=0x5B)
+
+I (55195) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (55336) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (55475) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (55477) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0x51
+
+I (55484) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (55492) BLE_ONLY: 목적지정보: distance_m=118353 (data3=0x01 data4=0xCE data5=0x51)
+
+I (55505) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (55635) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (55788) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (56053) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (56066) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (56068) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0x46
+
+I (56075) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (56083) BLE_ONLY: 목적지정보: distance_m=118342 (data3=0x01 data4=0xCE data5=0x46)
+
+I (56098) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (56374) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0x3B
+
+I (56375) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (56381) BLE_ONLY: 목적지정보: distance_m=118331 (data3=0x01 data4=0xCE data5=0x3B)
+
+I (56383) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (56396) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (56683) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (56686) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0x31
+
+I (56692) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (56700) BLE_ONLY: 목적지정보: distance_m=118321 (data3=0x01 data4=0xCE data5=0x31)
+
+I (56714) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (56777) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (56999) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (57001) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0x26
+
+I (57008) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (57016) BLE_ONLY: 목적지정보: distance_m=118310 (data3=0x01 data4=0xCE data5=0x26)
+
+I (57030) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (57108) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (57308) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (57310) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0x1B
+
+I (57317) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (57324) BLE_ONLY: 목적지정보: distance_m=118299 (data3=0x01 data4=0xCE data5=0x1B)
+
+I (57338) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (57438) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (57618) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (57620) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0x10
+
+I (57627) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (57635) BLE_ONLY: 목적지정보: distance_m=118288 (data3=0x01 data4=0xCE data5=0x10)
+
+I (57650) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (57738) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (57929) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (57931) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCE data5=0x05
+
+I (57938) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (57946) BLE_ONLY: 목적지정보: distance_m=118277 (data3=0x01 data4=0xCE data5=0x05)
+
+I (57960) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (58064) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (58240) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (58242) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCD data5=0xFA
+
+I (58249) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (58257) BLE_ONLY: 목적지정보: distance_m=118266 (data3=0x01 data4=0xCD data5=0xFA)
+
+I (58270) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (58428) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (58549) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (58831) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCD data5=0xEF
+
+I (58832) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (58838) BLE_ONLY: 목적지정보: distance_m=118255 (data3=0x01 data4=0xCD data5=0xEF)
+
+I (58852) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (58874) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (59134) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (59136) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCD data5=0xE4
+
+I (59143) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (59151) BLE_ONLY: 목적지정보: distance_m=118244 (data3=0x01 data4=0xCD data5=0xE4)
+
+I (59165) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (59173) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (59444) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (59446) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCD data5=0xD9
+
+I (59453) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (59460) BLE_ONLY: 목적지정보: distance_m=118233 (data3=0x01 data4=0xCD data5=0xD9)
+
+I (59474) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (59628) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (59760) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (59762) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCD data5=0xCE
+
+I (59769) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (59777) BLE_ONLY: 목적지정보: distance_m=118222 (data3=0x01 data4=0xCD data5=0xCE)
+
+I (59791) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (59988) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (60069) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (60347) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCD data5=0xC3
+
+I (60347) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (60354) BLE_ONLY: 목적지정보: distance_m=118211 (data3=0x01 data4=0xCD data5=0xC3)
+
+I (60368) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (60373) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (60646) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (60648) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCD data5=0xB8
+
+I (60655) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (60663) BLE_ONLY: 목적지정보: distance_m=118200 (data3=0x01 data4=0xCD data5=0xB8)
+
+I (60677) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (60705) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (60959) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (60961) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCD data5=0xAD
+
+I (60968) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (60975) BLE_ONLY: 목적지정보: distance_m=118189 (data3=0x01 data4=0xCD data5=0xAD)
+
+I (60990) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (61188) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (61269) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (61484) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (61546) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (61548) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCD data5=0xA0
+
+I (61555) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (61563) BLE_ONLY: 목적지정보: distance_m=118176 (data3=0x01 data4=0xCD data5=0xA0)
+
+I (61577) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (61860) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCD data5=0x95
+
+I (61861) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (61867) BLE_ONLY: 목적지정보: distance_m=118165 (data3=0x01 data4=0xCD data5=0x95)
+
+I (61881) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (61904) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (62164) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (62166) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCD data5=0x89
+
+I (62173) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (62181) BLE_ONLY: 목적지정보: distance_m=118153 (data3=0x01 data4=0xCD data5=0x89)
+
+I (62195) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (62203) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (62473) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (62475) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCD data5=0x7D
+
+I (62482) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (62489) BLE_ONLY: 목적지정보: distance_m=118141 (data3=0x01 data4=0xCD data5=0x7D)
+
+I (62504) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (62623) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (62789) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (62791) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCD data5=0x71
+
+I (62798) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (62806) BLE_ONLY: 목적지정보: distance_m=118129 (data3=0x01 data4=0xCD data5=0x71)
+
+I (62820) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (62924) BLE_ONLY: Safety_DRV: Found matching entry, image=speed_tt.bmp sector=12
+
+I (63103) BLE_ONLY: Safety_DRV: data1=0x01 data2=0x50(80) -> filename=speed_80.bmp (sector=12)
+
+I (63105) BLE_ONLY: 목적지정보: called with data1=0x00 data2=0x4B data3=0x01 data4=0xCD data5=0x65
+
+I (63112) BLE_ONLY: 목적지정보: time_minutes=75 (data1=0x00 data2=0x4B)
+
+I (63120) BLE_ONLY: 목적지정보: distance_m=118117 (data3=0x01 data4=0xCD data5=0x65)
+
+I (63134) BLE_ONLY: 목적지정보: 이미지가 이미 표시 중, 표시하지 않음: L:/image/go_to.bmp
+
+I (66073) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (66073) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 45.0% (여유: 4504/8192 bytes)
+
+I (66078) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (66088) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 50.7% (여유: 2020/4096 bytes)
+
+I (66098) BLE_ONLY: 총 태스크 수: 15
+
+I (66103) BLE_ONLY: 메모리 상태: 여유=7469984 bytes, 최소여유=7450788 bytes, 최대블록=7208960 bytes
+
+I (66114) BLE_ONLY: PSRAM 상태: 여유=7328036 bytes, 최소여유=7328036 bytes
+
+W (66403) BT_HCI: hcif disc complete: hdl 0x1, rsn 0x13 dev_find 1
+
+I (66404) BLE_ONLY: disconnected reason=0x13
+
+I (66408) BLE_ONLY: Advertising started
+

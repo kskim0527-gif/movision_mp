@@ -1,0 +1,1425 @@
+﻿WARNING: Python interpreter "C:\Users\kskim\esp32\.espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe" used to start idf.py is not from installed venv "C:\Users\kskim\.espressif\python_env\idf5.5_py3.13_env"
+Executing action: monitor
+Serial port COM4
+Connecting...
+Detecting chip type... ESP32-S3
+--- Warning: GDB cannot open serial ports accessed as COMx
+
+--- Using \\.\COM4 instead...
+
+--- esp-idf-monitor 1.8.0 on \\.\COM4 115200
+
+--- Quit: Ctrl+] | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+Running idf_monitor in directory C:\vscode\sub_monitor
+Executing "C:\Users\kskim\esp32\.espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe C:\Users\kskim\esp\v5.5.1\esp-idf\tools/idf_monitor.py -p COM4 -b 115200 --toolchain-prefix xtensa-esp32s3-elf- --target esp32s3 --revision 0 C:\vscode\sub_monitor\build\sub_monitor.elf C:\vscode\sub_monitor\build\bootloader\bootloader.elf --force-color -m 'C:\Users\kskim\esp32\.espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe' 'C:\Users\kskim\esp\v5.5.1\esp-idf\tools\idf.py'"...
+ESP-ROM:esp32s3-20210327
+
+Build:Mar 27 2021
+
+rst:0x15 (USB_UART_CHIP_RESET),boot:0x2b (SPI_FAST_FLASH_BOOT)
+
+Saved PC:0x400490d5
+
+--- 0x400490d5: usb_uart_device_rx_one_char in ROM
+SPIWP:0xee
+
+mode:DIO, clock div:1
+
+load:0x3fce2820,len:0x158c
+
+load:0x403c8700,len:0xd24
+
+--- 0x403c8700: _stext at ??:?
+load:0x403cb700,len:0x2f34
+
+entry 0x403c8924
+
+--- 0x403c8924: call_start_cpu0 at C:/Users/kskim/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c:25
+I (24) boot: ESP-IDF v5.5.1 2nd stage bootloader
+
+I (24) boot: compile time Dec 29 2025 20:25:47
+
+I (25) boot: Multicore bootloader
+
+I (25) boot: chip revision: v0.2
+
+I (28) boot: efuse block revision: v1.3
+
+I (31) boot.esp32s3: Boot SPI Speed : 80MHz
+
+I (35) boot.esp32s3: SPI Mode       : DIO
+
+I (39) boot.esp32s3: SPI Flash Size : 16MB
+
+I (43) boot: Enabling RNG early entropy source...
+
+I (47) boot: Partition Table:
+
+I (50) boot: ## Label            Usage          Type ST Offset   Length
+
+I (56) boot:  0 nvs              WiFi data        01 02 00009000 00006000
+
+I (63) boot:  1 phy_init         RF data          01 01 0000f000 00001000
+
+I (69) boot:  2 factory          factory app      00 00 00010000 00300000
+
+I (76) boot:  3 storage          Unknown data     01 83 00310000 00b00000
+
+I (82) boot: End of partition table
+
+I (85) esp_image: segment 0: paddr=00010020 vaddr=3c0c0020 size=16129ch (1446556) map
+
+I (348) esp_image: segment 1: paddr=001712c4 vaddr=3fc9b200 size=04514h ( 17684) load
+
+I (352) esp_image: segment 2: paddr=001757e0 vaddr=40374000 size=0a838h ( 43064) load
+
+I (362) esp_image: segment 3: paddr=00180020 vaddr=42000020 size=b80c0h (753856) map
+
+I (495) esp_image: segment 4: paddr=002380e8 vaddr=4037e838 size=0c960h ( 51552) load
+
+I (506) esp_image: segment 5: paddr=00244a50 vaddr=50000000 size=00020h (    32) load
+
+I (516) boot: Loaded app from partition at offset 0x10000
+
+I (516) boot: Disabling RNG early entropy source...
+
+I (526) octal_psram: vendor id    : 0x0d (AP)
+
+I (526) octal_psram: dev id       : 0x02 (generation 3)
+
+I (527) octal_psram: density      : 0x03 (64 Mbit)
+
+I (531) octal_psram: good-die     : 0x01 (Pass)
+
+I (537) octal_psram: Latency      : 0x01 (Fixed)
+
+I (542) octal_psram: VCC          : 0x01 (3V)
+
+I (547) octal_psram: SRF          : 0x01 (Fast Refresh)
+
+I (553) octal_psram: BurstType    : 0x01 (Hybrid Wrap)
+
+I (559) octal_psram: BurstLen     : 0x01 (32 Byte)
+
+I (564) octal_psram: Readlatency  : 0x02 (10 cycles@Fixed)
+
+I (570) octal_psram: DriveStrength: 0x00 (1/1)
+
+I (576) MSPI Timing: PSRAM timing tuning index: 5
+
+I (581) esp_psram: Found 8MB PSRAM device
+
+I (585) esp_psram: Speed: 80MHz
+
+I (589) cpu_start: Multicore app
+
+I (1016) esp_psram: SPI SRAM memory test OK
+
+I (1025) cpu_start: Pro cpu start user code
+
+I (1025) cpu_start: cpu freq: 160000000 Hz
+
+I (1025) app_init: Application information:
+
+I (1028) app_init: Project name:     sub_monitor
+
+I (1033) app_init: App version:      1
+
+I (1038) app_init: Compile time:     Dec 29 2025 20:23:37
+
+I (1044) app_init: ELF file SHA256:  f5b0a6624...
+
+I (1049) app_init: ESP-IDF:          v5.5.1
+
+I (1054) efuse_init: Min chip rev:     v0.0
+
+I (1059) efuse_init: Max chip rev:     v0.99 
+
+I (1064) efuse_init: Chip rev:         v0.2
+
+I (1069) heap_init: Initializing. RAM available for dynamic allocation:
+
+I (1076) heap_init: At 3FCA3E98 len 00045878 (278 KiB): RAM
+
+I (1082) heap_init: At 3FCE9710 len 00005724 (21 KiB): RAM
+
+I (1089) heap_init: At 3FCF0000 len 00008000 (32 KiB): DRAM
+
+I (1095) heap_init: At 600FE000 len 00001FE8 (7 KiB): RTCRAM
+
+I (1101) esp_psram: Adding pool of 8192K of PSRAM memory to heap allocator
+
+I (1110) spi_flash: detected chip: winbond
+
+I (1114) spi_flash: flash io: dio
+
+I (1118) sleep_gpio: Configure to isolate all GPIO pins in sleep state
+
+I (1125) sleep_gpio: Enable automatic switching of GPIO sleep configuration
+
+I (1133) coexist: coex firmware version: b0bcc39
+
+I (1138) coexist: coexist rom version e7ae62f
+
+I (1143) main_task: Started on CPU0
+
+I (1147) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations
+
+I (1156) main_task: Calling app_main()
+
+I (1160) BLE_ONLY: Reset reason: UNKNOWN (11)
+
+I (1165) BLE_ONLY: Booting BLE-only...
+
+I (1170) sh8601: LCD panel create success, version: 1.0.0
+
+W (1386) sh8601: The 3Ah command has been used and will be overwritten by external initialization sequence
+
+W (1386) sh8601: The 36h command has been used and will be overwritten by external initialization sequence
+
+I (2386) BLE_ONLY: LCD: Initial brightness set to maximum (level 7)
+
+I (2386) BLE_ONLY: LCD: panel initialized successfully
+
+I (2388) BLE_ONLY: LVGL: POSIX file system driver initialized (letter='L', path='/littlefs')
+
+I (2397) BLE_ONLY: LVGL: PNG decoder initialized (lodepng library, uses PSRAM via custom allocator)
+
+I (2424) BLE_ONLY: LVGL: Outer ring created (5pt gray)
+
+I (2425) BLE_ONLY: Display mode switched to: HUD
+
+I (2425) BLE_ONLY: LVGL: Initialized successfully
+
+I (2430) BLE_ONLY: Image update queue created
+
+I (2435) BLE_ONLY: Safety update queue created
+
+I (2441) BLE_ONLY: 버퍼/큐 모니터링 태스크 시작
+
+I (2447) BLE_ONLY: Boot button initialized (GPIO0)
+
+I (2460) BLE_INIT: BT controller compile version [2edb0b0]
+
+I (2461) BLE_INIT: Using main XTAL as clock source
+
+I (2464) BLE_INIT: Feature Config, ADV:1, BLE_50:1, DTM:1, SCAN:1, CCA:0, SMP:1, CONNECT:1
+
+I (2473) BLE_INIT: Bluetooth MAC: 10:20:ba:44:8e:be
+
+I (2479) phy_init: phy_version 701,f4f1da3a,Mar  3 2025,15:50:10
+
+I (2558) BLE_ONLY: Requested HID service (0x1812) creation
+
+I (2559) BLE_ONLY: Requested HUD service (0xFFEA) creation
+
+I (2563) BLE_ONLY: ADV data set
+
+I (2564) BLE_ONLY: ScanRsp data set
+
+I (2568) BLE_ONLY: HID service created handle=40
+
+I (2573) BLE_ONLY: HUD(128) service created handle=56
+
+I (2579) BLE_ONLY: HID Info added handle=42
+
+I (2584) BLE_ONLY: ★ FFF1 (Read/Notify) characteristic added handle=58 ★
+
+I (2592) BLE_ONLY: ★ Requesting CCCD (0x2902) descriptor addition for FFF1 (handle=58) ★
+
+I (2601) BLE_ONLY: ★ CCCD descriptor addition requested successfully ★
+
+I (2609) BLE_ONLY: HID ReportMap added handle=44
+
+I (2613) BLE_ONLY: ★ CCCD (0x2902) descriptor for FFF1 added handle=59 (should be right after FFF1 handle=58) ★
+
+I (2625) BLE_ONLY: ★ Requesting FFF2 (Write) characteristic addition after CCCD ★
+
+I (2633) BLE_ONLY: Requested FFF2 (Write) characteristic addition after CCCD
+
+I (2641) BLE_ONLY: HID ControlPoint added handle=46
+
+I (2646) BLE_ONLY: ★ FFF2 (Write) characteristic added handle=61 (after CCCD handle=59) ★
+
+I (2656) BLE_ONLY: HID Report(2A4D) added handle=48
+
+I (2661) BLE_ONLY: HUD service started=1
+
+I (2666) BLE_ONLY: HID CCCD(Report) added handle=49
+
+I (2671) BLE_ONLY: HID service started=1
+
+I (2679) BLE_ONLY: Advertising started
+
+I (2680) BLE_ONLY: Initializing LittleFS
+
+I (2981) BLE_ONLY: LittleFS mounted at /littlefs
+
+I (2982) BLE_ONLY: Partition size: total: 11534336 bytes, used: 8937472 bytes
+
+I (2984) BLE_ONLY: Mounting SD card (SDMMC 1-bit) at /sdcard ...
+
+I (3031) BLE_ONLY: SD card mounted at /sdcard
+
+Name: asdfg
+
+Type: SDHC
+
+Speed: 20.00 MHz (limit: 20.00 MHz)
+
+Size: 7680MB
+
+CSD: ver=2, sector_size=512, capacity=15728640 read_bl_len=9
+
+SSR: bus_width=1
+
+I (3039) BLE_ONLY: SD card initialization complete
+
+I (3045) BLE_ONLY: Attempting to load CSV file from littlefs...
+
+I (3051) BLE_ONLY: Listing files in /littlefs:
+
+I (3059) BLE_ONLY:   Found: Safety_DRV.CSV (type=1)
+
+I (3063) BLE_ONLY:   Found: TBT.CSV (type=1)
+
+I (3068) BLE_ONLY:   Found: font (type=2)
+
+I (3073) BLE_ONLY:   Found: image (type=2)
+
+I (3077) BLE_ONLY:   Found: intro (type=2)
+
+I (3084) BLE_ONLY: Listing files in /littlefs/image:
+
+I (3089) BLE_ONLY:   Found: Group_4.png (type=1)
+
+I (3095) BLE_ONLY:   Found: arrow_00.png (type=1)
+
+I (3101) BLE_ONLY:   Found: arrow_01.png (type=1)
+
+I (3106) BLE_ONLY:   Found: arrow_02.png (type=1)
+
+I (3111) BLE_ONLY:   Found: arrow_03.png (type=1)
+
+I (3117) BLE_ONLY:   Found: arrow_04.png (type=1)
+
+I (3122) BLE_ONLY:   Found: arrow_05.png (type=1)
+
+I (3127) BLE_ONLY:   Found: arrow_06.png (type=1)
+
+I (3133) BLE_ONLY:   Found: arrow_07.png (type=1)
+
+I (3138) BLE_ONLY:   Found: arrow_08.png (type=1)
+
+I (3143) BLE_ONLY:   Found: arrow_09.png (type=1)
+
+I (3149) BLE_ONLY:   Found: arrow_10.png (type=1)
+
+I (3154) BLE_ONLY:   Found: arrow_100.png (type=1)
+
+I (3160) BLE_ONLY:   Found: arrow_11.png (type=1)
+
+I (3165) BLE_ONLY:   Found: arrow_12.png (type=1)
+
+I (3170) BLE_ONLY:   Found: arrow_13.png (type=1)
+
+I (3176) BLE_ONLY:   Found: arrow_14.png (type=1)
+
+I (3181) BLE_ONLY:   Found: arrow_15.png (type=1)
+
+I (3186) BLE_ONLY:   Found: arrow_16.png (type=1)
+
+I (3192) BLE_ONLY:   Found: arrow_17.png (type=1)
+
+I (3197) BLE_ONLY:   Found: arrow_18.png (type=1)
+
+I (3202) BLE_ONLY:   Found: ban.png (type=1)
+
+I (3207) BLE_ONLY:   Found: camera_100.png (type=1)
+
+I (3213) BLE_ONLY:   Found: camera_110.png (type=1)
+
+I (3218) BLE_ONLY:   Found: camera_120.png (type=1)
+
+I (3224) BLE_ONLY:   Found: camera_30.png (type=1)
+
+I (3229) BLE_ONLY:   Found: camera_40.png (type=1)
+
+I (3235) BLE_ONLY:   Found: camera_50.png (type=1)
+
+I (3240) BLE_ONLY:   Found: camera_60.png (type=1)
+
+I (3245) BLE_ONLY:   Found: camera_70.png (type=1)
+
+I (3251) BLE_ONLY:   Found: camera_80.png (type=1)
+
+I (3256) BLE_ONLY:   Found: camera_90.png (type=1)
+
+I (3262) BLE_ONLY:   Found: children.png (type=1)
+
+I (3267) BLE_ONLY:   Found: detail_arrow_40.png (type=1)
+
+I (3273) BLE_ONLY:   Found: exclusive_bus.png (type=1)
+
+I (3279) BLE_ONLY:   Found: section_100.png (type=1)
+
+I (3284) BLE_ONLY:   Found: section_110.png (type=1)
+
+I (3290) BLE_ONLY:   Found: section_120.png (type=1)
+
+I (3295) BLE_ONLY:   Found: section_30.png (type=1)
+
+I (3301) BLE_ONLY:   Found: section_40.png (type=1)
+
+I (3306) BLE_ONLY:   Found: section_50.png (type=1)
+
+I (3312) BLE_ONLY:   Found: section_60.png (type=1)
+
+I (3317) BLE_ONLY:   Found: section_70.png (type=1)
+
+I (3323) BLE_ONLY:   Found: section_80.png (type=1)
+
+I (3328) BLE_ONLY:   Found: section_90.png (type=1)
+
+I (3334) BLE_ONLY:   Found: signal_100.png (type=1)
+
+I (3340) BLE_ONLY:   Found: signal_110.png (type=1)
+
+I (3345) BLE_ONLY:   Found: signal_120.png (type=1)
+
+I (3351) BLE_ONLY:   Found: signal_30.png (type=1)
+
+I (3356) BLE_ONLY:   Found: signal_40.png (type=1)
+
+I (3361) BLE_ONLY:   Found: signal_50.png (type=1)
+
+I (3367) BLE_ONLY:   Found: signal_60.png (type=1)
+
+I (3372) BLE_ONLY:   Found: signal_70.png (type=1)
+
+I (3378) BLE_ONLY:   Found: signal_80.png (type=1)
+
+I (3383) BLE_ONLY:   Found: signal_90.png (type=1)
+
+I (3389) BLE_ONLY:   Found: speed_100.png (type=1)
+
+I (3394) BLE_ONLY:   Found: speed_110.png (type=1)
+
+I (3399) BLE_ONLY:   Found: speed_120.png (type=1)
+
+I (3405) BLE_ONLY:   Found: speed_30.png (type=1)
+
+I (3410) BLE_ONLY:   Found: speed_40.png (type=1)
+
+I (3416) BLE_ONLY:   Found: speed_50.png (type=1)
+
+I (3421) BLE_ONLY:   Found: speed_60.png (type=1)
+
+I (3426) BLE_ONLY:   Found: speed_70.png (type=1)
+
+I (3432) BLE_ONLY:   Found: speed_80.png (type=1)
+
+I (3437) BLE_ONLY:   Found: speed_90.png (type=1)
+
+I (3444) BLE_ONLY: CSV file found at: /littlefs/TBT.CSV
+
+I (3450) BLE_ONLY: CSV file opened, first 63 bytes (hex):
+
+I (3454) BLE_ONLY:   0000: 
+
+I (3457) BLE_ONLY: 73 
+
+I (3460) BLE_ONLY: 74 
+
+I (3463) BLE_ONLY: 61 
+
+I (3466) BLE_ONLY: 72 
+
+I (3469) BLE_ONLY: 74 
+
+I (3472) BLE_ONLY: 2C 
+
+I (3475) BLE_ONLY: 49 
+
+I (3479) BLE_ONLY: 44 
+
+I (3482) BLE_ONLY: 2C 
+
+I (3485) BLE_ONLY: 63 
+
+I (3488) BLE_ONLY: 6F 
+
+I (3491) BLE_ONLY: 6D 
+
+I (3494) BLE_ONLY: 6D 
+
+I (3497) BLE_ONLY: 65 
+
+I (3500) BLE_ONLY: 6E 
+
+I (3503) BLE_ONLY: 64 
+
+I (3506) BLE_ONLY: 
+
+I (3509) BLE_ONLY:   0016: 
+
+I (3512) BLE_ONLY: 2C 
+
+I (3515) BLE_ONLY: 64 
+
+I (3518) BLE_ONLY: 61 
+
+I (3521) BLE_ONLY: 74 
+
+I (3524) BLE_ONLY: 61 
+
+I (3527) BLE_ONLY: 5F 
+
+I (3530) BLE_ONLY: 6C 
+
+I (3533) BLE_ONLY: 65 
+
+I (3536) BLE_ONLY: 6E 
+
+I (3539) BLE_ONLY: 67 
+
+I (3542) BLE_ONLY: 74 
+
+I (3546) BLE_ONLY: 68 
+
+I (3549) BLE_ONLY: 2C 
+
+I (3552) BLE_ONLY: 64 
+
+I (3555) BLE_ONLY: 61 
+
+I (3558) BLE_ONLY: 74 
+
+I (3561) BLE_ONLY: 
+
+I (3563) BLE_ONLY:   0032: 
+
+I (3567) BLE_ONLY: 61 
+
+I (3570) BLE_ONLY: 31 
+
+I (3573) BLE_ONLY: 2C 
+
+I (3576) BLE_ONLY: 64 
+
+I (3579) BLE_ONLY: 61 
+
+I (3582) BLE_ONLY: 74 
+
+I (3585) BLE_ONLY: 61 
+
+I (3588) BLE_ONLY: 32 
+
+I (3591) BLE_ONLY: 2C 
+
+I (3594) BLE_ONLY: 64 
+
+I (3597) BLE_ONLY: 61 
+
+I (3600) BLE_ONLY: 74 
+
+I (3603) BLE_ONLY: 61 
+
+I (3606) BLE_ONLY: 33 
+
+I (3609) BLE_ONLY: 2C 
+
+I (3613) BLE_ONLY: 64 
+
+I (3616) BLE_ONLY: 
+
+I (3618) BLE_ONLY:   0048: 
+
+I (3622) BLE_ONLY: 61 
+
+I (3625) BLE_ONLY: 74 
+
+I (3628) BLE_ONLY: 61 
+
+I (3631) BLE_ONLY: 34 
+
+I (3634) BLE_ONLY: 2C 
+
+I (3637) BLE_ONLY: 64 
+
+I (3640) BLE_ONLY: 61 
+
+I (3643) BLE_ONLY: 74 
+
+I (3646) BLE_ONLY: 61 
+
+I (3649) BLE_ONLY: 35 
+
+I (3652) BLE_ONLY: 2C 
+
+I (3655) BLE_ONLY: 65 
+
+I (3658) BLE_ONLY: 6E 
+
+I (3661) BLE_ONLY: 64 
+
+I (3664) BLE_ONLY: 2C 
+
+I (3667) BLE_ONLY: 
+
+I (3670) BLE_ONLY: CSV file first 63 bytes (text): start,ID,commend,data_length,data1,data2,data3,data4,data5,end,
+
+I (3682) BLE_ONLY: CSV line 0: field_idx=12
+
+I (3686) BLE_ONLY:   field[0]='0x19'
+
+I (3690) BLE_ONLY:   field[1]='0x4D'
+
+I (3695) BLE_ONLY:   field[2]='0x01'
+
+I (3699) BLE_ONLY:   field[3]='0x05'
+
+I (3703) BLE_ONLY:   field[4]=''
+
+I (3707) BLE_ONLY:   field[5]=''
+
+I (3711) BLE_ONLY:   field[6]=''
+
+I (3715) BLE_ONLY:   field[7]=''
+
+I (3719) BLE_ONLY:   field[8]=''
+
+I (3723) BLE_ONLY:   field[9]='2f'
+
+I (3727) BLE_ONLY:   field[10]='arrow_tt.png'
+
+I (3732) BLE_ONLY:   field[11]='0
+'
+
+I (3736) BLE_ONLY: CSV line 0 fields: start='0x19' id='0x4D' commend='0x01' dlen='0x05' data1='' data2=''
+
+I (3746) BLE_ONLY: CSV line 0 fields: filename='arrow_tt.png' sector='0
+'
+
+I (3754) BLE_ONLY: CSV line 1: field_idx=12
+
+I (3758) BLE_ONLY:   field[0]='0x19'
+
+I (3763) BLE_ONLY:   field[1]='0x4D'
+
+I (3767) BLE_ONLY:   field[2]='0x01'
+
+I (3771) BLE_ONLY:   field[3]='0x05'
+
+I (3775) BLE_ONLY:   field[4]=''
+
+I (3779) BLE_ONLY:   field[5]=''
+
+I (3783) BLE_ONLY:   field[6]=''
+
+I (3787) BLE_ONLY:   field[7]=''
+
+I (3791) BLE_ONLY:   field[8]=''
+
+I (3795) BLE_ONLY:   field[9]='2f'
+
+I (3799) BLE_ONLY:   field[10]='arrow_tt.png'
+
+I (3804) BLE_ONLY:   field[11]='0
+'
+
+I (3808) BLE_ONLY: CSV line 1 fields: start='0x19' id='0x4D' commend='0x01' dlen='0x05' data1='' data2=''
+
+I (3819) BLE_ONLY: CSV line 1 fields: filename='arrow_tt.png' sector='0
+'
+
+I (3826) BLE_ONLY: CSV line 2: field_idx=12
+
+I (3831) BLE_ONLY:   field[0]='0x19'
+
+I (3835) BLE_ONLY:   field[1]='0x4D'
+
+I (3839) BLE_ONLY:   field[2]='0x01'
+
+I (3844) BLE_ONLY:   field[3]='0x05'
+
+I (3848) BLE_ONLY:   field[4]=''
+
+I (3852) BLE_ONLY:   field[5]=''
+
+I (3856) BLE_ONLY:   field[6]=''
+
+I (3860) BLE_ONLY:   field[7]=''
+
+I (3863) BLE_ONLY:   field[8]=''
+
+I (3867) BLE_ONLY:   field[9]='2f'
+
+I (3871) BLE_ONLY:   field[10]='arrow_tt.png'
+
+I (3876) BLE_ONLY:   field[11]='0
+'
+
+I (3881) BLE_ONLY: CSV line 2 fields: start='0x19' id='0x4D' commend='0x01' dlen='0x05' data1='' data2=''
+
+I (3891) BLE_ONLY: CSV line 2 fields: filename='arrow_tt.png' sector='0
+'
+
+I (3899) BLE_ONLY: Loaded 19 image data entries from CSV
+
+I (3904) BLE_ONLY:   Entry 0: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (3916) BLE_ONLY:   Entry 1: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (3929) BLE_ONLY:   Entry 2: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (3941) BLE_ONLY:   Entry 3: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (3953) BLE_ONLY:   Entry 4: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (3965) BLE_ONLY:   Entry 5: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (3977) BLE_ONLY:   Entry 6: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (3989) BLE_ONLY:   Entry 7: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4002) BLE_ONLY:   Entry 8: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4014) BLE_ONLY:   Entry 9: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4026) BLE_ONLY:   Entry 10: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4038) BLE_ONLY:   Entry 11: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4050) BLE_ONLY:   Entry 12: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4063) BLE_ONLY:   Entry 13: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4075) BLE_ONLY:   Entry 14: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4087) BLE_ONLY:   Entry 15: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4099) BLE_ONLY:   Entry 16: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4111) BLE_ONLY:   Entry 17: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4124) BLE_ONLY:   Entry 18: start=0x19 id=0x4D commend=0x01 dlen=0x05 data1=0xFF data2=0xFF -> arrow_tt.png (sector=0, size=)
+
+I (4136) BLE_ONLY: CSV file loaded successfully, entries=19
+
+I (4142) BLE_ONLY: Attempting to load Safety_DRV CSV file from littlefs...
+
+I (4153) BLE_ONLY: Safety_DRV CSV file found at: /littlefs/Safety_DRV.CSV
+
+I (4160) BLE_ONLY: Loaded 11 safety data entries from CSV
+
+I (4163) BLE_ONLY: Safety_DRV CSV file loaded successfully, entries=11
+
+I (4171) BLE_ONLY: Image path initialized (empty), will be set when HUD mode is activated
+
+I (4180) BLE_ONLY: Initialization complete
+
+E (17446) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 14999 ms 전
+
+E (22447) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 20000 ms 전
+
+E (27448) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 25001 ms 전
+
+E (32449) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 30002 ms 전
+
+I (32450) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (32456) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (32466) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (32476) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 51.3% (여유: 1996/4096 bytes)
+
+I (32487) BLE_ONLY: 총 태스크 수: 15
+
+I (32491) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (32502) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (37510) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 35063 ms 전
+
+E (42511) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 40064 ms 전
+
+E (47512) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 45065 ms 전
+
+E (52513) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 50066 ms 전
+
+E (57514) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 55067 ms 전
+
+E (62515) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 60068 ms 전
+
+I (62516) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (62522) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (62532) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (62542) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 52.4% (여유: 1948/4096 bytes)
+
+I (62552) BLE_ONLY: 총 태스크 수: 15
+
+I (62557) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (62568) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (67576) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 65129 ms 전
+
+E (72577) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 70130 ms 전
+
+E (77578) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 75131 ms 전
+
+E (82579) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 80132 ms 전
+
+E (87580) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 85133 ms 전
+
+E (92581) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 90134 ms 전
+
+I (92582) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (92588) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (92598) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (92608) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 52.4% (여유: 1948/4096 bytes)
+
+I (92618) BLE_ONLY: 총 태스크 수: 15
+
+I (92623) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (92634) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (97642) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 95195 ms 전
+
+E (102643) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 100196 ms 전
+
+E (107644) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 105197 ms 전
+
+E (112645) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 110198 ms 전
+
+E (117646) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 115199 ms 전
+
+E (122647) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 120200 ms 전
+
+I (122648) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (122654) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (122665) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (122675) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 52.4% (여유: 1948/4096 bytes)
+
+I (122685) BLE_ONLY: 총 태스크 수: 15
+
+I (122690) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (122701) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (127709) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 125262 ms 전
+
+E (132710) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 130263 ms 전
+
+E (137711) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 135264 ms 전
+
+E (142712) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 140265 ms 전
+
+E (147713) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 145266 ms 전
+
+E (152714) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 150267 ms 전
+
+I (152715) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (152721) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (152732) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (152742) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 52.4% (여유: 1948/4096 bytes)
+
+I (152752) BLE_ONLY: 총 태스크 수: 15
+
+I (152757) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (152768) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (157776) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 155329 ms 전
+
+E (162777) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 160330 ms 전
+
+E (167778) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 165331 ms 전
+
+E (172779) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 170332 ms 전
+
+E (177780) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 175333 ms 전
+
+E (182781) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 180334 ms 전
+
+I (182782) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (182788) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (182799) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (182809) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 52.4% (여유: 1948/4096 bytes)
+
+I (182819) BLE_ONLY: 총 태스크 수: 15
+
+I (182824) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (182835) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (187843) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 185396 ms 전
+
+E (192844) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 190397 ms 전
+
+E (197845) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 195398 ms 전
+
+E (202846) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 200399 ms 전
+
+E (207847) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 205400 ms 전
+
+E (212848) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 210401 ms 전
+
+I (212849) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (212856) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (212866) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (212876) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 52.4% (여유: 1948/4096 bytes)
+
+I (212886) BLE_ONLY: 총 태스크 수: 15
+
+I (212891) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (212902) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (217910) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 215463 ms 전
+
+E (222911) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 220464 ms 전
+
+E (227912) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 225465 ms 전
+
+E (232913) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 230466 ms 전
+
+E (237914) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 235467 ms 전
+
+E (242915) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 240468 ms 전
+
+I (242916) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (242922) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (242933) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (242943) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 52.4% (여유: 1948/4096 bytes)
+
+I (242953) BLE_ONLY: 총 태스크 수: 15
+
+I (242958) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (242969) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (247977) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 245530 ms 전
+
+E (252978) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 250531 ms 전
+
+E (257979) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 255532 ms 전
+
+E (262980) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 260533 ms 전
+
+E (267981) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 265534 ms 전
+
+E (272982) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 270535 ms 전
+
+I (272983) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (272989) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (273000) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (273010) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 52.4% (여유: 1948/4096 bytes)
+
+I (273020) BLE_ONLY: 총 태스크 수: 15
+
+I (273025) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (273036) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (278044) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 275597 ms 전
+
+E (283045) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 280598 ms 전
+
+E (288046) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 285599 ms 전
+
+E (293047) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 290600 ms 전
+
+E (298048) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 295601 ms 전
+
+E (303049) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 300602 ms 전
+
+I (303050) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (303056) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (303067) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (303077) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 52.4% (여유: 1948/4096 bytes)
+
+I (303087) BLE_ONLY: 총 태스크 수: 15
+
+I (303092) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (303103) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (308111) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 305664 ms 전
+
+E (313112) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 310665 ms 전
+
+E (318113) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 315666 ms 전
+
+E (323114) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 320667 ms 전
+
+E (328115) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 325668 ms 전
+
+E (333116) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 330669 ms 전
+
+I (333117) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (333124) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (333134) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (333144) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 52.4% (여유: 1948/4096 bytes)
+
+I (333154) BLE_ONLY: 총 태스크 수: 15
+
+I (333159) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (333170) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (338178) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 335731 ms 전
+
+E (343179) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 340732 ms 전
+
+E (348180) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 345733 ms 전
+
+E (353181) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 350734 ms 전
+
+E (358182) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 355735 ms 전
+
+E (363183) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 360736 ms 전
+
+I (363184) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (363190) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (363201) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (363211) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 52.4% (여유: 1948/4096 bytes)
+
+I (363221) BLE_ONLY: 총 태스크 수: 15
+
+I (363226) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (363237) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (368245) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 365798 ms 전
+
+E (373246) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 370799 ms 전
+
+E (378247) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 375800 ms 전
+
+E (383248) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 380801 ms 전
+
+E (388249) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 385802 ms 전
+
+E (393250) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 390803 ms 전
+
+I (393251) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (393257) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (393268) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (393278) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 52.4% (여유: 1948/4096 bytes)
+
+I (393288) BLE_ONLY: 총 태스크 수: 15
+
+I (393293) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (393304) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (398312) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 395865 ms 전
+
+E (403313) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 400866 ms 전
+
+E (408314) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 405867 ms 전
+
+E (413315) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 410868 ms 전
+
+E (418316) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 415869 ms 전
+
+E (423317) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 420870 ms 전
+
+I (423318) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (423324) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (423335) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (423345) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 52.4% (여유: 1948/4096 bytes)
+
+I (423355) BLE_ONLY: 총 태스크 수: 15
+
+I (423360) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (423371) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (428379) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 425932 ms 전
+
+E (433380) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 430933 ms 전
+
+E (438381) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 435934 ms 전
+
+E (443382) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 440935 ms 전
+
+E (448383) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 445936 ms 전
+
+E (453384) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 450937 ms 전
+
+I (453385) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (453391) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (453402) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (453412) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 52.4% (여유: 1948/4096 bytes)
+
+I (453422) BLE_ONLY: 총 태스크 수: 15
+
+I (453427) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (453438) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (458446) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 455999 ms 전
+
+E (463447) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 461000 ms 전
+
+E (468448) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 466001 ms 전
+
+E (473449) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 471002 ms 전
+
+E (478450) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 476003 ms 전
+
+E (483451) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 481004 ms 전
+
+I (483452) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (483458) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (483469) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (483479) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 55.2% (여유: 1836/4096 bytes)
+
+I (483489) BLE_ONLY: 총 태스크 수: 15
+
+I (483494) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (483505) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (488513) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 486066 ms 전
+
+E (493514) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 491067 ms 전
+
+E (498515) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 496068 ms 전
+
+E (503516) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 501069 ms 전
+
+E (508517) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 506070 ms 전
+
+E (513518) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 511071 ms 전
+
+I (513519) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (513525) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (513536) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (513546) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 55.2% (여유: 1836/4096 bytes)
+
+I (513556) BLE_ONLY: 총 태스크 수: 15
+
+I (513561) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (513572) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (518580) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 516133 ms 전
+
+E (523581) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 521134 ms 전
+
+E (528582) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 526135 ms 전
+
+E (533583) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 531136 ms 전
+
+E (538584) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 536137 ms 전
+
+E (543585) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 541138 ms 전
+
+I (543586) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (543592) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (543603) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (543613) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 55.2% (여유: 1836/4096 bytes)
+
+I (543623) BLE_ONLY: 총 태스크 수: 15
+
+I (543628) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (543639) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (548647) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 546200 ms 전
+
+E (553648) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 551201 ms 전
+
+E (558649) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 556202 ms 전
+
+E (563650) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 561203 ms 전
+
+E (568651) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 566204 ms 전
+
+E (573652) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 571205 ms 전
+
+I (573653) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (573659) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (573670) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (573680) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 55.2% (여유: 1836/4096 bytes)
+
+I (573690) BLE_ONLY: 총 태스크 수: 15
+
+I (573695) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (573706) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (578714) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 576267 ms 전
+
+E (583715) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 581268 ms 전
+
+E (588716) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 586269 ms 전
+
+E (593717) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 591270 ms 전
+
+E (598718) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 596271 ms 전
+
+E (603719) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 601272 ms 전
+
+I (603720) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (603727) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (603737) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (603747) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 55.2% (여유: 1836/4096 bytes)
+
+I (603757) BLE_ONLY: 총 태스크 수: 15
+
+I (603762) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (603773) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (608781) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 606334 ms 전
+
+E (613782) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 611335 ms 전
+
+E (618783) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 616336 ms 전
+
+E (623784) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 621337 ms 전
+
+E (628785) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 626338 ms 전
+
+E (633786) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 631339 ms 전
+
+I (633787) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (633793) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (633804) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (633814) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 55.2% (여유: 1836/4096 bytes)
+
+I (633824) BLE_ONLY: 총 태스크 수: 15
+
+I (633829) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (633840) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (638848) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 636401 ms 전
+
+E (643849) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 641402 ms 전
+
+E (648850) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 646403 ms 전
+
+E (653851) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 651404 ms 전
+
+E (658852) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 656405 ms 전
+
+E (663853) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 661406 ms 전
+
+I (663854) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (663860) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (663871) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (663881) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 55.2% (여유: 1836/4096 bytes)
+
+I (663891) BLE_ONLY: 총 태스크 수: 15
+
+I (663896) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (663907) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (668915) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 666468 ms 전
+
+E (673916) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 671469 ms 전
+
+E (678917) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 676470 ms 전
+
+E (683918) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 681471 ms 전
+
+E (688919) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 686472 ms 전
+
+E (693920) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 691473 ms 전
+
+I (693921) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (693927) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (693938) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (693948) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 55.2% (여유: 1836/4096 bytes)
+
+I (693958) BLE_ONLY: 총 태스크 수: 15
+
+I (693963) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (693974) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (698982) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 696535 ms 전
+
+E (703983) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 701536 ms 전
+
+E (708984) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 706537 ms 전
+
+E (713985) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 711538 ms 전
+
+E (718986) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 716539 ms 전
+
+E (723987) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 721540 ms 전
+
+I (723988) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (723994) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (724005) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (724015) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 55.2% (여유: 1836/4096 bytes)
+
+I (724025) BLE_ONLY: 총 태스크 수: 15
+
+I (724030) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (724041) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (729049) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 726602 ms 전
+
+E (734050) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 731603 ms 전
+
+E (739051) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 736604 ms 전
+
+E (744052) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 741605 ms 전
+
+E (749053) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 746606 ms 전
+
+E (754054) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 751607 ms 전
+
+I (754055) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (754061) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (754072) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (754082) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 55.2% (여유: 1836/4096 bytes)
+
+I (754092) BLE_ONLY: 총 태스크 수: 15
+
+I (754097) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (754108) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (759116) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 756669 ms 전
+
+E (764117) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 761670 ms 전
+
+E (769118) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 766671 ms 전
+
+E (774119) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 771672 ms 전
+
+E (779120) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 776673 ms 전
+
+E (784121) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 781674 ms 전
+
+I (784122) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (784128) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (784139) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (784149) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 55.2% (여유: 1836/4096 bytes)
+
+I (784159) BLE_ONLY: 총 태스크 수: 15
+
+I (784164) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (784175) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (789183) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 786736 ms 전
+
+E (794184) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 791737 ms 전
+
+E (799185) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 796738 ms 전
+
+E (804186) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 801739 ms 전
+
+E (809187) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 806740 ms 전
+
+E (814188) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 811741 ms 전
+
+I (814189) BLE_ONLY: === 시스템 상태 모니터 ===
+
+I (814195) BLE_ONLY: 태스크: lvgl_handler | 상태: Blocked | 스택: 33.6% (여유: 5436/8192 bytes)
+
+I (814206) BLE_ONLY: 태스크: button_task | 상태: Blocked | 스택: 18.8% (여유: 3324/4096 bytes)
+
+I (814216) BLE_ONLY: 태스크: buf_queue_monitor | 상태: Running | 스택: 55.2% (여유: 1836/4096 bytes)
+
+I (814226) BLE_ONLY: 총 태스크 수: 15
+
+I (814231) BLE_ONLY: 메모리 상태: 여유=7578152 bytes, 최소여유=7568352 bytes, 최대블록=7340032 bytes
+
+I (814242) BLE_ONLY: PSRAM 상태: 여유=7430188 bytes, 최소여유=7430188 bytes
+
+E (819250) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 816803 ms 전
+
+E (824251) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 821804 ms 전
+
+E (829252) BLE_ONLY: [시스템 모니터] 경고: 버튼 태스크 하트비트 타임아웃! 마지막 하트비트: 826805 ms 전
+

@@ -1,0 +1,113 @@
+Android bugreport로 btsnoop_hci.log 뽑기 (Samsung / Android 15 포함)
+=========================================================
+
+목표
+- 폰에서 Bluetooth HCI snoop 로그(btsnoop_hci.log)를 bugreport.zip으로 받아서 PC에서 추출/분석한다.
+- Wireshark 없이도 tools/btsnoop_att_summary.py로 ATT/GATT 이벤트를 요약한다.
+
+사전 준비
+1) 폰: 개발자 옵션 > "Bluetooth HCI snoop log" ON
+2) 폰: 문제 재현(중요)
+   - 앱에서 등록 완료
+   - 실행 버튼 1~3회
+   - "실행 안됨" 상태까지 만든 뒤 종료
+3) PC: adb 연결(USB 디버깅 허용)
+
+=========================================================
+1) bugreport.zip 생성
+=========================================================
+
+[PowerShell]
+cd C:\vscode\sub_monitor
+adb bugreport C:\vscode\sub_monitor\bugreport_run.zip
+
+[CMD]
+cd /d C:\vscode\sub_monitor
+adb bugreport C:\vscode\sub_monitor\bugreport_run.zip
+
+=========================================================
+2) bugreport.zip 안에서 btsnoop 경로 찾기
+=========================================================
+
+주의:
+- bugreport 내부 경로는 보통 슬래시(/)로 표시된다.
+- 예) FS/data/log/bt/btsnoop_hci.log
+
+[PowerShell]
+cd C:\vscode\sub_monitor
+tar -tf .\bugreport_run.zip | Select-String -Pattern "btsnoop|snoop|hci" | Select-Object -First 50
+
+[CMD]
+cd /d C:\vscode\sub_monitor
+tar -tf bugreport_run.zip | findstr /i "btsnoop snoop hci"
+
+출력에서 "btsnoop_hci.log"가 들어있는 정확한 경로를 확인한다.
+예: FS/data/log/bt/btsnoop_hci.log
+
+=========================================================
+3) btsnoop 추출 (경로를 정확히 사용)
+=========================================================
+
+중요 규칙:
+- tar로 추출할 때는 "zip 내부 경로"를 그대로 사용한다(대개 / 포함).
+- 추출 후 Windows 파일 경로는 \ 로 접근한다.
+
+예시) zip 내부 경로가 아래처럼 나왔다면:
+  FS/data/log/bt/btsnoop_hci.log
+
+[PowerShell]
+cd C:\vscode\sub_monitor
+tar -xf .\bugreport_run.zip -C .\ FS/data/log/bt/btsnoop_hci.log
+copy .\FS\data\log\bt\btsnoop_hci.log .\btsnoop_run.log
+
+[CMD]
+cd /d C:\vscode\sub_monitor
+tar -xf bugreport_run.zip -C .\ FS/data/log/bt/btsnoop_hci.log
+copy .\FS\data\log\bt\btsnoop_hci.log .\btsnoop_run.log
+
+만약 "Not found in archive"가 나오면:
+- 2) 단계에서 나온 경로를 다시 확인하고, 그 경로로 재시도한다.
+- 경로에 대소문자/슬래시가 다르면 실패할 수 있다.
+
+=========================================================
+4) Wireshark 없이 btsnoop 분석
+=========================================================
+
+4-1) 서비스/특성/디스크립터(핸들 맵) 추정 출력
+[PowerShell/CMD 공통]
+cd C:\vscode\sub_monitor
+python .\tools\btsnoop_att_summary.py .\btsnoop_run.log --show-discovery --limit 200
+
+4-2) 특정 핸들만 watch (예: 우리 펌웨어 기준)
+- FFF2(WRITE)  handle=44 -> 0x002C
+- FFF1 CCCD    handle=45 -> 0x002D
+- HID OUT      handle=68 -> 0x0044
+
+[PowerShell/CMD 공통]
+python .\tools\btsnoop_att_summary.py .\btsnoop_run.log --watch 0x002C --watch 0x002D --watch 0x0044 --limit 900
+
+=========================================================
+5) 결과 공유(추천)
+=========================================================
+
+문제 분석에 가장 중요한 출력 2개:
+1) --show-discovery 출력 전체
+2) --watch ... 출력 전체
+
+=========================================================
+참고: 동작되는 제품(정상 기기)도 같은 방식으로 떠서 비교하면 가장 빠르다
+=========================================================
+
+정상 기기에서도:
+- 동일 시나리오(등록 완료 -> 실행 버튼)
+- bugreport_ok.zip 생성
+- btsnoop_ok.log 추출
+- 동일 스크립트 출력
+
+두 로그를 비교하면:
+- 폰이 어떤 handle에 무엇을 WRITE 하는지
+- CCCD enable 순서
+- Cmd=0x09(시간설정) 같은 프레임이 실제로 오가는지
+를 패킷 레벨로 확정할 수 있다.
+
+

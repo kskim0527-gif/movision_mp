@@ -1,0 +1,552 @@
+--------- BTSNOOP -----------
+
+C:\vscode\sub_monitor>python .\tools\btsnoop_att_summary.py .\btsnoop_run.log --show-discovery --limit 200
+ATT events: 5833
+ACL handle counts (multiple connections likely):
+  acl_handle=0x0067 (103): 894
+  acl_handle=0x0049 (73): 754
+  acl_handle=0x005E (94): 534
+  acl_handle=0x004D (77): 488
+  acl_handle=0x0057 (87): 429
+  acl_handle=0x0051 (81): 407
+  acl_handle=0x0059 (89): 397
+  acl_handle=0x004C (76): 295
+  acl_handle=0x004F (79): 286
+  acl_handle=0x005A (90): 217
+  acl_handle=0x0047 (71): 181
+  acl_handle=0x0053 (83): 180
+  acl_handle=0x005C (92): 140
+  acl_handle=0x0063 (99): 131
+  acl_handle=0x0064 (100): 127
+  acl_handle=0x0050 (80): 109
+  acl_handle=0x0060 (96): 107
+  acl_handle=0x0055 (85): 94
+  acl_handle=0x0069 (105): 63
+Opcode counts:
+  0x1B: 1945
+  0x08: 916
+  0x01: 845
+  0x04: 457
+  0x09: 325
+  0x05: 244
+  0x02: 178
+  0x10: 128
+  0x11: 128
+  0x12: 113
+  0x13: 106
+  0x52: 90
+  0x0A: 85
+  0x0B: 78
+  0x03: 77
+  0x06: 56
+  0x07: 28
+  0x1D: 13
+  0x1E: 13
+  0x0C: 4
+  0x0D: 4
+WRITE handles (0x12/0x52) (top 20):
+  handle 0x001C (28): 90
+  handle 0x0031 (49): 30
+  handle 0x0034 (52): 22
+  handle 0x0004 (4): 19
+  handle 0x001A (26): 11
+  handle 0x0009 (9): 9
+  handle 0x0013 (19): 6
+  handle 0x0016 (22): 6
+  handle 0x003B (59): 5
+  handle 0x003E (62): 5
+READ handles (0x0A) (top 20):
+  handle 0x002A (42): 32
+  handle 0x002C (44): 30
+  handle 0x000C (12): 6
+  handle 0x000E (14): 6
+  handle 0x0034 (52): 6
+  handle 0x0036 (54): 5
+INDICATION handles (0x1D) (top 20):
+  handle 0x0003 (3): 13
+
+CCCD-like writes (handle,value16) top:
+  handle 0x0031 val=0x0001 (1) : 30
+  handle 0x0034 val=0x0001 (1) : 22
+  handle 0x0004 val=0x0002 (2) : 19
+  handle 0x001A val=0x0001 (1) : 11
+  handle 0x0009 val=0x0002 (2) : 9
+  handle 0x0013 val=0x0001 (1) : 6
+  handle 0x0016 val=0x0001 (1) : 6
+  handle 0x003B val=0x0001 (1) : 5
+  handle 0x003E val=0x0001 (1) : 5
+
+Short writes (<=8 bytes), first 50:
+  ev=00015 out op=0x12 handle=0x0031 val=01:00
+  ev=00017 out op=0x12 handle=0x0034 val=01:00
+  ev=00207 out op=0x12 handle=0x0004 val=02:00
+  ev=00255 out op=0x12 handle=0x0031 val=01:00
+  ev=00257 out op=0x12 handle=0x0034 val=01:00
+  ev=00310 out op=0x12 handle=0x0031 val=01:00
+  ev=00312 out op=0x12 handle=0x0034 val=01:00
+  ev=00892 out op=0x12 handle=0x0031 val=01:00
+  ev=00896 out op=0x12 handle=0x0034 val=01:00
+  ev=00901 out op=0x12 handle=0x0004 val=02:00
+  ev=00961 out op=0x12 handle=0x0004 val=02:00
+  ev=01009 out op=0x12 handle=0x0031 val=01:00
+  ev=01011 out op=0x12 handle=0x0034 val=01:00
+  ev=01064 out op=0x12 handle=0x0031 val=01:00
+  ev=01066 out op=0x12 handle=0x0034 val=01:00
+  ev=01144 out op=0x12 handle=0x0031 val=01:00
+  ev=01146 out op=0x12 handle=0x0034 val=01:00
+  ev=01217 out op=0x12 handle=0x0031 val=01:00
+  ev=01219 out op=0x12 handle=0x0034 val=01:00
+  ev=01256 out op=0x12 handle=0x0004 val=02:00
+  ev=01306 out op=0x12 handle=0x0031 val=01:00
+  ev=01308 out op=0x12 handle=0x0034 val=01:00
+  ev=01372 out op=0x12 handle=0x0031 val=01:00
+  ev=01374 out op=0x12 handle=0x0034 val=01:00
+  ev=01463 out op=0x12 handle=0x0031 val=01:00
+  ev=01465 out op=0x12 handle=0x0034 val=01:00
+  ev=01585 out op=0x12 handle=0x0031 val=01:00
+  ev=01587 out op=0x12 handle=0x0034 val=01:00
+  ev=01740 out op=0x12 handle=0x0009 val=02:00
+  ev=01784 out op=0x12 handle=0x001A val=01:00
+  ev=01789 out op=0x12 handle=0x0013 val=01:00
+  ev=01791 out op=0x52 handle=0x001C val=19:4d:0b:01:00:2f
+  ev=01792 out op=0x12 handle=0x0016 val=01:00
+  ev=01794 out op=0x52 handle=0x001C val=19:4d:05:01:07:2f
+  ev=01796 out op=0x52 handle=0x001C val=19:4d:06:01:03:2f
+  ev=01797 out op=0x52 handle=0x001C val=19:4d:07:02:01:01:2f
+  ev=01799 out op=0x52 handle=0x001C val=19:4d:08:02:01:06:2f
+  ev=01801 out op=0x52 handle=0x001C val=19:4d:04:01:01:2f
+  ev=01802 out op=0x52 handle=0x001C val=19:4d:05:01:02:2f
+  ev=01803 out op=0x52 handle=0x001C val=19:4d:03:02:00:00:2f
+  ev=01804 out op=0x52 handle=0x001C val=19:4d:06:01:03:2f
+  ev=01806 out op=0x52 handle=0x001C val=19:4d:04:01:00:2f
+  ev=01807 out op=0x52 handle=0x001C val=19:4d:0b:01:00:2f
+  ev=01808 out op=0x52 handle=0x001C val=19:4d:05:01:07:2f
+  ev=01809 out op=0x52 handle=0x001C val=19:4d:04:01:00:2f
+  ev=01812 out op=0x52 handle=0x001C val=19:4d:03:02:00:00:2f
+  ev=01815 out op=0x52 handle=0x001C val=19:4d:04:01:01:2f
+  ev=01817 out op=0x52 handle=0x001C val=19:4d:04:01:00:2f
+  ev=01819 out op=0x52 handle=0x001C val=19:4d:04:01:01:2f
+  ev=01820 out op=0x52 handle=0x001C val=19:4d:03:02:00:3d:2f
+
+Discovery summary (best-effort):
+  Services (start..end uuid):
+    0x0001..0x0005 0x1801
+    0x0014..0x001C 0x1800
+    0x0028..0x0037 0x1812
+    0x0038..0xFFFF 0xFFEA
+    0x0001..0x0005 0x1800
+    0x0006..0x0009 0x1801
+    0x000A..0x0016 0x1812
+    0x0017..0xFFFF 0xFFEA
+    0x0028..0x0031 0xFFEA
+    0x0032..0xFFFF 0x1812
+  Characteristics (decl props value uuid):
+    decl=0x0039 props=0x12 value=0x003A uuid=0xFFF1
+    decl=0x003B props=0x0C value=0x003C uuid=0xFFF2
+    decl=0x0002 props=0x20 value=0x0003 uuid=0x2A05
+    decl=0x0015 props=0x02 value=0x0016 uuid=0x2A00
+    decl=0x0017 props=0x02 value=0x0018 uuid=0x2A01
+    decl=0x0019 props=0x02 value=0x001A uuid=0x2AA6
+    decl=0x0029 props=0x02 value=0x002A uuid=0x2A4A
+    decl=0x002B props=0x02 value=0x002C uuid=0x2A4B
+    decl=0x002D props=0x0C value=0x002E uuid=0x2A4C
+    decl=0x002F props=0x1E value=0x0030 uuid=0x2A4D
+    decl=0x0032 props=0x12 value=0x0033 uuid=0x2A22
+    decl=0x0002 props=0x02 value=0x0003 uuid=0x2A00
+    decl=0x0004 props=0x02 value=0x0005 uuid=0x2A01
+    decl=0x0007 props=0x20 value=0x0008 uuid=0x2A05
+    decl=0x000B props=0x02 value=0x000C uuid=0x2A4A
+    decl=0x000D props=0x02 value=0x000E uuid=0x2A4B
+    decl=0x000F props=0x04 value=0x0010 uuid=0x2A4C
+    decl=0x0011 props=0x1A value=0x0012 uuid=0x2A4D
+    decl=0x0014 props=0x12 value=0x0015 uuid=0x2A22
+    decl=0x0018 props=0x12 value=0x0019 uuid=0xFFF1
+    decl=0x001B props=0x0C value=0x001C uuid=0xFFF2
+    decl=0x0029 props=0x12 value=0x002A uuid=0xFFF1
+    decl=0x002B props=0x0C value=0x002C uuid=0xFFF2
+    decl=0x0033 props=0x02 value=0x0034 uuid=0x2A4A
+    decl=0x0035 props=0x02 value=0x0036 uuid=0x2A4B
+    decl=0x0037 props=0x0C value=0x0038 uuid=0x2A4C
+    decl=0x0039 props=0x1E value=0x003A uuid=0x2A4D
+    decl=0x003C props=0x12 value=0x003D uuid=0x2A22
+    decl=0x002F props=0x3A value=0x0030 uuid=0x2A4D
+  Descriptors (handle uuid):
+    0x0003 0x2A05
+    0x0004 0x2902
+    0x0008 0x2A05
+    0x0009 0x2902
+    0x0013 0x2902
+    0x0016 0x2902
+    0x001A 0x2902
+    0x002D 0x2902
+    0x0031 0x2902
+    0x0034 0x2902
+    0x003B 0x2902
+    0x003D 0x2902
+    0x003E 0x2902
+
+First events:
+00000 in  op=0x01(ErrRsp) handle=- len=5
+00001 out op=0x08(ReadByTypeReq) handle=0x0038 len=7 start=0x0038 end=0xFFFF type=0x2802
+00002 in  op=0x01(ErrRsp) handle=- len=5
+00003 out op=0x08(ReadByTypeReq) handle=0x0038 len=7 start=0x0038 end=0xFFFF type=0x2803
+00004 in  op=0x09(ReadByTypeRsp) handle=- len=44 entry_len=21 entries=2
+00005 out op=0x08(ReadByTypeReq) handle=0x003C len=7 start=0x003C end=0xFFFF type=0x2803
+00006 in  op=0x01(ErrRsp) handle=- len=5
+00007 out op=0x04(FindInfoReq) handle=- len=5 start=0x003D end=0xFFFF
+00008 in  op=0x05(FindInfoRsp) handle=- len=6 fmt=0x01 entries=1
+00009 out op=0x04(FindInfoReq) handle=- len=5 start=0x003E end=0xFFFF
+00010 in  op=0x01(ErrRsp) handle=- len=5
+00011 out op=0x0A(ReadReq) handle=0x002A len=3 handle=0x002A
+00012 in  op=0x0B(ReadRsp) handle=- len=5
+00013 out op=0x0A(ReadReq) handle=0x002C len=3 handle=0x002C
+00014 in  op=0x0B(ReadRsp) handle=- len=48
+00015 out op=0x12(WriteReq) handle=0x0031 len=5
+00016 in  op=0x13(WriteRsp) handle=- len=1
+00017 out op=0x12(WriteReq) handle=0x0034 len=5
+00018 in  op=0x13(WriteRsp) handle=- len=1
+00019 in  op=0x1B(Notif) handle=0x0030 len=12
+00020 in  op=0x1B(Notif) handle=0x0030 len=12
+00021 in  op=0x1B(Notif) handle=0x0030 len=12
+00022 in  op=0x1B(Notif) handle=0x0030 len=12
+00023 in  op=0x1B(Notif) handle=0x0030 len=12
+00024 in  op=0x1B(Notif) handle=0x0030 len=12
+00025 in  op=0x1B(Notif) handle=0x0030 len=12
+00026 in  op=0x1B(Notif) handle=0x0030 len=12
+00027 in  op=0x1B(Notif) handle=0x0030 len=12
+00028 in  op=0x1B(Notif) handle=0x0030 len=12
+00029 in  op=0x1B(Notif) handle=0x0030 len=12
+00030 in  op=0x1B(Notif) handle=0x0030 len=12
+00031 in  op=0x1B(Notif) handle=0x0030 len=12
+00032 in  op=0x1B(Notif) handle=0x0030 len=12
+00033 in  op=0x1B(Notif) handle=0x0030 len=12
+00034 in  op=0x1B(Notif) handle=0x0030 len=12
+00035 in  op=0x1B(Notif) handle=0x0030 len=12
+00036 in  op=0x1B(Notif) handle=0x0030 len=12
+00037 in  op=0x1B(Notif) handle=0x0030 len=12
+00038 in  op=0x1B(Notif) handle=0x0030 len=12
+00039 in  op=0x1B(Notif) handle=0x0030 len=12
+00040 in  op=0x1B(Notif) handle=0x0030 len=12
+00041 in  op=0x1B(Notif) handle=0x0030 len=12
+00042 in  op=0x1B(Notif) handle=0x0030 len=12
+00043 in  op=0x1B(Notif) handle=0x0030 len=12
+00044 in  op=0x1B(Notif) handle=0x0030 len=12
+00045 in  op=0x1B(Notif) handle=0x0030 len=12
+00046 in  op=0x1B(Notif) handle=0x0030 len=12
+00047 in  op=0x1B(Notif) handle=0x0030 len=12
+00048 in  op=0x1B(Notif) handle=0x0030 len=12
+00049 in  op=0x1B(Notif) handle=0x0030 len=12
+00050 in  op=0x1B(Notif) handle=0x0030 len=12
+00051 in  op=0x1B(Notif) handle=0x0030 len=12
+00052 in  op=0x1B(Notif) handle=0x0030 len=12
+00053 in  op=0x1B(Notif) handle=0x0030 len=12
+00054 in  op=0x1B(Notif) handle=0x0030 len=12
+00055 in  op=0x1B(Notif) handle=0x0030 len=12
+00056 in  op=0x1B(Notif) handle=0x0030 len=12
+00057 in  op=0x1B(Notif) handle=0x0030 len=12
+00058 in  op=0x1B(Notif) handle=0x0030 len=12
+00059 in  op=0x1B(Notif) handle=0x0030 len=12
+00060 in  op=0x1B(Notif) handle=0x0030 len=12
+00061 in  op=0x1B(Notif) handle=0x0030 len=12
+00062 in  op=0x1B(Notif) handle=0x0030 len=12
+00063 in  op=0x1B(Notif) handle=0x0030 len=12
+00064 in  op=0x1B(Notif) handle=0x0030 len=12
+00065 in  op=0x1B(Notif) handle=0x0030 len=12
+00066 in  op=0x1B(Notif) handle=0x0030 len=12
+00067 in  op=0x1B(Notif) handle=0x0030 len=12
+00068 in  op=0x1B(Notif) handle=0x0030 len=12
+00069 in  op=0x1B(Notif) handle=0x0030 len=12
+00070 in  op=0x1B(Notif) handle=0x0030 len=12
+00071 in  op=0x1B(Notif) handle=0x0030 len=12
+00072 in  op=0x1B(Notif) handle=0x0030 len=12
+00073 in  op=0x1B(Notif) handle=0x0030 len=12
+00074 in  op=0x1B(Notif) handle=0x0030 len=12
+00075 in  op=0x1B(Notif) handle=0x0030 len=12
+00076 in  op=0x1B(Notif) handle=0x0030 len=12
+00077 in  op=0x1B(Notif) handle=0x0030 len=12
+00078 in  op=0x1B(Notif) handle=0x0030 len=12
+00079 in  op=0x1B(Notif) handle=0x0030 len=12
+00080 in  op=0x1B(Notif) handle=0x0030 len=12
+00081 in  op=0x1B(Notif) handle=0x0030 len=12
+00082 in  op=0x1B(Notif) handle=0x0030 len=12
+00083 in  op=0x1B(Notif) handle=0x0030 len=12
+00084 in  op=0x1B(Notif) handle=0x0030 len=12
+00085 in  op=0x1B(Notif) handle=0x0030 len=12
+00086 in  op=0x1B(Notif) handle=0x0030 len=12
+00087 in  op=0x1B(Notif) handle=0x0030 len=12
+00088 in  op=0x1B(Notif) handle=0x0030 len=12
+00089 in  op=0x1B(Notif) handle=0x0030 len=12
+00090 in  op=0x1B(Notif) handle=0x0030 len=12
+00091 in  op=0x1B(Notif) handle=0x0030 len=12
+00092 in  op=0x1B(Notif) handle=0x0030 len=12
+00093 in  op=0x1B(Notif) handle=0x0030 len=12
+00094 in  op=0x1B(Notif) handle=0x0030 len=12
+00095 in  op=0x1B(Notif) handle=0x0030 len=12
+00096 in  op=0x1B(Notif) handle=0x0030 len=12
+00097 in  op=0x1B(Notif) handle=0x0030 len=12
+00098 in  op=0x1B(Notif) handle=0x0030 len=12
+00099 in  op=0x1B(Notif) handle=0x0030 len=12
+00100 in  op=0x1B(Notif) handle=0x0030 len=12
+00101 in  op=0x1B(Notif) handle=0x0030 len=12
+00102 in  op=0x1B(Notif) handle=0x0030 len=12
+00103 in  op=0x1B(Notif) handle=0x0030 len=12
+00104 in  op=0x1B(Notif) handle=0x0030 len=12
+00105 in  op=0x1B(Notif) handle=0x0030 len=12
+00106 in  op=0x1B(Notif) handle=0x0030 len=12
+00107 in  op=0x1B(Notif) handle=0x0030 len=12
+00108 in  op=0x1B(Notif) handle=0x0030 len=12
+00109 in  op=0x1B(Notif) handle=0x0030 len=12
+00110 in  op=0x1B(Notif) handle=0x0030 len=12
+00111 in  op=0x1B(Notif) handle=0x0030 len=12
+00112 in  op=0x1B(Notif) handle=0x0030 len=12
+00113 in  op=0x1B(Notif) handle=0x0030 len=12
+00114 in  op=0x1B(Notif) handle=0x0030 len=12
+00115 in  op=0x1B(Notif) handle=0x0030 len=12
+00116 in  op=0x1B(Notif) handle=0x0030 len=12
+00117 in  op=0x1B(Notif) handle=0x0030 len=12
+00118 in  op=0x1B(Notif) handle=0x0030 len=12
+00119 in  op=0x1B(Notif) handle=0x0030 len=12
+00120 in  op=0x1B(Notif) handle=0x0030 len=12
+00121 in  op=0x1B(Notif) handle=0x0030 len=12
+00122 in  op=0x1B(Notif) handle=0x0030 len=12
+00123 in  op=0x1B(Notif) handle=0x0030 len=12
+00124 in  op=0x1B(Notif) handle=0x0030 len=12
+00125 in  op=0x1B(Notif) handle=0x0030 len=12
+00126 in  op=0x1B(Notif) handle=0x0030 len=12
+00127 in  op=0x1B(Notif) handle=0x0030 len=12
+00128 in  op=0x1B(Notif) handle=0x0030 len=12
+00129 in  op=0x1B(Notif) handle=0x0030 len=12
+00130 in  op=0x1B(Notif) handle=0x0030 len=12
+00131 in  op=0x1B(Notif) handle=0x0030 len=12
+00132 in  op=0x1B(Notif) handle=0x0030 len=12
+00133 in  op=0x1B(Notif) handle=0x0030 len=12
+00134 in  op=0x1B(Notif) handle=0x0030 len=12
+00135 in  op=0x1B(Notif) handle=0x0030 len=12
+00136 in  op=0x1B(Notif) handle=0x0030 len=12
+00137 in  op=0x1B(Notif) handle=0x0030 len=12
+00138 in  op=0x1B(Notif) handle=0x0030 len=12
+00139 in  op=0x1B(Notif) handle=0x0030 len=12
+00140 in  op=0x1B(Notif) handle=0x0030 len=12
+00141 in  op=0x1B(Notif) handle=0x0030 len=12
+00142 in  op=0x1B(Notif) handle=0x0030 len=12
+00143 in  op=0x1B(Notif) handle=0x0030 len=12
+00144 in  op=0x1B(Notif) handle=0x0030 len=12
+00145 in  op=0x1B(Notif) handle=0x0030 len=12
+00146 in  op=0x1B(Notif) handle=0x0030 len=12
+00147 in  op=0x1B(Notif) handle=0x0030 len=12
+00148 in  op=0x1B(Notif) handle=0x0030 len=12
+00149 in  op=0x1B(Notif) handle=0x0030 len=12
+00150 in  op=0x1B(Notif) handle=0x0030 len=12
+00151 in  op=0x1B(Notif) handle=0x0030 len=12
+00152 in  op=0x1B(Notif) handle=0x0030 len=12
+00153 in  op=0x1B(Notif) handle=0x0030 len=12
+00154 in  op=0x1B(Notif) handle=0x0030 len=12
+00155 in  op=0x1B(Notif) handle=0x0030 len=12
+00156 in  op=0x1B(Notif) handle=0x0030 len=12
+00157 in  op=0x1B(Notif) handle=0x0030 len=12
+00158 in  op=0x1B(Notif) handle=0x0030 len=12
+00159 in  op=0x1B(Notif) handle=0x0030 len=12
+00160 in  op=0x1B(Notif) handle=0x0030 len=12
+00161 in  op=0x1B(Notif) handle=0x0030 len=12
+00162 in  op=0x1B(Notif) handle=0x0030 len=12
+00163 in  op=0x1B(Notif) handle=0x0030 len=12
+00164 in  op=0x1B(Notif) handle=0x0030 len=12
+00165 in  op=0x1B(Notif) handle=0x0030 len=12
+00166 in  op=0x1B(Notif) handle=0x0030 len=12
+00167 in  op=0x1B(Notif) handle=0x0030 len=12
+00168 in  op=0x1B(Notif) handle=0x0030 len=12
+00169 in  op=0x1B(Notif) handle=0x0030 len=12
+00170 in  op=0x1B(Notif) handle=0x0030 len=12
+00171 in  op=0x1B(Notif) handle=0x0030 len=12
+00172 in  op=0x1B(Notif) handle=0x0030 len=12
+00173 in  op=0x1B(Notif) handle=0x0030 len=12
+00174 in  op=0x1B(Notif) handle=0x0030 len=12
+00175 in  op=0x1B(Notif) handle=0x0030 len=12
+00176 in  op=0x1B(Notif) handle=0x0030 len=12
+00177 in  op=0x1B(Notif) handle=0x0030 len=12
+00178 in  op=0x1B(Notif) handle=0x0030 len=12
+00179 in  op=0x1B(Notif) handle=0x0030 len=12
+00180 in  op=0x1B(Notif) handle=0x0030 len=12
+00181 out op=0x08(ReadByTypeReq) handle=0x0001 len=7 start=0x0001 end=0xFFFF type=0x2B3A
+00182 in  op=0x01(ErrRsp) handle=- len=5
+00183 out op=0x06(FindByTypeValReq) handle=- len=9
+00184 in  op=0x07(FindByTypeValRsp) handle=- len=5
+00185 out op=0x10(ReadByGrpTypeReq) handle=- len=7 start=0x0001 end=0xFFFF group_type=0x2800
+00186 in  op=0x11(ReadByGrpTypeRsp) handle=- len=20 entry_len=6 entries=3
+00187 out op=0x06(FindByTypeValReq) handle=- len=9
+00188 in  op=0x01(ErrRsp) handle=- len=5
+00189 out op=0x10(ReadByGrpTypeReq) handle=- len=7 start=0x0038 end=0xFFFF group_type=0x2800
+00190 in  op=0x11(ReadByGrpTypeRsp) handle=- len=22 entry_len=20 entries=1
+00191 out op=0x08(ReadByTypeReq) handle=0x0001 len=7 start=0x0001 end=0x0005 type=0x2803
+00192 in  op=0x09(ReadByTypeRsp) handle=- len=9 entry_len=7 entries=1
+00193 out op=0x08(ReadByTypeReq) handle=0x0001 len=7 start=0x0001 end=0x0005 type=0x2802
+00194 in  op=0x01(ErrRsp) handle=- len=5
+00195 out op=0x08(ReadByTypeReq) handle=0x0003 len=7 start=0x0003 end=0x0005 type=0x2803
+00196 in  op=0x01(ErrRsp) handle=- len=5
+00197 out op=0x08(ReadByTypeReq) handle=0x0001 len=7 start=0x0001 end=0x0005 type=0x2803
+00198 in  op=0x09(ReadByTypeRsp) handle=- len=9 entry_len=7 entries=1
+00199 out op=0x04(FindInfoReq) handle=- len=5 start=0x0003 end=0x0005
+
+
+
+----------------------ESP TERMINAL LOG -----------
+
+
+PS C:\vscode\sub_monitor> $env:IDF_PATH = 'C:\Users\kskim\esp\v5.5.1\esp-idf';
+PS C:\vscode\sub_monitor>  & 'C:\Users\kskim\esp32\.espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe' 'C:\Users\kskim\esp\v5.5.1\esp-idf\tools\idf_monitor.py' -p COM4 -b 115200 --toolchain-prefix xtensa-esp32s3-elf- --make '''C:\Users\kskim\esp32\.espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe'' ''C:\Users\kskim\esp\v5.5.1\esp-idf\tools\idf.py''' --target esp32s3 'c:\vscode\sub_monitor\build\sub_monitor.elf'
+--- Warning: GDB cannot open serial ports accessed as COMx
+--- Using \\.\COM4 instead...
+--- esp-idf-monitor 1.8.0 on \\.\COM4 115200
+--- Quit: Ctrl+] | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+ESP-ROM:esp32s3-20210327
+Build:Mar 27 2021
+rst:0x15 (USB_UART_CHIP_RESET),boot:0x2b (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4037f3b2
+--- 0x4037f3b2: esp_cpu_wait_for_intr at C:/Users/kskim/esp/v5.5.1/esp-idf/components/esp_hw_support/cpu.c:64
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fce2820,len:0x158c
+load:0x403c8700,len:0xd24
+load:0x403cb700,len:0x2f34
+entry 0x403c8924
+I (24) boot: ESP-IDF v5.5.1 2nd stage bootloader
+I (24) boot: compile time Dec 19 2025 22:12:23
+I (25) boot: Multicore bootloader
+I (25) boot: chip revision: v0.2
+I (28) boot: efuse block revision: v1.3
+I (31) boot.esp32s3: Boot SPI Speed : 80MHz
+I (35) boot.esp32s3: SPI Mode       : DIO
+I (39) boot.esp32s3: SPI Flash Size : 2MB
+I (43) boot: Enabling RNG early entropy source...
+I (47) boot: Partition Table:
+I (50) boot: ## Label            Usage          Type ST Offset   Length
+I (56) boot:  0 nvs              WiFi data        01 02 00009000 00006000
+I (62) boot:  1 phy_init         RF data          01 01 0000f000 00001000
+I (69) boot:  2 factory          factory app      00 00 00010000 001f0000
+I (76) boot: End of partition table
+I (79) esp_image: segment 0: paddr=00010020 vaddr=3c090020 size=29dd8h (171480) map
+I (116) esp_image: segment 1: paddr=00039e00 vaddr=3fc9d400 size=0443ch ( 17468) load
+I (120) esp_image: segment 2: paddr=0003e244 vaddr=40374000 size=01dd4h (  7636) load
+I (123) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=876c0h (554688) map
+I (226) esp_image: segment 4: paddr=000c76e8 vaddr=40375dd4 size=1758ch ( 95628) load
+I (247) esp_image: segment 5: paddr=000dec7c vaddr=50000000 size=00020h (    32) load
+I (257) boot: Loaded app from partition at offset 0x10000
+I (257) boot: Disabling RNG early entropy source...
+I (267) octal_psram: vendor id    : 0x0d (AP)
+I (267) octal_psram: dev id       : 0x02 (generation 3)
+I (268) octal_psram: density      : 0x03 (64 Mbit)
+I (272) octal_psram: good-die     : 0x01 (Pass)
+I (278) octal_psram: Latency      : 0x01 (Fixed)
+I (283) octal_psram: VCC          : 0x01 (3V)
+I (288) octal_psram: SRF          : 0x01 (Fast Refresh)
+I (294) octal_psram: BurstType    : 0x01 (Hybrid Wrap)
+I (300) octal_psram: BurstLen     : 0x01 (32 Byte)
+I (305) octal_psram: Readlatency  : 0x02 (10 cycles@Fixed)
+I (311) octal_psram: DriveStrength: 0x00 (1/1)
+I (317) MSPI Timing: PSRAM timing tuning index: 5
+I (322) esp_psram: Found 8MB PSRAM device
+I (326) esp_psram: Speed: 80MHz
+I (330) cpu_start: Multicore app
+I (767) esp_psram: SPI SRAM memory test OK
+I (776) cpu_start: Pro cpu start user code
+I (776) cpu_start: cpu freq: 160000000 Hz
+I (776) app_init: Application information:
+I (779) app_init: Project name:     sub_monitor
+I (784) app_init: App version:      1
+I (788) app_init: Compile time:     Dec 19 2025 22:12:03
+I (794) app_init: ELF file SHA256:  96aef8199...
+I (800) app_init: ESP-IDF:          v5.5.1
+I (804) efuse_init: Min chip rev:     v0.0
+I (809) efuse_init: Max chip rev:     v0.99
+I (814) efuse_init: Chip rev:         v0.2
+I (819) heap_init: Initializing. RAM available for dynamic allocation:
+I (826) heap_init: At 3FCA58C0 len 00043E50 (271 KiB): RAM
+I (832) heap_init: At 3FCE9710 len 00005724 (21 KiB): RAM
+I (838) heap_init: At 3FCF0000 len 00008000 (32 KiB): DRAM
+I (844) heap_init: At 600FE000 len 00001FE8 (7 KiB): RTCRAM
+I (851) esp_psram: Adding pool of 8192K of PSRAM memory to heap allocator
+I (859) spi_flash: detected chip: winbond
+I (863) spi_flash: flash io: dio
+W (867) spi_flash: Detected size(16384k) larger than the size in the binary image header(2048k). Using the size in the binary image header.
+I (880) sleep_gpio: Configure to isolate all GPIO pins in sleep state
+I (887) sleep_gpio: Enable automatic switching of GPIO sleep configuration
+I (895) coexist: coex firmware version: b0bcc39
+I (900) coexist: coexist rom version e7ae62f
+I (906) main_task: Started on CPU0
+I (910) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations
+I (918) main_task: Calling app_main()
+I (923) BLE_ONLY: Booting BLE-only...
+I (928) sh8601: LCD panel create success, version: 1.0.0
+I (940) BLE_INIT: BT controller compile version [2edb0b0]
+I (940) BLE_INIT: Using main XTAL as clock source
+I (945) BLE_INIT: Feature Config, ADV:1, BLE_50:1, DTM:1, SCAN:1, CCA:0, SMP:1, CONNECT:1
+I (954) BLE_INIT: Bluetooth MAC: 10:20:ba:44:8e:be
+I (960) phy_init: phy_version 701,f4f1da3a,Mar  3 2025,15:50:10
+I (1030) BLE_ONLY: ADV data set
+I (1031) BLE_ONLY: ScanRsp data set
+I (1031) BLE_ONLY: HID service created handle=40
+I (1033) BLE_ONLY: HUD(128) service created handle=56
+I (1039) BLE_ONLY: HID Info added handle=42
+I (1044) BLE_ONLY: READ char added handle=58
+I (1049) BLE_ONLY: WRITE char added handle=60
+I (1054) BLE_ONLY: HID ReportMap added handle=44
+I (1059) BLE_ONLY: CCCD added handle=61
+I (1063) BLE_ONLY: HUD service started=1
+I (1068) BLE_ONLY: HID ControlPoint added handle=46
+I (1074) BLE_ONLY: HID Report(2A4D) added handle=48
+I (1079) BLE_ONLY: HID CCCD(Report) added handle=49
+I (1085) BLE_ONLY: HID service started=1
+I (1093) BLE_ONLY: Advertising started
+W (1143) sh8601: The 3Ah command has been used and will be overwritten by external initialization sequence
+W (1143) sh8601: The 36h command has been used and will be overwritten by external initialization sequence
+I (2236) BLE_ONLY: LCD: drew ring color=0xffff
+I (2239) BLE_ONLY: LCD: time=--:--:-- (band_y0=201 band_h=64 scale=6)
+I (5169) BLE_ONLY: peer_bda=44:cd:9f:37:be:4d
+I (5170) BLE_ONLY: connected
+I (5262) BLE_ONLY: LCD: drew ring color=0x07e0
+I (5265) BLE_ONLY: LCD: time=--:--:-- (band_y0=201 band_h=64 scale=6)
+I (5294) BLE_ONLY: link: conn_id=0 since_conn_ms=125 since_activity_ms=0
+I (5294) BLE_ONLY: state: mtu=23 cccd=0x0000 started=0 tx=0 ok=0 fail=0
+I (5297) BLE_ONLY: ffea: probe_ok=0 probe_fail=0 conf_ok=0 conf_fail=0
+I (5305) BLE_ONLY: hid: cccd=0x0000 tx=0 ok=0 fail=0
+I (5310) BLE_ONLY: hid_vendor: cccd=0x0000 tx=0 ok=0 fail=0
+I (5316) BLE_ONLY: feature: active=0 age_ms=0
+I (5323) BLE_ONLY: RSSI: -61 dBm
+I (5395) BLE_ONLY: AUTH_CMPL success=1
+I (5484) BLE_ONLY: MTU=247
+I (7323) BLE_ONLY: RSSI: -58 dBm
+I (9323) BLE_ONLY: RSSI: -59 dBm
+I (10322) BLE_ONLY: link: conn_id=0 since_conn_ms=5153 since_activity_ms=0
+I (10322) BLE_ONLY: state: mtu=247 cccd=0x0000 started=0 tx=0 ok=0 fail=0
+I (10326) BLE_ONLY: ffea: probe_ok=0 probe_fail=0 conf_ok=0 conf_fail=0
+I (10333) BLE_ONLY: hid: cccd=0x0000 tx=0 ok=0 fail=0
+I (10339) BLE_ONLY: hid_vendor: cccd=0x0000 tx=0 ok=0 fail=0
+I (10345) BLE_ONLY: feature: active=0 age_ms=0
+I (11351) BLE_ONLY: RSSI: -57 dBm
+I (13351) BLE_ONLY: RSSI: -57 dBm
+I (15350) BLE_ONLY: link: conn_id=0 since_conn_ms=10181 since_activity_ms=0
+I (15350) BLE_ONLY: state: mtu=247 cccd=0x0000 started=0 tx=0 ok=0 fail=0
+I (15354) BLE_ONLY: ffea: probe_ok=0 probe_fail=0 conf_ok=0 conf_fail=0
+I (15361) BLE_ONLY: hid: cccd=0x0000 tx=0 ok=0 fail=0
+I (15367) BLE_ONLY: hid_vendor: cccd=0x0000 tx=0 ok=0 fail=0
+I (15373) BLE_ONLY: feature: active=0 age_ms=0
+I (15379) BLE_ONLY: RSSI: -59 dBm
+I (17380) BLE_ONLY: RSSI: -67 dBm
+I (19380) BLE_ONLY: RSSI: -58 dBm
+I (20379) BLE_ONLY: link: conn_id=0 since_conn_ms=15210 since_activity_ms=0
+I (20379) BLE_ONLY: state: mtu=247 cccd=0x0000 started=0 tx=0 ok=0 fail=0
+I (20383) BLE_ONLY: ffea: probe_ok=0 probe_fail=0 conf_ok=0 conf_fail=0
+I (20390) BLE_ONLY: hid: cccd=0x0000 tx=0 ok=0 fail=0
+I (20396) BLE_ONLY: hid_vendor: cccd=0x0000 tx=0 ok=0 fail=0
+I (20402) BLE_ONLY: feature: active=0 age_ms=0
+I (21408) BLE_ONLY: RSSI: -59 dBm
+I (23408) BLE_ONLY: RSSI: -58 dBm
+I (25407) BLE_ONLY: link: conn_id=0 since_conn_ms=20238 since_activity_ms=0
+I (25407) BLE_ONLY: state: mtu=247 cccd=0x0000 started=0 tx=0 ok=0 fail=0
+I (25411) BLE_ONLY: ffea: probe_ok=0 probe_fail=0 conf_ok=0 conf_fail=0
+I (25418) BLE_ONLY: hid: cccd=0x0000 tx=0 ok=0 fail=0
+I (25424) BLE_ONLY: hid_vendor: cccd=0x0000 tx=0 ok=0 fail=0
+I (25430) BLE_ONLY: feature: active=0 age_ms=0
+I (25436) BLE_ONLY: RSSI: -60 dBm
+I (27437) BLE_ONLY: RSSI: -67 dBm
+I (29437) BLE_ONLY: RSSI: -59 dBm

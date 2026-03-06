@@ -1,0 +1,4 @@
+﻿Setting IDF_PATH environment variable: C:\Users\kskim\esp\v5.5.1\esp-idf
+ERROR: C:\Users\kskim\.espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe doesn't exist! Please run the install script or "idf_tools.py install-python-env" in order to create it
+
+ESP-IDF v5.5.1
