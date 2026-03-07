@@ -17,3 +17,7 @@ __pycache__/
 
 # Logs
 *.log
+
+# Test videos
+*.mp4
+*.avi
