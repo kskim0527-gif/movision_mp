@@ -707,6 +707,10 @@ static SemaphoreHandle_t s_log_buffer_mutex = NULL; // Buffer mutex
 static bool s_need_packet_flash = false;            // Flag for async flush
 #define LOG_FILE_BASE_DIR "/sdcard"
 
+// [부팅 로그] 부팅 시점부터 가상운행 모드 진입 전까지의 앱 메시지 통신을
+// 기록하는 파일 포인터 파일명: /sdcard/log_boot.txt (SD카드 최상위 경로)
+static FILE *s_boot_log_file = NULL;
+
 // SDMMC Pin Definitions (1-bit mode, same as AI_DRV reference)
 // SD card socket: CLK=GPIO2, CMD=GPIO1, D0=GPIO3 (D1/D2/D3 unused for 1-bit)
 // 일부 보드에서는 GPIO41을 HIGH 로 두어야 SDMMC 모드가 활성화됨
@@ -728,7 +732,8 @@ static void request_image_update(uint8_t start, uint8_t id, uint8_t commend,
                                  uint8_t data4, uint8_t data5);
 static esp_err_t load_image_data_csv(void);
 static esp_err_t load_safety_data_csv(void);
-static void save_packet_to_sdcard(const uint8_t *data, size_t len);
+static void save_packet_to_sdcard(const uint8_t *data, size_t len,
+                                  const char *prefix);
 static void scan_intro_images(void);
 static void
 flush_packet_log_to_sdcard(void); // New function to flush RAM buffer to SD
@@ -965,11 +970,44 @@ static void process_app_command(const uint8_t *data, size_t len) {
     request_clear_display(clear_data1);
   }
 
-  // 8. Brightness Query
-  // Cmd: 19 4D 06 01 01 2F -> Resp: 19 4E 0B 02 xx 00 2F
-  if (commend == 0x06 && len >= 6 && data_length == 0x01 && data[4] == 0x01) {
-    uint8_t resp[7] = {0x19, 0x4E, 0x0B, 0x02, s_brightness_level, 0x00, 0x2F};
-    hud_send_notify_bytes(resp, sizeof(resp));
+  // 8. Brightness Query & Firmware Info Query
+  if (commend == 0x06 && len >= 6 && data_length == 0x01) {
+    if (data[4] == 0x01) {
+      // (1) Brightness Query
+      // Cmd: 19 4D 06 01 01 2F -> Resp: 19 4E 0B 02 xx 00 2F
+      uint8_t resp[7] = {0x19, 0x4E, 0x0B, 0x02, s_brightness_level,
+                         0x00, 0x2F};
+      hud_send_notify_bytes(resp, sizeof(resp));
+      save_packet_to_sdcard(resp, sizeof(resp), "TX");
+    } else if (data[4] == 0x03) {
+      // (2) Firmware Info Query
+      // Cmd: 19 4D 06 01 03 2F -> Resp: 19 4D 0C 0A [HUD1] [YYMMDD] 2F
+      const esp_app_desc_t *app_desc = esp_app_get_description();
+      uint8_t resp[15];
+      resp[0] = 0x19; // Header
+      resp[1] = 0x4D; // ID
+      resp[2] = 0x0C; // Cmd (F/W Info Resp)
+      resp[3] = 0x0A; // D-Len (10 bytes)
+
+      // Model Name: "HUD1" (4 bytes)
+      resp[4] = 'H';
+      resp[5] = 'U';
+      resp[6] = 'D';
+      resp[7] = '1';
+
+      // F/W Version (6 bytes, e.g., "260309")
+      // app_desc->version contains the version string from CMake
+      memset(&resp[8], 0, 6);
+      strncpy((char *)&resp[8], app_desc->version, 6);
+
+      resp[14] = 0x2F; // Tail
+
+      hud_send_notify_bytes(resp, sizeof(resp));
+      save_packet_to_sdcard(resp, sizeof(resp), "TX");
+
+      ESP_LOGI(TAG, "Firmware Info Resp: Model=HUD1, Ver=%.6s",
+               app_desc->version);
+    }
   }
 
   // 9. Brightness Set (화면밝기설정)
@@ -2643,17 +2681,17 @@ static void update_circle_display(uint8_t start, uint8_t id, uint8_t commend,
 
   // Set border color based on data1
   if (data1 == 0x00) {
-    // Blue border (GPS 수신 불가)
+    // Blue border (GPS 검색 중 / 수신 전)
     lv_obj_set_style_border_color(s_circle_ring, lv_color_hex(0x0000FF),
                                   0);                   // 파랑색
     lv_obj_set_style_border_width(s_circle_ring, 5, 0); // 파랑색 = 5pt (기본)
-    ESP_LOGI(TAG, "Circle ring: Blue (GPS 수신 불가)");
+    ESP_LOGI(TAG, "Circle ring: Blue (GPS 검색 중)");
   } else if (data1 == 0x01) {
-    // Green border (GPS 수신 가능)
+    // Green border (GPS 수신 완료/정상)
     lv_obj_set_style_border_color(s_circle_ring, lv_color_hex(0x00FF00),
                                   0);                   // 녹색 (최대 밝기)
     lv_obj_set_style_border_width(s_circle_ring, 5, 0); // 녹색 = 5pt
-    ESP_LOGI(TAG, "Circle ring: Green (GPS 수신 가능)");
+    ESP_LOGI(TAG, "Circle ring: Green (GPS 수신 완료)");
   } else {
     ESP_LOGW(TAG,
              "circle_dwg: Unknown data1 "
@@ -4531,7 +4569,6 @@ static void hud_send_notify_bytes(const uint8_t *data, uint16_t len) {
       }
     }
   }
-  save_packet_to_sdcard(data, len);
 }
 
 /* ---------------------------------------------------------------------------
@@ -5649,6 +5686,18 @@ static void switch_display_mode(display_mode_t new_mode) {
 
   s_current_mode = new_mode;
   update_display_mode_ui(new_mode);
+
+  // 새로운 모드가 가상 운행 모드라면 부팅 로그 파일(log_boot.txt) 닫기
+  if (new_mode == DISPLAY_MODE_VIRTUAL_DRIVE) {
+    if (s_boot_log_file != NULL) {
+      ESP_LOGI(TAG, "Entering Virtual Drive mode: Closing log_boot.txt");
+      // 파일 닫기 전 최종 데이터 동기화
+      fflush(s_boot_log_file);
+      fsync(fileno(s_boot_log_file));
+      fclose(s_boot_log_file);
+      s_boot_log_file = NULL;
+    }
+  }
 
   // 새로운 모드가 OTA 모드라면 OTA 모드 시작
   if (new_mode == DISPLAY_MODE_OTA) {
@@ -7494,8 +7543,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
 
         // Minimal ack: echo the received
         // frame back on FFF1 notification.
+        save_packet_to_sdcard(param->write.value, param->write.len, "RX");
         hud_send_notify_bytes(param->write.value, (uint16_t)param->write.len);
-        save_packet_to_sdcard(param->write.value, param->write.len);
         process_app_command(param->write.value, param->write.len);
       }
     }
@@ -7862,6 +7911,34 @@ static esp_err_t init_sdcard(void) {
   ESP_LOGI(TAG, "SD card mounted at %s", LOG_FILE_BASE_DIR);
   s_sdcard_mounted = true;
 
+  // [부팅 로그] SD 카드 마운트 직후 log_boot.txt 파일을 쓰기 모드("w")로 오픈
+  // 부팅할 때마다 기존 파일을 덮어쓰거나 새로 생성합니다.
+  s_boot_log_file = fopen("/sdcard/log_boot.txt", "w");
+  if (s_boot_log_file) {
+    ESP_LOGI(TAG, "Opened /sdcard/log_boot.txt for boot logging");
+    fprintf(s_boot_log_file,
+            "==================================================\n");
+    fprintf(s_boot_log_file, " Mando HUD T - 부팅 및 초기화 통신 로그\n");
+    fprintf(s_boot_log_file,
+            "==================================================\n");
+    fprintf(s_boot_log_file, "* 기록 시작: 부팅 시점\n");
+    fprintf(s_boot_log_file,
+            "* 기록 종료: 가상운행 모드(Virtual Drive) 진입 시\n");
+    fprintf(s_boot_log_file, "* 로그 형식: [시간] [방향] 데이터(HEX)\n");
+    fprintf(s_boot_log_file,
+            "  - [RX]: 스마트폰 앱 -> HUD 기기로 전송된 데이터\n");
+    fprintf(s_boot_log_file,
+            "  - [TX]: HUD 기기 -> 스마트폰 앱으로 전송된 응답(ACK)\n");
+    fprintf(s_boot_log_file,
+            "* 본 파일은 부팅마다 새로 작성(Overwrite) 됩니다.\n");
+    fprintf(s_boot_log_file,
+            "==================================================\n\n");
+    fflush(s_boot_log_file);
+    fsync(fileno(s_boot_log_file));
+  } else {
+    ESP_LOGE(TAG, "Failed to open /sdcard/log_boot.txt");
+  }
+
   // List SD root for debugging
   DIR *root = opendir("/sdcard");
   if (root) {
@@ -7915,7 +7992,8 @@ static void flush_packet_log_to_sdcard(void) {
   xSemaphoreGive(s_log_buffer_mutex);
 }
 
-static void save_packet_to_sdcard(const uint8_t *data, size_t len) {
+static void save_packet_to_sdcard(const uint8_t *data, size_t len,
+                                  const char *prefix) {
   if (!s_sdcard_mounted || !s_logging_enabled || s_log_buffer_mutex == NULL) {
     return;
   }
@@ -7964,17 +8042,88 @@ static void save_packet_to_sdcard(const uint8_t *data, size_t len) {
 
   FILE *f = fopen(full_path, "a");
   if (f != NULL) {
-    // 저장 형식: 패킷을 16진수 문자열로 변환, 공백으로 구분
+    // 저장 형식: [HH:MM:SS] [RX/TX] 패킷
+    fprintf(f, "[%02d:%02d:%02d] [%s] ", timeinfo.tm_hour, timeinfo.tm_min,
+            timeinfo.tm_sec, (prefix ? prefix : "??"));
     for (size_t i = 0; i < len; i++) {
-      fprintf(f, "%02X", data[i]);
-      if (i < len - 1) {
-        fprintf(f, " ");
-      }
+      fprintf(f, "%02X%c", data[i], (i == len - 1) ? '\n' : ' ');
     }
-    fprintf(f, "\n");
-
     fflush(f);
     fclose(f);
+  }
+
+  // [부팅 로그] 기록 로직
+  // 부팅 직후부터 데이터가 쌓이며, 가상운행 모드로 전환되는 순간 파일이 닫히고
+  // 기록이 중단됩니다. 전원 차단 시에도 로그가 유실되지 않도록 매 패킷 기록
+  // 시마다 fsync를 수행하여 물리 디스크에 저장합니다.
+  if (s_boot_log_file != NULL) {
+    // 패킷 명령어(cmd) 분석을 통해 주석 내용 결정
+    const char *desc = "알 수 없는 명령";
+    if (len >= 3 && data[0] == 0x19 && data[1] == 0x4D) {
+      uint8_t cmd = data[2];
+      switch (cmd) {
+      case 0x01:
+        desc = "TBT 방향 정보";
+        break;
+      case 0x02:
+        desc = "안전운행(Safety) 정보";
+        break;
+      case 0x03:
+        desc = "주행 속도(Speed) 정보";
+        break;
+      case 0x04:
+        desc = "외곽 링 상태(00:파랑-검색중, 01:초록-수신완료)";
+        break;
+      case 0x05:
+        desc = "화면 클리어(Clear) 명령";
+        break;
+      case 0x06:
+        if (len >= 5 && data[4] == 0x03)
+          desc = "(펌웨어 정보 문의)";
+        else
+          desc = "화면 밝기 조회(RX)";
+        break;
+      case 0x07:
+        desc = "화면 밝기 설정";
+        break;
+      case 0x08:
+        desc = "등록되지않은 메시지";
+        break;
+      case 0x09:
+        desc = "시간 설정(Time Set)";
+        break;
+      case 0x0A:
+        desc = "목적지 남은 정보";
+        break;
+      case 0x0B:
+        if (len >= 4 && data[3] == 0x01)
+          desc = "목적지 도착 메시지";
+        else if (len >= 4 && data[3] == 0x02)
+          desc = "밝기 조회 응답(TX)";
+        break;
+      case 0x0C:
+        desc = "(모델명과 펌웨어 버전 송신)";
+        break;
+      }
+    } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x4E) {
+      // 송신용 규격(0x4E) 대응
+      if (data[2] == 0x0B)
+        desc = "밝기 조회 응답(TX)";
+      else if (data[2] == 0x0C)
+        desc = "(모델명과 펌웨어 버전 송신)";
+      else
+        desc = "기기 응답 메시지";
+    }
+
+    fprintf(s_boot_log_file, "[%02d:%02d:%02d] [%s] ", timeinfo.tm_hour,
+            timeinfo.tm_min, timeinfo.tm_sec, (prefix ? prefix : "??"));
+    for (size_t i = 0; i < len; i++) {
+      fprintf(s_boot_log_file, "%02X ", data[i]);
+    }
+    fprintf(s_boot_log_file, "// %s\n", desc); // 각 행 끝에 한글 설명 주석 추가
+
+    fflush(s_boot_log_file);
+    fsync(fileno(s_boot_log_file)); // 전원 차단 시 손상 방지 (즉시 기록 보장)
   }
 
   xSemaphoreGive(s_log_buffer_mutex);
@@ -9387,8 +9536,8 @@ void app_main(void) {
           ESP_LOGI(TAG, "System Boot: Playing intro.gif (one cycle)...");
           vTaskDelay(pdMS_TO_TICKS(3000));
 
-          // Do NOT cleanup GIF here. It will stay on screen until BLE connects
-          // as handled by update_display_mode_ui.
+          // Do NOT cleanup GIF here. It will stay on screen until BLE
+          // connects as handled by update_display_mode_ui.
           sys_boot_done = true;
         } else {
           LVGL_UNLOCK();
@@ -9438,10 +9587,8 @@ void app_main(void) {
       set_lcd_brightness(0);
       ESP_LOGI(TAG, "HUD Entry: Displaying logo.png for 1 second...");
       vTaskDelay(pdMS_TO_TICKS(1000));
-      ESP_LOGI(TAG, "HUD Entry: Logo displayed. Waiting for App Connection...");
-    } else {
-      set_lcd_brightness(0);
-      LVGL_LOCK();
+      ESP_LOGI(TAG, "HUD Entry: Logo displayed. Waiting for App
+  Connection..."); } else { set_lcd_brightness(0); LVGL_LOCK();
       lv_obj_del(s_intro_image); // Cleanup if unused
       s_intro_image = NULL;
       LVGL_UNLOCK();
