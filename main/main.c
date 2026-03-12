@@ -1,4 +1,4 @@
-﻿#define LV_USE_GIF 1
+#define LV_USE_GIF 1
 // #define FACTORY_RESCUE_MODE // Factory(1MB) 빌드 시 이 주석을 해제하세요.
 #include <stdbool.h>
 #include <stdint.h>
@@ -44,6 +44,7 @@ static lv_font_t *s_font_kopub_35 = NULL;
 static lv_font_t *s_font_kopub_40 = NULL;
 static lv_font_t *s_font_vip_100 = NULL;
 static lv_font_t *s_font_vip_155 = NULL;
+static lv_font_t *s_font_gman_188 = NULL;
 
 #define SAFE_FONT(f)                                                           \
   ((f) ? (f) : (&lv_font_montserrat_14)) // LVGL default fallback
@@ -174,6 +175,9 @@ static QueueHandle_t s_clear_display_queue =
 static TaskHandle_t s_lvgl_task_handle = NULL;
 static TaskHandle_t s_button_task_handle = NULL;
 static TaskHandle_t s_monitor_task_handle = NULL;
+static TaskHandle_t s_virt_drive_task_handle = NULL;
+static TaskHandle_t s_ble_tx_task_handle = NULL;
+static TaskHandle_t s_lcd_task_handle = NULL;
 
 // BOOT button (GPIO0) for mode switching
 #define BOOT_BUTTON_GPIO GPIO_NUM_0
@@ -457,11 +461,15 @@ static lv_obj_t *s_album_img = NULL;
 static lv_obj_t *s_album_gif = NULL;
 
 // Speedometer mode objects
-static lv_obj_t *s_speedometer_meter = NULL;
-static lv_meter_indicator_t *s_speedometer_needle = NULL;
+static lv_obj_t *s_speedometer_bg_img = NULL;
+static lv_obj_t *s_speedometer_needle_line = NULL;
+static lv_obj_t *s_speedometer_center_img = NULL;
+static lv_point_t s_speedometer_needle_points[2];
+
 static lv_obj_t *s_speedometer_speed_label = NULL;
 static lv_obj_t *s_speedometer_unit_label = NULL;
 static lv_obj_t *s_speedometer_safety_image = NULL;
+static lv_obj_t *s_speedometer_safety_arc = NULL;
 static lv_obj_t *s_speedometer_safety_value_label = NULL;
 static lv_obj_t *s_speedometer_safety_unit_label = NULL;
 static lv_obj_t *s_speedometer_avr_speed_title_label =
@@ -470,9 +478,6 @@ static lv_obj_t *s_speedometer_avr_speed_value_label =
     NULL; // Speedometer Average Speed Value
 static lv_obj_t *s_speedometer_avr_speed_unit_label =
     NULL; // Speedometer Average Speed Unit
-static lv_meter_scale_t *s_speedometer_scale = NULL;
-static lv_meter_indicator_t *s_speedometer_safety_ticks = NULL;
-static lv_meter_indicator_t *s_speedometer_safety_arc = NULL;
 static uint8_t s_speedometer_safety_tt_val = 0;
 
 static lv_obj_t *s_hyd_msg_label =
@@ -2239,54 +2244,25 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
           lv_obj_clear_flag(s_speedometer_safety_image, LV_OBJ_FLAG_HIDDEN);
           lv_obj_move_foreground(s_speedometer_safety_image);
         }
+        
+        if (s_speedometer_safety_arc != NULL) {
+          s_speedometer_safety_tt_val = data2;
+          if (data2 > 0) {
+            int limit_speed = data2 > 220 ? 220 : data2;
+            int start_angle = (int)((limit_speed / 220.0) * 228.0);
+            lv_arc_set_angles(s_speedometer_safety_arc, start_angle, 228); // 228 is End Angle relative to rotation (156)
+            lv_obj_clear_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_move_foreground(s_speedometer_safety_arc);
+          } else {
+            lv_obj_add_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
+          }
+        }
+        
         // Hide speed labels in speedometer mode when safety image is active
         if (s_speedometer_speed_label)
           lv_obj_add_flag(s_speedometer_speed_label, LV_OBJ_FLAG_HIDDEN);
         if (s_speedometer_unit_label)
           lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
-
-        // tt값(data2) 보다 큰 눈금은 주황색으로 표기
-        if (s_speedometer_meter != NULL && s_speedometer_scale != NULL) {
-          if (data2 != 0) {
-            s_speedometer_safety_tt_val =
-                data2; // For numbers (labels) turning orange
-            if (s_speedometer_safety_ticks == NULL) {
-              s_speedometer_safety_ticks = lv_meter_add_scale_lines(
-                  s_speedometer_meter, s_speedometer_scale,
-                  lv_color_hex(0xFF8800), lv_color_hex(0xFF8800), false, 0);
-            }
-            if (s_speedometer_safety_arc == NULL) {
-              s_speedometer_safety_arc =
-                  lv_meter_add_arc(s_speedometer_meter, s_speedometer_scale, 4,
-                                   lv_color_hex(0xFF8800), 0);
-            }
-            lv_meter_set_indicator_start_value(
-                s_speedometer_meter, s_speedometer_safety_ticks, data2);
-            lv_meter_set_indicator_end_value(s_speedometer_meter,
-                                             s_speedometer_safety_ticks, 220);
-            lv_meter_set_indicator_start_value(s_speedometer_meter,
-                                               s_speedometer_safety_arc, data2);
-            lv_meter_set_indicator_end_value(s_speedometer_meter,
-                                             s_speedometer_safety_arc, 220);
-          } else {
-            // tt가 0이면 모든 강조 제거 (0번 눈금이 남는 현상 방지를 위해
-            // 범위를 255로 설정)
-            s_speedometer_safety_tt_val = 0;
-            if (s_speedometer_safety_ticks != NULL) {
-              lv_meter_set_indicator_start_value(
-                  s_speedometer_meter, s_speedometer_safety_ticks, 255);
-              lv_meter_set_indicator_end_value(s_speedometer_meter,
-                                               s_speedometer_safety_ticks, 255);
-            }
-            if (s_speedometer_safety_arc != NULL) {
-              lv_meter_set_indicator_start_value(s_speedometer_meter,
-                                                 s_speedometer_safety_arc, 255);
-              lv_meter_set_indicator_end_value(s_speedometer_meter,
-                                               s_speedometer_safety_arc, 255);
-            }
-          }
-          lv_obj_invalidate(s_speedometer_meter);
-        }
       }
 
       // 하트비트 업데이트 (이미지 표시 후)
@@ -2300,9 +2276,37 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
                entry->sector, offset_x, offset_y);
     } else {
       // Image path unchanged, just ensure image
-      // is visible
+      // is visible and update properties
       if (s_safety_image != NULL) {
-        lv_obj_clear_flag(s_safety_image, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_align(s_safety_image, LV_ALIGN_CENTER, offset_x, offset_y);
+      }
+
+      if (s_current_mode == DISPLAY_MODE_HUD) {
+        if (s_safety_image != NULL) {
+          lv_obj_clear_flag(s_safety_image, LV_OBJ_FLAG_HIDDEN);
+        }
+      } else if (s_current_mode == DISPLAY_MODE_SPEEDOMETER) {
+        if (s_speedometer_safety_image != NULL) {
+          lv_obj_clear_flag(s_speedometer_safety_image, LV_OBJ_FLAG_HIDDEN);
+        }
+        
+        if (s_speedometer_safety_arc != NULL) {
+          s_speedometer_safety_tt_val = data2;
+          if (data2 > 0) {
+            int limit_speed = data2 > 220 ? 220 : data2;
+            int start_angle = (int)((limit_speed / 220.0) * 228.0);
+            lv_arc_set_angles(s_speedometer_safety_arc, start_angle, 228); 
+            lv_obj_clear_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_move_foreground(s_speedometer_safety_arc);
+          } else {
+            lv_obj_add_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
+          }
+        }
+        
+        if (s_speedometer_speed_label)
+          lv_obj_add_flag(s_speedometer_speed_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_speedometer_unit_label)
+          lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
       }
       ESP_LOGD(TAG, "Safety_DRV: Image path unchanged, skipping reload: %s",
                img_path);
@@ -2367,15 +2371,16 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
   uint32_t distance_m =
       ((uint32_t)data4 << 16) | ((uint32_t)data5 << 8) | (uint32_t)data6;
 
+  static uint32_t s_last_distance_m = 0xFFFFFFFF;
+  static uint8_t s_last_distance_mode = 0xFF;
+
   // safety거리값이 20 이하이면 표기하지 않음
   if (distance_m <= 20) {
     if (s_safety_length_value_label != NULL) {
       lv_obj_add_flag(s_safety_length_value_label, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_invalidate(s_safety_length_value_label);
     }
     if (s_safety_length_unit_label != NULL) {
       lv_obj_add_flag(s_safety_length_unit_label, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_invalidate(s_safety_length_unit_label);
     }
     if (s_speedometer_safety_value_label != NULL) {
       lv_obj_add_flag(s_speedometer_safety_value_label, LV_OBJ_FLAG_HIDDEN);
@@ -2383,8 +2388,18 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
     if (s_speedometer_safety_unit_label != NULL) {
       lv_obj_add_flag(s_speedometer_safety_unit_label, LV_OBJ_FLAG_HIDDEN);
     }
+    if (s_speedometer_safety_arc != NULL) {
+      lv_obj_add_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
+    }
+    s_last_distance_m = 0xFFFFFFFF;
     return;
   }
+
+  if (distance_m == s_last_distance_m && s_current_mode == s_last_distance_mode) {
+    return;
+  }
+  s_last_distance_m = distance_m;
+  s_last_distance_mode = s_current_mode;
 
   // Check if HUD labels exist (always expected at boot)
   if (s_safety_length_value_label == NULL ||
@@ -2445,7 +2460,6 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
   lv_obj_align(s_safety_length_value_label, LV_ALIGN_CENTER,
                130 + (last_char_width / 2) - (value_width / 2), -9);
   lv_obj_clear_flag(s_safety_length_value_label, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_invalidate(s_safety_length_value_label);
 
   // Update safety단위 label (25pt, 회색)
   // 위치: safety거리값 오른쪽 끝 숫자에서 5pt 우로 이동
@@ -2459,7 +2473,6 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
     lv_obj_align_to(s_safety_length_unit_label, s_safety_length_value_label,
                     LV_ALIGN_OUT_RIGHT_MID, 5, 0); // 값 레이블 우측 5pt
     lv_obj_clear_flag(s_safety_length_unit_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_invalidate(s_safety_length_unit_label);
   }
 
   // Speedometer Mode Labels update
@@ -2483,7 +2496,6 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
                    0 + (v_last_char_w / 2) - (v_width / 2), 180);
 
       lv_obj_clear_flag(s_speedometer_safety_value_label, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_invalidate(s_speedometer_safety_value_label);
     }
     if (s_speedometer_safety_unit_label != NULL) {
       lv_label_set_text(s_speedometer_safety_unit_label, unit_text);
@@ -2491,7 +2503,6 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
                       s_speedometer_safety_value_label, LV_ALIGN_OUT_RIGHT_MID,
                       6, 0);
       lv_obj_clear_flag(s_speedometer_safety_unit_label, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_invalidate(s_speedometer_safety_unit_label);
     }
   }
 }
@@ -2927,50 +2938,44 @@ static void update_clear_display(uint8_t data1) {
   if (do_tbt) {
     if (s_hud_image != NULL) {
       lv_obj_add_flag(s_hud_image, LV_OBJ_FLAG_HIDDEN);
-      lv_img_set_src(s_hud_image, NULL);
-      lv_obj_invalidate(s_hud_image);
+      // lv_img_set_src(s_hud_image, NULL); // Do NOT clear src to preserve LVGL image cache
     }
     if (s_length_tbt_value_label != NULL) {
       lv_obj_add_flag(s_length_tbt_value_label, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_invalidate(s_length_tbt_value_label);
     }
     if (s_length_tbt_unit_label != NULL) {
       lv_obj_add_flag(s_length_tbt_unit_label, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_invalidate(s_length_tbt_unit_label);
     }
-    s_current_image_path[0] = '\0';
     s_last_image_request_valid = false;
   }
 
   if (do_safety) {
     if (s_safety_image != NULL) {
       lv_obj_add_flag(s_safety_image, LV_OBJ_FLAG_HIDDEN);
-      lv_img_set_src(s_safety_image, NULL);
-      lv_obj_invalidate(s_safety_image);
+      // lv_img_set_src(s_safety_image, NULL); // Do NOT clear src to preserve LVGL image cache
       ESP_LOGI(TAG, "update_clear_display: "
                     "safety_image hidden and cleared");
     }
     if (s_safety_length_value_label != NULL) {
       lv_obj_add_flag(s_safety_length_value_label, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_invalidate(s_safety_length_value_label);
     }
     if (s_safety_length_unit_label != NULL) {
       lv_obj_add_flag(s_safety_length_unit_label, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_invalidate(s_safety_length_unit_label);
     }
-    s_current_safety_image_path[0] = '\0';
 
     // Clear speedometer mode safety elements
     if (s_speedometer_safety_image != NULL) {
       lv_obj_add_flag(s_speedometer_safety_image, LV_OBJ_FLAG_HIDDEN);
-      lv_img_set_src(s_speedometer_safety_image, NULL);
-      lv_obj_invalidate(s_speedometer_safety_image);
+      // lv_img_set_src(s_speedometer_safety_image, NULL); // Preserve cache
     }
     if (s_speedometer_safety_value_label != NULL) {
       lv_obj_add_flag(s_speedometer_safety_value_label, LV_OBJ_FLAG_HIDDEN);
     }
     if (s_speedometer_safety_unit_label != NULL) {
       lv_obj_add_flag(s_speedometer_safety_unit_label, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (s_speedometer_safety_arc != NULL) {
+      lv_obj_add_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
     }
 
     // Show speedometer mode speed labels when safety image is cleared
@@ -2980,24 +2985,6 @@ static void update_clear_display(uint8_t data1) {
       }
       if (s_speedometer_unit_label != NULL) {
         lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
-      }
-      // 안전운행이미지가 지워지면 눈금 색상을 기본 색상으로 변경 (빨강 눈금
-      // 제거)
-      if (s_speedometer_meter != NULL) {
-        s_speedometer_safety_tt_val = 0;
-        if (s_speedometer_safety_ticks != NULL) {
-          lv_meter_set_indicator_start_value(s_speedometer_meter,
-                                             s_speedometer_safety_ticks, 255);
-          lv_meter_set_indicator_end_value(s_speedometer_meter,
-                                           s_speedometer_safety_ticks, 255);
-        }
-        if (s_speedometer_safety_arc != NULL) {
-          lv_meter_set_indicator_start_value(s_speedometer_meter,
-                                             s_speedometer_safety_arc, 255);
-          lv_meter_set_indicator_end_value(s_speedometer_meter,
-                                           s_speedometer_safety_arc, 255);
-        }
-        lv_obj_invalidate(s_speedometer_meter);
       }
     }
     s_last_safety_request_valid = false;
@@ -3031,15 +3018,12 @@ static void update_clear_display(uint8_t data1) {
     // Also clear Start/Average Speed labels in Speedometer mode
     if (s_speedometer_avr_speed_title_label != NULL) {
       lv_obj_add_flag(s_speedometer_avr_speed_title_label, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_invalidate(s_speedometer_avr_speed_title_label);
     }
     if (s_speedometer_avr_speed_value_label != NULL) {
       lv_obj_add_flag(s_speedometer_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_invalidate(s_speedometer_avr_speed_value_label);
     }
     if (s_speedometer_avr_speed_unit_label != NULL) {
       lv_obj_add_flag(s_speedometer_avr_speed_unit_label, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_invalidate(s_speedometer_avr_speed_unit_label);
     }
   }
 
@@ -3376,12 +3360,7 @@ static void align_avr_speed_labels(void) {
 // NOTE: This function should only be called
 // from LVGL handler task
 static void update_speed_label(uint8_t data1, uint8_t speed) {
-  // Update speedometer needle always
-  if (s_speedometer_needle != NULL) {
-    lv_meter_set_indicator_value(s_speedometer_meter, s_speedometer_needle,
-                                 speed);
-  }
-
+  // Remove generic drawing from here, move explicitly to SPEEDOMETER mode condition.
   hide_black_screen_overlay();
   if (s_current_mode != DISPLAY_MODE_HUD &&
       s_current_mode != DISPLAY_MODE_SPEEDOMETER &&
@@ -3401,6 +3380,29 @@ static void update_speed_label(uint8_t data1, uint8_t speed) {
 
     // Speedometer mode display
     if (s_current_mode == DISPLAY_MODE_SPEEDOMETER) {
+      if (s_speedometer_needle_line != NULL) {
+        static int s_last_drawn_speed = -1;
+        int draw_speed = speed > 220 ? 220 : speed;
+        
+        if (draw_speed != s_last_drawn_speed) {
+          s_last_drawn_speed = draw_speed;
+          double angle_deg = 156.0 + (draw_speed / 220.0) * 228.0;
+          double angle_rad = angle_deg * M_PI / 180.0;
+          
+          int center_x = LCD_H_RES / 2;
+          int center_y = LCD_V_RES / 2;
+          int radius = (LCD_H_RES < LCD_V_RES ? LCD_H_RES : LCD_V_RES) / 2 - 20;
+          int needle_len = radius * 0.85;
+          int tail_len = -40; // Tail extending through center
+          
+          s_speedometer_needle_points[0].x = center_x + (int)(tail_len * cos(angle_rad));
+          s_speedometer_needle_points[0].y = center_y + (int)(tail_len * sin(angle_rad));
+          s_speedometer_needle_points[1].x = center_x + (int)(needle_len * cos(angle_rad));
+          s_speedometer_needle_points[1].y = center_y + (int)(needle_len * sin(angle_rad));
+          lv_line_set_points(s_speedometer_needle_line, s_speedometer_needle_points, 2);
+        }
+      }
+
       // Check if safety image is currently visible
       bool safety_visible = false;
       if (s_speedometer_safety_image != NULL) {
@@ -3408,17 +3410,23 @@ static void update_speed_label(uint8_t data1, uint8_t speed) {
             !lv_obj_has_flag(s_speedometer_safety_image, LV_OBJ_FLAG_HIDDEN);
       }
 
-      if (!safety_visible && s_speedometer_speed_label &&
-          s_speedometer_unit_label) {
-        lv_label_set_text(s_speedometer_speed_label, speed_str);
-        lv_obj_clear_flag(s_speedometer_speed_label, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_invalidate(s_speedometer_speed_label);
-        lv_obj_invalidate(s_speedometer_unit_label);
-      } else if (safety_visible && s_speedometer_speed_label) {
-        // Keep the label text updated even if hidden, so it's correct when
-        // restored
-        lv_label_set_text(s_speedometer_speed_label, speed_str);
+      static int s_speedometer_last_label_speed = -1;
+      static bool s_speedometer_last_safety_visible = false;
+
+      if (speed != s_speedometer_last_label_speed || safety_visible != s_speedometer_last_safety_visible) {
+        s_speedometer_last_label_speed = speed;
+        s_speedometer_last_safety_visible = safety_visible;
+
+        if (!safety_visible && s_speedometer_speed_label &&
+            s_speedometer_unit_label) {
+          lv_label_set_text(s_speedometer_speed_label, speed_str);
+          lv_obj_clear_flag(s_speedometer_speed_label, LV_OBJ_FLAG_HIDDEN);
+          lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
+        } else if (safety_visible && s_speedometer_speed_label) {
+          // Keep the label text updated even if hidden, so it's correct when
+          // restored
+          lv_label_set_text(s_speedometer_speed_label, speed_str);
+        }
       }
     }
   } else if (data1 == 0x01) {
@@ -3473,9 +3481,6 @@ static void update_speed_label(uint8_t data1, uint8_t speed) {
         lv_obj_move_foreground(s_avr_speed_unit_label);
       }
     }
-    lv_obj_invalidate(s_avr_speed_title_label);
-    lv_obj_invalidate(s_avr_speed_value_label);
-    lv_obj_invalidate(s_avr_speed_unit_label);
 
     // --- Speedometer Mode Average Speed Update ---
     if (s_speedometer_avr_speed_title_label &&
@@ -3531,9 +3536,6 @@ static void update_speed_label(uint8_t data1, uint8_t speed) {
                         s_speedometer_avr_speed_value_label,
                         LV_ALIGN_OUT_RIGHT_BOTTOM, 5, 0);
       }
-      lv_obj_invalidate(s_speedometer_avr_speed_title_label);
-      lv_obj_invalidate(s_speedometer_avr_speed_value_label);
-      lv_obj_invalidate(s_speedometer_avr_speed_unit_label);
     }
   }
 }
@@ -4834,6 +4836,13 @@ static void load_all_fonts(void) {
   s_font_kopub_40 = load_font_from_fs("font_kopub_40");
   s_font_vip_100 = load_font_from_fs("font_vip_100");
   s_font_vip_155 = load_font_from_fs("font_vip_155");
+  s_font_gman_188 = load_font_from_fs("font_gman_188");
+
+  // Link font_gman_188 as fallback for font_vip_155 if both are available
+  if (s_font_vip_155 && s_font_gman_188) {
+    s_font_vip_155->fallback = s_font_gman_188;
+    ESP_LOGI(TAG, "Font: Linked font_gman_188 as fallback for font_vip_155");
+  }
 }
 
 // LVGL tick callback (AI_DRV reference: ESP
@@ -4959,10 +4968,10 @@ static esp_err_t lvgl_init(void) {
 
   s_disp = lv_disp_drv_register(&s_disp_drv);
 
-  // Set image cache size for better JPG decoding performance
-  // Cache up to 5 decoded images in memory (PSRAM)
-  lv_img_cache_set_size(5);
-  ESP_LOGI(TAG, "LVGL: Image cache set to 5 entries");
+  // Set image cache size for better JPG/PNG decoding performance
+  // Cache up to 10 decoded images in memory (PSRAM)
+  lv_img_cache_set_size(10);
+  ESP_LOGI(TAG, "LVGL: Image cache set to 10 entries");
 
   // Create screens for different modes
   s_hud_screen = lv_obj_create(NULL);
@@ -5008,6 +5017,8 @@ static esp_err_t lvgl_init(void) {
     lv_indev_drv_init(&indev_drv);
     indev_drv.type = LV_INDEV_TYPE_POINTER;
     indev_drv.read_cb = touch_read_cb;
+    indev_drv.gesture_limit = 30; // 픽셀 이동 기준 감도 향상
+    indev_drv.gesture_min_velocity = 10;
     s_touch_indev = lv_indev_drv_register(&indev_drv);
   }
 
@@ -5449,9 +5460,9 @@ static esp_err_t lvgl_init(void) {
   lv_obj_add_flag(s_length_tbt_unit_label,
                   LV_OBJ_FLAG_HIDDEN); // 초기에는 숨김
 
-  // Create outer ring (외곽 링) - 부팅 시
-  // 회색으로 표시
   s_circle_ring = lv_obj_create(lv_scr_act());
+  lv_obj_clear_flag(s_circle_ring, LV_OBJ_FLAG_CLICKABLE); // touches pass through
+  lv_obj_add_flag(s_circle_ring, LV_OBJ_FLAG_EVENT_BUBBLE); 
   lv_obj_set_size(s_circle_ring, LCD_H_RES, LCD_V_RES);
   // 완전한 원이 되도록 radius를 원형으로 설정
   lv_obj_set_style_radius(s_circle_ring, LV_RADIUS_CIRCLE, 0);
@@ -5468,7 +5479,7 @@ static esp_err_t lvgl_init(void) {
                                          // 표시
   lv_obj_add_flag(s_circle_ring,
                   LV_OBJ_FLAG_HIDDEN); // 초기에는 숨김 (인트로 후 표시)
-  ESP_LOGI(TAG, "LVGL: Outer ring created (5pt gray)");
+  ESP_LOGI(TAG, "LVGL: Outer ring created (5pt gray, not clickable)");
 
   // Create intro image object (중앙)
   s_intro_image = lv_img_create(lv_scr_act());
@@ -5564,7 +5575,18 @@ static void update_display_mode_ui(display_mode_t mode) {
         lv_obj_add_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
       }
     }
-    lv_scr_load_anim(s_clock_screen, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, false);
+    // Reparent average speed labels to Clock screen (for consistency)
+    if (s_avr_speed_title_label)
+      lv_obj_set_parent(s_avr_speed_title_label, s_clock_screen);
+    if (s_avr_speed_value_label)
+      lv_obj_set_parent(s_avr_speed_value_label, s_clock_screen);
+    if (s_avr_speed_unit_label)
+      lv_obj_set_parent(s_avr_speed_unit_label, s_clock_screen);
+
+    align_avr_speed_labels();
+
+    // 전환 속도 향상을 위해 시계 모드는 애니메이션 없이 전환
+    lv_scr_load(s_clock_screen);
     break;
   case DISPLAY_MODE_CLOCK2:
     if (s_circle_ring) {
@@ -5585,7 +5607,7 @@ static void update_display_mode_ui(display_mode_t mode) {
     // Apply alignment immediately to avoid sticky positions
     align_avr_speed_labels();
 
-    lv_scr_load_anim(s_clock2_screen, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, false);
+    lv_scr_load(s_clock2_screen);
     break;
   case DISPLAY_MODE_ALBUM:
     // 앨범 모드 진입 시 이미지가 없으면 다시 스캔 시도
@@ -8139,9 +8161,13 @@ static void draw_analog_clock(int hour, int minute, int second);
 static lv_obj_t *s_hour_line;
 static lv_obj_t *s_minute_line;
 static lv_obj_t *s_second_line;
-static lv_point_t s_hour_points[2];
-static lv_point_t s_minute_points[2];
-static lv_point_t s_second_points[2];
+static lv_obj_t *s_clock_bg_img = NULL;
+static lv_obj_t *s_clock_center_dot = NULL;
+
+// Polygon points for high-performance sword hands (Refined to 11 points for hollow frame)
+static lv_point_t s_hour_poly_points[11];
+static lv_point_t s_min_poly_points[11];
+static lv_point_t s_second_poly_points[2];
 
 // Clock 2 Objects
 static lv_obj_t *s_clock2_hour_line;
@@ -8150,7 +8176,6 @@ static lv_obj_t *s_clock2_second_line;
 static lv_point_t s_clock2_hour_points[2];
 static lv_point_t s_clock2_minute_points[2];
 static lv_point_t s_clock2_second_points[2];
-static lv_obj_t *s_clock2_date_label = NULL;
 
 static lv_timer_t *s_clock_timer = NULL;
 static lv_obj_t *s_clock_wday_label = NULL; // Day of Week (SUN, MON...)
@@ -8166,8 +8191,6 @@ static void clock_timer_cb(lv_timer_t *timer) {
   time(&now);
   localtime_r(&now, &timeinfo);
 
-  int year = timeinfo.tm_year + 1900;
-  int month = timeinfo.tm_mon + 1;
   int day = timeinfo.tm_mday;
   int hour = timeinfo.tm_hour;
   int minute = timeinfo.tm_min;
@@ -8184,58 +8207,43 @@ static void clock_timer_cb(lv_timer_t *timer) {
     }
     draw_analog_clock(hour, minute, second);
   } else if (s_current_mode == DISPLAY_MODE_CLOCK2) {
-    if (s_clock2_date_label) {
-      lv_label_set_text_fmt(s_clock2_date_label, "%04d-%02d-%02d", year, month,
-                            day);
-    }
     draw_analog_clock2(hour, minute, second);
   }
 }
 
 static void create_clock_ui(void) {
-  // Weekday Label (Font 20)
-  s_clock_wday_label = lv_label_create(s_clock_screen);
-  lv_obj_set_style_text_font(s_clock_wday_label, &lv_font_montserrat_20, 0);
-  lv_obj_set_style_text_color(s_clock_wday_label, lv_color_white(), 0);
-  lv_obj_align(s_clock_wday_label, LV_ALIGN_CENTER, 0, 90);
-  lv_label_set_text(s_clock_wday_label, "SUN");
+  if (s_clock_screen == NULL)
+    return;
 
-  // Day Label (Font 40)
-  s_clock_day_label = lv_label_create(s_clock_screen);
-  // Note: Ensure lv_font_montserrat_40 is declared/available. If not,
-  // fallback or ensure included. Assuming standard LVGL config or custom font
-  // exists. Check availability later if error.
-  lv_obj_set_style_text_font(s_clock_day_label, &font_kopub_40, 0);
-  lv_obj_set_style_text_color(s_clock_day_label, lv_color_white(), 0);
-  lv_obj_align(s_clock_day_label, LV_ALIGN_CENTER, 0, 135); // Below wday
-  lv_label_set_text(s_clock_day_label, "01");
+  // Background Image (Static background is still PNG for aesthetics)
+  s_clock_bg_img = lv_img_create(s_clock_screen);
+  lv_img_set_src(s_clock_bg_img, "S:/littlefs/clock_1/screen.png");
+  lv_obj_center(s_clock_bg_img);
+  lv_obj_clear_flag(s_clock_bg_img, LV_OBJ_FLAG_CLICKABLE);
 
-  // Numbers and dots removed as requested
-
-  // Create Hand Lines
+  // Create clock hand lines (polygons)
   s_hour_line = lv_line_create(s_clock_screen);
-  lv_obj_set_style_line_width(s_hour_line, 20, 0);
-  lv_obj_set_style_line_color(s_hour_line, lv_color_white(), 0);
-  lv_obj_set_style_line_rounded(s_hour_line, true, 0);
+  lv_obj_set_style_line_width(s_hour_line, 4, 0); 
+  lv_obj_set_style_line_color(s_hour_line, lv_color_make(160, 160, 160), 0); // Medium Metallic Silver
+  lv_obj_clear_flag(s_hour_line, LV_OBJ_FLAG_CLICKABLE);
 
   s_minute_line = lv_line_create(s_clock_screen);
-  lv_obj_set_style_line_width(s_minute_line, 20, 0);
-  lv_obj_set_style_line_color(s_minute_line, lv_color_make(200, 200, 200), 0);
-  lv_obj_set_style_line_rounded(s_minute_line, true, 0);
+  lv_obj_set_style_line_width(s_minute_line, 4, 0);
+  lv_obj_set_style_line_color(s_minute_line, lv_color_make(175, 175, 175), 0); // Medium Metallic Silver
+  lv_obj_clear_flag(s_minute_line, LV_OBJ_FLAG_CLICKABLE);
 
   s_second_line = lv_line_create(s_clock_screen);
-  lv_obj_set_style_line_width(s_second_line, 3, 0);
-  lv_obj_set_style_line_color(s_second_line, lv_color_make(255, 165, 0), 0);
-  lv_obj_set_style_line_rounded(s_second_line, true, 0);
+  lv_obj_set_style_line_width(s_second_line, 2, 0);
+  lv_obj_set_style_line_color(s_second_line, lv_color_make(255, 0, 0), 0);
+  lv_obj_clear_flag(s_second_line, LV_OBJ_FLAG_CLICKABLE);
 
-  // Center Point
-  lv_obj_t *center = lv_obj_create(s_clock_screen);
-  lv_obj_set_size(center, 30, 30);
-  lv_obj_set_style_radius(center, LV_RADIUS_CIRCLE, 0);
-  lv_obj_set_style_bg_color(center, lv_color_black(), 0);
-  lv_obj_set_style_border_width(center, 4, 0);
-  lv_obj_set_style_border_color(center, lv_color_white(), 0);
-  lv_obj_center(center);
+  // Decorative center dot
+  s_clock_center_dot = lv_obj_create(s_clock_screen);
+  lv_obj_set_size(s_clock_center_dot, 12, 12);
+  lv_obj_set_style_radius(s_clock_center_dot, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_bg_color(s_clock_center_dot, lv_color_make(150, 150, 150), 0);
+  lv_obj_set_style_border_width(s_clock_center_dot, 0, 0);
+  lv_obj_center(s_clock_center_dot);
 
   // Create timer for clock update (1 sec interval)
   if (s_clock_timer == NULL) {
@@ -8243,51 +8251,62 @@ static void create_clock_ui(void) {
   }
 }
 
-// Drawing Helpers from hud-lvgl reference
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
-static void draw_analog_clock(int hour, int minute, int second) {
-  const int center_x = LCD_H_RES / 2;
-  const int center_y = LCD_V_RES / 2;
-  // const int radius = (LCD_H_RES < LCD_V_RES ? LCD_H_RES : LCD_V_RES) / 2 -
-  // 20; const int clock_radius = radius;
-
-  // Hour Hand
-  double hour_angle = ((hour % 12) * 30 + minute * 0.5 - 90) * M_PI / 180.0;
-  int hour_len = 130;
-  // Offset start point by 40pt from center
-  s_hour_points[0].x = center_x + (int)(40 * cos(hour_angle));
-  s_hour_points[0].y = center_y + (int)(40 * sin(hour_angle));
-  s_hour_points[1].x = center_x + (int)(hour_len * cos(hour_angle));
-  s_hour_points[1].y = center_y + (int)(hour_len * sin(hour_angle));
-  lv_line_set_points(s_hour_line, s_hour_points, 2);
-
-  // Minute Hand
-  double minute_angle = (minute * 6 - 90) * M_PI / 180.0;
-  int minute_len = 210;
-  // Offset start point by 40pt from center
-  s_minute_points[0].x = center_x + (int)(40 * cos(minute_angle));
-  s_minute_points[0].y = center_y + (int)(40 * sin(minute_angle));
-  s_minute_points[1].x = center_x + (int)(minute_len * cos(minute_angle));
-  s_minute_points[1].y = center_y + (int)(minute_len * sin(minute_angle));
-  lv_line_set_points(s_minute_line, s_minute_points, 2);
-
-  // Second Hand
-  double second_angle = (second * 6 - 90) * M_PI / 180.0;
-  int second_len = 220;
-  int tail_len = 50;
-  // Tail: extending opposite to the angle
-  s_second_points[0].x = center_x - (int)(tail_len * cos(second_angle));
-  s_second_points[0].y = center_y - (int)(tail_len * sin(second_angle));
-  // Tip: extending clearly
-  s_second_points[1].x = center_x + (int)(second_len * cos(second_angle));
-  s_second_points[1].y = center_y + (int)(second_len * sin(second_angle));
-  lv_line_set_points(s_second_line, s_second_points, 2);
+static void rotate_point(int px, int py, double angle_rad, int *ox, int *oy) {
+    *ox = (int)(px * cos(angle_rad) - py * sin(angle_rad));
+    *oy = (int)(px * sin(angle_rad) + py * cos(angle_rad));
 }
 
-// Draw function for Clock 2 (Original Style)
+static void draw_analog_clock(int hour, int minute, int second) {
+  const int cx = LCD_H_RES / 2;
+  const int cy = LCD_V_RES / 2;
+  const int r = (LCD_H_RES < LCD_V_RES ? LCD_H_RES : LCD_V_RES) / 2 - 20;
+
+  // 1. Hour Hand (Hollow Sword Frame)
+  double h_rad = ((hour % 12) * 30 + minute * 0.5 - 90) * M_PI / 180.0;
+  int hl = r * 0.45;  
+  int hw = 10;        // Max width at shoulder
+  struct { int x, y; } h_raw[] = {
+      {0, 0}, {8, 3}, {15, 3}, {20, hw}, {hl-10, hw}, {hl, 0}, 
+      {hl-10, -hw}, {20, -hw}, {15, -3}, {8, -3}, {0, 0}
+  };
+  for(int i=0; i<11; i++) {
+      int tx, ty;
+      rotate_point(h_raw[i].x, h_raw[i].y, h_rad, &tx, &ty);
+      s_hour_poly_points[i].x = cx + tx;
+      s_hour_poly_points[i].y = cy + ty;
+  }
+  if (s_hour_line) lv_line_set_points(s_hour_line, s_hour_poly_points, 11);
+
+  // 2. Minute Hand (Long Hollow Sword Frame)
+  double m_rad = (minute * 6 + second * 0.1 - 90) * M_PI / 180.0;
+  int ml = r * 0.70;
+  int mw = 8;         // Max width at shoulder
+  struct { int x, y; } m_raw[] = {
+      {0, 0}, {10, 3}, {18, 3}, {22, mw}, {ml-15, mw}, {ml, 0}, 
+      {ml-15, -mw}, {22, -mw}, {18, -3}, {10, -3}, {0, 0}
+  };
+  for(int i=0; i<11; i++) {
+      int tx, ty;
+      rotate_point(m_raw[i].x, m_raw[i].y, m_rad, &tx, &ty);
+      s_min_poly_points[i].x = cx + tx;
+      s_min_poly_points[i].y = cy + ty;
+  }
+  if (s_minute_line) lv_line_set_points(s_minute_line, s_min_poly_points, 11);
+
+  // 3. Second Hand (Red Needle with Tail)
+  double s_rad = (second * 6 - 90) * M_PI / 180.0;
+  int sl = r * 0.85;
+  struct { int x, y; } s_raw[] = {{-25, 0}, {sl, 0}}; // Tail to Tip
+  for(int i=0; i<2; i++) {
+      int tx, ty;
+      rotate_point(s_raw[i].x, s_raw[i].y, s_rad, &tx, &ty);
+      s_second_poly_points[i].x = cx + tx;
+      s_second_poly_points[i].y = cy + ty;
+  }
+  if (s_second_line) lv_line_set_points(s_second_line, s_second_poly_points, 2);
+}
+
+// Draw function for Clock 2 (Modern Gold Style)
 static void draw_analog_clock2(int hour, int minute, int second) {
   if (!s_clock2_second_line)
     return;
@@ -8296,35 +8315,33 @@ static void draw_analog_clock2(int hour, int minute, int second) {
   const int center_y = LCD_V_RES / 2;
   const int radius = (LCD_H_RES < LCD_V_RES ? LCD_H_RES : LCD_V_RES) / 2 - 20;
 
-  // Hour Hand
+  // Hour Hand (Thick Gold Stick)
   double hour_angle = ((hour % 12) * 30 + minute * 0.5 - 90) * M_PI / 180.0;
-  int hour_len = radius * 0.5;
+  int hour_len = radius * 0.55;
   s_clock2_hour_points[0].x = center_x;
   s_clock2_hour_points[0].y = center_y;
   s_clock2_hour_points[1].x = center_x + (int)(hour_len * cos(hour_angle));
   s_clock2_hour_points[1].y = center_y + (int)(hour_len * sin(hour_angle));
   lv_line_set_points(s_clock2_hour_line, s_clock2_hour_points, 2);
 
-  // Minute Hand
-  double minute_angle = (minute * 6 - 90) * M_PI / 180.0;
-  int minute_len = radius * 0.7;
+  // Minute Hand (Medium Gold Stick)
+  double minute_angle = (minute * 6 + second * 0.1 - 90) * M_PI / 180.0;
+  int minute_len = radius * 0.8;
   s_clock2_minute_points[0].x = center_x;
   s_clock2_minute_points[0].y = center_y;
-  s_clock2_minute_points[1].x =
-      center_x + (int)(minute_len * cos(minute_angle));
-  s_clock2_minute_points[1].y =
-      center_y + (int)(minute_len * sin(minute_angle));
+  s_clock2_minute_points[1].x = center_x + (int)(minute_len * cos(minute_angle));
+  s_clock2_minute_points[1].y = center_y + (int)(minute_len * sin(minute_angle));
   lv_line_set_points(s_clock2_minute_line, s_clock2_minute_points, 2);
 
-  // Second Hand
+  // Second Hand (Thin Gold Stick)
   double second_angle = (second * 6 - 90) * M_PI / 180.0;
-  int second_len = radius * 0.8;
-  s_clock2_second_points[0].x = center_x;
-  s_clock2_second_points[0].y = center_y;
-  s_clock2_second_points[1].x =
-      center_x + (int)(second_len * cos(second_angle));
-  s_clock2_second_points[1].y =
-      center_y + (int)(second_len * sin(second_angle));
+  int second_len = radius * 0.85;
+  // Tail implementation for second hand
+  int second_tail = -20;
+  s_clock2_second_points[0].x = center_x + (int)(second_tail * cos(second_angle));
+  s_clock2_second_points[0].y = center_y + (int)(second_tail * sin(second_angle));
+  s_clock2_second_points[1].x = center_x + (int)(second_len * cos(second_angle));
+  s_clock2_second_points[1].y = center_y + (int)(second_len * sin(second_angle));
   lv_line_set_points(s_clock2_second_line, s_clock2_second_points, 2);
 }
 
@@ -8334,68 +8351,41 @@ static void create_clock2_ui(void) {
   s_clock2_screen = lv_obj_create(NULL);
   lv_obj_set_style_bg_color(s_clock2_screen, lv_color_black(), 0);
 
-  // Draw numbers 3, 6, 9, 12 and dots
-  int canvas_w = LCD_H_RES;
-  int canvas_h = LCD_V_RES;
-  int num_radius = (canvas_w / 2) - 40; // Original radius approx
+  // Background Image (Rich Dark & Gold aesthetic from clock_2)
+  lv_obj_t *bg_img = lv_img_create(s_clock2_screen);
+  lv_img_set_src(bg_img, "S:/littlefs/clock_2/screen.png");
+  lv_obj_center(bg_img);
+  lv_obj_clear_flag(bg_img, LV_OBJ_FLAG_CLICKABLE);
 
-  for (int i = 0; i < 12; i++) {
-    int hour_num = (i == 0) ? 12 : i;
-    double angle = (i * 30 - 90) * M_PI / 180.0;
-    int num_x = (canvas_w / 2) + (int)(num_radius * cos(angle));
-    int num_y = (canvas_h / 2) + (int)(num_radius * sin(angle));
+  // Hands (Classic Gold Sticks)
+  lv_color_t gold_color = lv_color_make(220, 190, 120); // Soft Gold/Beige
 
-    if (hour_num % 3 == 0) {
-      lv_obj_t *num_label = lv_label_create(s_clock2_screen);
-      lv_obj_set_style_text_color(num_label, lv_color_white(), 0);
-      lv_obj_set_style_text_font(num_label, &font_kopub_35, 0);
-      char num_str[4];
-      snprintf(num_str, sizeof(num_str), "%d", hour_num);
-      lv_label_set_text(num_label, num_str);
-      lv_obj_set_pos(num_label, num_x - 10, num_y - 15);
-    } else {
-      lv_obj_t *dot = lv_obj_create(s_clock2_screen);
-      lv_obj_set_size(dot, 5, 5);
-      lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
-      lv_obj_set_style_bg_color(dot, lv_color_white(), 0);
-      lv_obj_set_style_border_width(dot, 0, 0);
-      lv_obj_set_pos(dot, num_x - 2, num_y - 2);
-    }
-  }
-
-  // Hands
   s_clock2_hour_line = lv_line_create(s_clock2_screen);
   lv_obj_set_style_line_width(s_clock2_hour_line, 8, 0);
-  lv_obj_set_style_line_color(s_clock2_hour_line, lv_color_white(), 0);
+  lv_obj_set_style_line_color(s_clock2_hour_line, gold_color, 0);
   lv_obj_set_style_line_rounded(s_clock2_hour_line, true, 0);
+  lv_obj_clear_flag(s_clock2_hour_line, LV_OBJ_FLAG_CLICKABLE);
 
   s_clock2_minute_line = lv_line_create(s_clock2_screen);
-  lv_obj_set_style_line_width(s_clock2_minute_line, 6, 0);
-  lv_obj_set_style_line_color(s_clock2_minute_line,
-                              lv_color_make(200, 200, 200), 0);
+  lv_obj_set_style_line_width(s_clock2_minute_line, 5, 0);
+  lv_obj_set_style_line_color(s_clock2_minute_line, gold_color, 0);
   lv_obj_set_style_line_rounded(s_clock2_minute_line, true, 0);
+  lv_obj_clear_flag(s_clock2_minute_line, LV_OBJ_FLAG_CLICKABLE);
 
   s_clock2_second_line = lv_line_create(s_clock2_screen);
-  lv_obj_set_style_line_width(s_clock2_second_line, 3, 0);
-  lv_obj_set_style_line_color(s_clock2_second_line, lv_color_make(255, 0, 0),
-                              0);
+  lv_obj_set_style_line_width(s_clock2_second_line, 2, 0);
+  lv_obj_set_style_line_color(s_clock2_second_line, gold_color, 0);
   lv_obj_set_style_line_rounded(s_clock2_second_line, true, 0);
+  lv_obj_clear_flag(s_clock2_second_line, LV_OBJ_FLAG_CLICKABLE);
 
-  // Center Point
+  // Center Cap (Gold matching hands to complete aesthetic)
   lv_obj_t *center = lv_obj_create(s_clock2_screen);
   lv_obj_set_size(center, 12, 12);
-
   lv_obj_set_style_radius(center, LV_RADIUS_CIRCLE, 0);
-  lv_obj_set_style_bg_color(center, lv_color_make(255, 0, 0), 0);
+  lv_obj_set_style_bg_color(center, gold_color, 0);
   lv_obj_set_style_border_width(center, 0, 0);
+  lv_obj_clear_flag(center, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_center(center);
-
-  // Date Label
-  s_clock2_date_label = lv_label_create(s_clock2_screen);
-  lv_obj_set_style_text_font(s_clock2_date_label, &font_kopub_25, 0);
-  lv_obj_set_style_text_color(s_clock2_date_label, lv_color_hex(0x808080), 0);
-  lv_obj_align(s_clock2_date_label, LV_ALIGN_CENTER, 0, 100);
-  lv_label_set_text(s_clock2_date_label, "2024-01-01");
 }
 
 static void scan_intro_images(void);
@@ -8408,89 +8398,39 @@ static void create_album_ui(void) {
   reset_album_to_default_image();
 }
 
-static void speedometer_meter_draw_event_cb(lv_event_t *e) {
-  lv_obj_draw_part_dsc_t *dsc = lv_event_get_draw_part_dsc(e);
-  if (dsc->part == LV_PART_TICKS && dsc->id == LV_METER_DRAW_PART_TICK) {
-    if (s_speedometer_safety_tt_val > 0 &&
-        dsc->value >= s_speedometer_safety_tt_val) {
-      if (dsc->label_dsc) {
-        dsc->label_dsc->color = lv_color_hex(0xFF8800); // Orange numbers
-      }
-      if (dsc->line_dsc) {
-        dsc->line_dsc->color = lv_color_hex(0xFF8800); // Orange ticks
-      }
-    }
-  }
-}
-
 static void create_speedometer_ui(void) {
   if (s_speedometer_screen == NULL)
     return;
 
-  s_speedometer_meter = lv_meter_create(s_speedometer_screen);
-  lv_obj_center(s_speedometer_meter);
-  lv_obj_set_size(s_speedometer_meter, 460, 460);
-  lv_obj_add_event_cb(s_speedometer_meter, speedometer_meter_draw_event_cb,
-                      LV_EVENT_DRAW_PART_BEGIN, NULL);
+  // 1. Background Image
+  s_speedometer_bg_img = lv_img_create(s_speedometer_screen);
+  lv_img_set_src(s_speedometer_bg_img, "S:/littlefs/speed/screen.png");
+  lv_obj_center(s_speedometer_bg_img);
+  lv_obj_clear_flag(s_speedometer_bg_img, LV_OBJ_FLAG_CLICKABLE);
 
-  // Remove background and border for transparent look
-  lv_obj_set_style_bg_opa(s_speedometer_meter, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(s_speedometer_meter, 0, 0);
-  lv_obj_set_style_text_color(s_speedometer_meter, lv_color_white(), 0);
-  lv_obj_set_style_text_font(s_speedometer_meter, &font_kopub_25, 0);
+  // 2. Needle Line (Directly drawn)
+  s_speedometer_needle_line = lv_line_create(s_speedometer_screen);
+  lv_obj_set_style_line_width(s_speedometer_needle_line, 8, 0);
+  lv_obj_set_style_line_color(s_speedometer_needle_line, lv_color_hex(0xFF0033), 0); // Vibrant Red
+  lv_obj_set_style_line_rounded(s_speedometer_needle_line, true, 0);
+  lv_obj_clear_flag(s_speedometer_needle_line, LV_OBJ_FLAG_CLICKABLE);
 
-  /* Add a scale */
-  s_speedometer_scale = lv_meter_add_scale(s_speedometer_meter);
-  lv_meter_scale_t *scale = s_speedometer_scale;
-  // 0 to 220 km/h
-  // 8 o'clock (150 deg) to 4 o'clock (30 deg) across the top = 240 deg range
-  lv_meter_set_scale_range(s_speedometer_meter, scale, 0, 220, 240, 150);
+  // Set initial position (0 km/h)
+  double initial_angle_rad = 156.0 * M_PI / 180.0;
+  int cx = LCD_H_RES / 2;
+  int cy = LCD_V_RES / 2;
+  int r = (LCD_H_RES < LCD_V_RES ? LCD_H_RES : LCD_V_RES) / 2 - 20;
+  s_speedometer_needle_points[0].x = cx + (int)(-40 * cos(initial_angle_rad));
+  s_speedometer_needle_points[0].y = cy + (int)(-40 * sin(initial_angle_rad));
+  s_speedometer_needle_points[1].x = cx + (int)(r * 0.85 * cos(initial_angle_rad));
+  s_speedometer_needle_points[1].y = cy + (int)(r * 0.85 * sin(initial_angle_rad));
+  lv_line_set_points(s_speedometer_needle_line, s_speedometer_needle_points, 2);
 
-  // White ticks for the whole range (0-220)
-  // Step 5 for small ticks, 45 total (220/5 = 44 + 1)
-  lv_meter_set_scale_ticks(s_speedometer_meter, scale, 45, 2, 10,
-                           lv_color_white());
-  // Major ticks every 20 km/h (every 4 small ticks)
-  lv_meter_set_scale_major_ticks(s_speedometer_meter, scale, 4, 4, 15,
-                                 lv_color_white(), 25);
-
-  /* Add Orange Range for 180 - 220 */
-  lv_meter_indicator_t *orange_arc = lv_meter_add_arc(
-      s_speedometer_meter, scale, 4, lv_color_hex(0xFF8800), 0);
-  lv_meter_set_indicator_start_value(s_speedometer_meter, orange_arc, 180);
-  lv_meter_set_indicator_end_value(s_speedometer_meter, orange_arc, 220);
-
-  // Orange ticks for 180-220
-  lv_meter_indicator_t *orange_ticks = lv_meter_add_scale_lines(
-      s_speedometer_meter, scale, lv_color_hex(0xFF8800),
-      lv_color_hex(0xFF8800), false, 0);
-  lv_meter_set_indicator_start_value(s_speedometer_meter, orange_ticks, 180);
-  lv_meter_set_indicator_end_value(s_speedometer_meter, orange_ticks, 220);
-
-  /* Add Needle - Red */
-  s_speedometer_needle = lv_meter_add_needle_line(s_speedometer_meter, scale, 6,
-                                                  lv_color_hex(0xFF0000), -20);
-  lv_meter_set_indicator_value(s_speedometer_meter, s_speedometer_needle, 0);
-
-  // Dark grey ring around the center cap (40pt diameter = 30pt center + 5pt
-  // ring * 2)
-  lv_obj_t *center_ring = lv_obj_create(s_speedometer_meter);
-  lv_obj_set_size(center_ring, 40, 40);
-  lv_obj_set_style_radius(center_ring, LV_RADIUS_CIRCLE, 0);
-  lv_obj_set_style_bg_opa(center_ring, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(center_ring, 5, 0);
-  lv_obj_set_style_border_color(center_ring, lv_color_hex(0x444444),
-                                0); // Dark Grey
-  lv_obj_set_style_border_opa(center_ring, LV_OPA_COVER, 0);
-  lv_obj_center(center_ring);
-
-  // Center cap - 30pt grey circle
-  lv_obj_t *cap = lv_obj_create(s_speedometer_meter);
-  lv_obj_set_size(cap, 30, 30);
-  lv_obj_set_style_radius(cap, LV_RADIUS_CIRCLE, 0);
-  lv_obj_set_style_bg_color(cap, lv_color_hex(0x808080), 0); // Grey
-  lv_obj_set_style_border_width(cap, 0, 0);
-  lv_obj_center(cap);
+  // 3. Center Cap Image
+  s_speedometer_center_img = lv_img_create(s_speedometer_screen);
+  lv_img_set_src(s_speedometer_center_img, "S:/littlefs/speed/center.png");
+  lv_obj_center(s_speedometer_center_img);
+  lv_obj_clear_flag(s_speedometer_center_img, LV_OBJ_FLAG_CLICKABLE);
 
   // 2. Speed Labels
   s_speedometer_speed_label = lv_label_create(s_speedometer_screen);
@@ -8506,6 +8446,29 @@ static void create_speedometer_ui(void) {
   lv_obj_align(s_speedometer_unit_label, LV_ALIGN_CENTER, 0, 180);
 
   // 3. Safety UI Elements (Initially Hidden)
+  s_speedometer_safety_arc = lv_arc_create(s_speedometer_screen);
+  lv_obj_set_size(s_speedometer_safety_arc, r * 2 * 0.99, r * 2 * 0.99); // Adjust size to be slightly outside the ticks
+  lv_obj_center(s_speedometer_safety_arc);
+  
+  // Set the arc to match the speedometer scale: 156 start, 228 degrees span
+  lv_arc_set_rotation(s_speedometer_safety_arc, 156);
+  lv_arc_set_bg_angles(s_speedometer_safety_arc, 0, 228);
+  lv_arc_set_mode(s_speedometer_safety_arc, LV_ARC_MODE_NORMAL); 
+  
+  lv_obj_remove_style(s_speedometer_safety_arc, NULL, LV_PART_KNOB);
+  lv_obj_set_style_arc_width(s_speedometer_safety_arc, 0, LV_PART_MAIN); // Hide background completely
+  lv_obj_set_style_arc_rounded(s_speedometer_safety_arc, false, LV_PART_MAIN);
+  
+  lv_obj_set_style_arc_width(s_speedometer_safety_arc, 18, LV_PART_INDICATOR); // Thinner to reduce draw area
+  lv_obj_set_style_arc_color(s_speedometer_safety_arc, lv_color_hex(0xFF8800), LV_PART_INDICATOR); // Orange
+  lv_obj_set_style_arc_opa(s_speedometer_safety_arc, LV_OPA_COVER, LV_PART_INDICATOR); // 100% opaque to skip alpha blending overhead
+  lv_obj_set_style_arc_rounded(s_speedometer_safety_arc, false, LV_PART_INDICATOR); // Flat ends exactly stop at intended angle
+  
+  lv_arc_set_angles(s_speedometer_safety_arc, 0, 0); // Initial empty
+  
+  lv_obj_clear_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN); // Initially hidden
+
   s_speedometer_safety_image = lv_img_create(s_speedometer_screen);
   lv_obj_add_flag(s_speedometer_safety_image, LV_OBJ_FLAG_HIDDEN);
   lv_obj_align(s_speedometer_safety_image, LV_ALIGN_CENTER, 0, 100);
@@ -9045,7 +9008,7 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
     // Parse Point 0 (Index 0..4)
     // Structure: [id:4][pressed:4] [x_high] [y_high] [x_low:4][y_low:4]
     uint8_t pressed = read_buf[0] & 0x0F;
-    if (pressed == 0x06) {
+    if (pressed == 0x06 || pressed == 0x01 || pressed == 0x03) {
       uint16_t x = ((read_buf[1] << 4) | (read_buf[3] >> 4));
       uint16_t y = ((read_buf[2] << 4) | (read_buf[3] & 0x0F));
 
@@ -9086,7 +9049,7 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
                 DISPLAY_MODE_SPEEDOMETER, // HUD(0)          → SPEEDOMETER
                 DISPLAY_MODE_CLOCK,       // SPEEDOMETER(1)  → CLOCK
                 DISPLAY_MODE_ALBUM,       // CLOCK(2)        → ALBUM
-                DISPLAY_MODE_CLOCK,       // CLOCK2(3)       → CLOCK (특별처리)
+                DISPLAY_MODE_ALBUM,       // CLOCK2(3)       → ALBUM (Consistent)
                 DISPLAY_MODE_SETTING,     // ALBUM(4)        → SETTING
                 DISPLAY_MODE_VIRTUAL_DRIVE, // SETTING(5)      → VIRTUAL_DRIVE
                 DISPLAY_MODE_HUD,           // VIRTUAL_DRIVE(6)→ HUD
@@ -9096,7 +9059,7 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
                 DISPLAY_MODE_VIRTUAL_DRIVE, // HUD(0)          → VIRTUAL_DRIVE
                 DISPLAY_MODE_HUD,           // SPEEDOMETER(1)  → HUD
                 DISPLAY_MODE_SPEEDOMETER,   // CLOCK(2)        → SPEEDOMETER
-                DISPLAY_MODE_CLOCK,   // CLOCK2(3)       → CLOCK (특별처리)
+                DISPLAY_MODE_SPEEDOMETER,   // CLOCK2(3)       → SPEEDOMETER (Consistent)
                 DISPLAY_MODE_CLOCK,   // ALBUM(4)        → CLOCK
                 DISPLAY_MODE_ALBUM,   // SETTING(5)      → ALBUM
                 DISPLAY_MODE_SETTING, // VIRTUAL_DRIVE(6)→ SETTING
@@ -9129,17 +9092,13 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
             }
             swiped = true;
           } else if (s_current_mode == DISPLAY_MODE_CLOCK) {
-            // Clock -> Clock 2 (Swipe Down)
-            if (dy > 0) {
-              switch_display_mode(DISPLAY_MODE_CLOCK2);
-              swiped = true;
-            }
+            // Clock <-> Clock 2 (Vertical Swipe Toggle)
+            switch_display_mode(DISPLAY_MODE_CLOCK2);
+            swiped = true;
           } else if (s_current_mode == DISPLAY_MODE_CLOCK2) {
-            // Clock 2 -> Clock (Swipe Up)
-            if (dy < 0) {
-              switch_display_mode(DISPLAY_MODE_CLOCK);
-              swiped = true;
-            }
+            // Clock 2 <-> Clock (Vertical Swipe Toggle)
+            switch_display_mode(DISPLAY_MODE_CLOCK);
+            swiped = true;
           } else if (s_current_mode == DISPLAY_MODE_VIRTUAL_DRIVE) {
             // Toggle Virtual Drive Simulation (any vertical swipe)
             toggle_virtual_drive();
@@ -9214,6 +9173,16 @@ void update_ui_progress(int percent, const char *status) {
       char buf[32];
       snprintf(buf, sizeof(buf), "%d%%", percent);
       lv_label_set_text(s_update_percent_label, buf);
+    }
+  }
+
+  if (percent >= 100) {
+    if (s_update_bg) {
+      lv_obj_del(s_update_bg);
+      s_update_bg = NULL;
+      s_update_percent_label = NULL;
+      s_update_label = NULL;
+      ESP_LOGI("UPDATE", "Update UI background deleted to restore touch.");
     }
   }
   LVGL_UNLOCK();
@@ -9416,10 +9385,10 @@ void app_main(void) {
   // 앱이 정상 부팅되었음을 마킹 (Rollback 방지)
   esp_ota_mark_app_valid_cancel_rollback();
 
-  // Derived from assumption: simple TX task. 3KB should be enough.
-  xTaskCreate(ble_tx_task, "ble_tx", 3072, NULL, 5, NULL);
-  xTaskCreate(virtual_drive_task, "virt_drive", 3072, NULL, 5,
-              NULL); // Create Virtual Drive Task
+  // Derived from assumption: simple TX task. 6KB is safer.
+  xTaskCreate(ble_tx_task, "ble_tx", 6144, NULL, 5, &s_ble_tx_task_handle);
+  xTaskCreate(virtual_drive_task, "virt_drive", 8192, NULL, 5,
+              &s_virt_drive_task_handle); // Create Virtual Drive Task
 
   // LittleFS is already mounted at the beginning of app_main.
   // Check if it was successful before loading CSV files.
@@ -9630,11 +9599,11 @@ void app_main(void) {
   // s_lvgl_task_handle = NULL;
   // xTaskCreate(lvgl_handler_task, "lvgl_handler", 8192, NULL, 5,
   // &s_lvgl_task_handle);
-  // Derived from SYS_MON: Used ~2200. 3KB is safe.
-  xTaskCreate(buffer_queue_monitor_task, "buf_queue_monitor", 3072, NULL, 3,
+  // Derived from SYS_MON: Used ~2200. 4KB is safe.
+  xTaskCreate(buffer_queue_monitor_task, "buf_queue_monitor", 4096, NULL, 3,
               &s_monitor_task_handle);
-  // LCD task is simple queue waiter. 3KB safe.
-  xTaskCreate(lcd_task, "lcd_task", 3072, NULL, 4, NULL);
+  // LCD task is simple queue waiter. 4KB safe.
+  xTaskCreate(lcd_task, "lcd_task", 4096, NULL, 4, &s_lcd_task_handle);
 
   ESP_LOGI(TAG, "Initialization complete");
 
