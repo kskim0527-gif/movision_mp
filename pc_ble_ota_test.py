@@ -4,7 +4,7 @@ import time
 from bleak import BleakScanner, BleakClient
 
 # --- 설정 사항 ---
-DEVICE_NAME = "Mando HUD T" # ESP32에서 사용하는 블루투스 기기 이름
+DEVICE_NAME = "MOVISION HUD1" # ESP32에서 사용하는 블루투스 기기 이름
 OTA_SERVICE_UUID = "80323655-3537-410b-ab8c-cc07fc9673ce"
 OTA_CTRL_UUID    = "80323656-3537-410b-ab8c-cc07fc9673ce" # OTA 상태 제어용
 OTA_DATA_UUID    = "80323657-3537-410b-ab8c-cc07fc9673ce" # 펌웨어 데이터 전송용

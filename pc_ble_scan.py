@@ -6,7 +6,7 @@ async def run():
     devices = await BleakScanner.discover(timeout=5.0)
     target = None
     for d in devices:
-        if d.name and "Mando HUD T" in d.name:
+        if d.name and "MOVISION HUD1" in d.name:
             target = d
             break
             

@@ -4,7 +4,7 @@ import time
 from bleak import BleakScanner, BleakClient
 
 # --- 설정 사항 ---
-DEVICE_NAME = "Mando HUD T"
+DEVICE_NAME = "MOVISION HUD1"
 OTA_SERVICE_UUID = "80323655-3537-410b-ab8c-cc07fc9673ce"
 OTA_CTRL_UUID    = "80323656-3537-410b-ab8c-cc07fc9673ce"
 OTA_DATA_UUID    = "80323657-3537-410b-ab8c-cc07fc9673ce"

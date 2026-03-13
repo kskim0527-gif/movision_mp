@@ -55,6 +55,7 @@ static lv_font_t *s_font_gman_188 = NULL;
 #define font_kopub_40 (*SAFE_FONT(s_font_kopub_40))
 #define font_vip_100 (*SAFE_FONT(s_font_vip_100))
 #define font_VIP_155 (*SAFE_FONT(s_font_vip_155))
+#define font_gman_188 (*SAFE_FONT(s_font_gman_188))
 #if LV_USE_FS_POSIX
 // POSIX file system driver header (will be available after build)
 // Function declaration is in lv_fsdrv.h, but we can declare it here
@@ -141,18 +142,20 @@ void *lvgl_psram_realloc(void *ptr, size_t new_size) {
 
 // Display modes
 typedef enum {
-  DISPLAY_MODE_HUD = 0,           // HUD 모드
-  DISPLAY_MODE_SPEEDOMETER = 1,   // 속도계 모드
-  DISPLAY_MODE_CLOCK = 2,         // 시계 모드
-  DISPLAY_MODE_CLOCK2 = 3,        // 시계 모드 2 (Original)
-  DISPLAY_MODE_ALBUM = 4,         // 앨범 모드
-  DISPLAY_MODE_SETTING = 5,       // 설정 모드
-  DISPLAY_MODE_VIRTUAL_DRIVE = 6, // 가상 운행 모드
-  DISPLAY_MODE_OTA = 7,           // Wi-Fi OTA 모드
+  DISPLAY_MODE_BOOT = 0,        // 전원이 입력되면 Intro.gif 재생
+  DISPLAY_MODE_STANDBY = 1,     // BLE연결되고 시간 수신되면 디지털 시계 표시 (대기)
+  DISPLAY_MODE_SPEEDOMETER = 2, // 19 4D 0C 01 00 2F 수신 시 속도계
+  DISPLAY_MODE_HUD = 3,         // 19 4D 0C 01 01 2F 수신 시 HUD
+  DISPLAY_MODE_CLOCK = 4,       // 아나로그 시계 1
+  DISPLAY_MODE_CLOCK2 = 5,      // 아나로그 시계 2
+  DISPLAY_MODE_ALBUM = 6,
+  DISPLAY_MODE_SETTING = 7,       // 설정 모드
+  DISPLAY_MODE_VIRTUAL_DRIVE = 8, // 가상 운행 모드
+  DISPLAY_MODE_OTA = 9,           // Wi-Fi OTA 모드
   DISPLAY_MODE_MAX
 } display_mode_t;
 
-static display_mode_t s_current_mode = DISPLAY_MODE_HUD;
+static display_mode_t s_current_mode = DISPLAY_MODE_BOOT; // 초기 상태는 부팅(로고) 모드
 
 int get_current_display_mode(void) { return (int)s_current_mode; }
 static bool s_virtual_drive_active = false;    // 가상 운행 활성화 플래그
@@ -189,7 +192,7 @@ static TaskHandle_t s_lcd_task_handle = NULL;
 // Device / UUIDs
 // ---------------------------------------------------------------------------
 
-#define DEVICE_NAME "Mando HUD T"
+#define DEVICE_NAME "MOVISION HUD1"
 
 // Documented AMOLED DISPLAY UUIDs (16-bit UUIDs using Bluetooth base UUID)
 // - Service UUID: 0xFFEA  (0000ffea-0000-1000-8000-00805f9b34fb)
@@ -235,6 +238,8 @@ static uint16_t s_cccd_handle = 0;
 // sync request:
 //   4E 0D 01 00 2F
 static bool s_hud_notify_enabled = false;
+static bool s_time_sync_requested = false;
+static bool s_boot_clock_trigger = false; // 부팅 시 시계 화면 전환 트리거 // 앱 연결 후 시간 요청 여부 플래그
 static bool s_hud_seen_first_cmd = false;
 static bool s_force_hud_notify = false; // Let app explicitly enable HUD CCCD
                                         // (matches working device behavior)
@@ -409,6 +414,10 @@ static lv_disp_drv_t s_disp_drv;
 static lv_disp_t *s_disp = NULL;
 
 // Screens for different modes
+static lv_obj_t *s_boot_screen = NULL;          // Boot Mode Screen
+static lv_obj_t *s_boot_time_label = NULL;      // Boot Mode Digital Time
+static lv_obj_t *s_boot_sec_label = NULL;       // Boot Mode Digital Seconds
+static lv_obj_t *s_boot_date_label = NULL;      // Boot Mode Digital Date Header
 static lv_obj_t *s_hud_screen = NULL;
 static lv_obj_t *s_speedometer_screen = NULL; // Speedometer Screen
 static lv_obj_t *s_clock_screen = NULL;
@@ -417,6 +426,9 @@ static lv_obj_t *s_album_screen = NULL;
 static lv_obj_t *s_setting_screen = NULL;       // Setting Screen
 static lv_obj_t *s_virtual_drive_screen = NULL; // Virtual Driving Mode Screen
 static lv_obj_t *s_ota_screen = NULL;           // OTA Mode Screen
+
+// Forward declarations for UI creation
+static void create_boot_ui(void);
 
 // Touch device handle
 static lv_indev_t *s_touch_indev = NULL;
@@ -603,11 +615,8 @@ static char s_current_dest_image_path[128] = {
 static lv_timer_t *s_safety_ring_timer = NULL;
 static int s_safety_ring_flash_count = 0;
 
-// 목적지 도착 후 디지털시계 표시 관련
-static bool s_destination_arrived = false; // 도착 플래그 (0x0B 수신 시 설정)
-static esp_timer_handle_t s_arrival_clock_timer = NULL; // 1초 딜레이 타이머
-static lv_obj_t *s_arrival_date_label = NULL; // 도착 후 날짜 레이블 (25pt)
-static lv_obj_t *s_arrival_time_label = NULL; // 도착 후 시간 레이블 (155pt)
+
+
 
 // Image update request structure
 typedef struct {
@@ -881,7 +890,7 @@ static void hide_black_screen_overlay(void);
 // static void clear_display(uint8_t data1);
 static void request_clear_display(uint8_t data1);
 static void update_clear_display(uint8_t data1);
-static void arrival_clock_timer_cb(void *arg); // 도착 후 디지털시계 타이머 콜백
+
 
 // --- Packet Processing Logic (Extracted for re-use in Virtual Drive) ---
 static void update_auto_brightness(void);
@@ -1027,14 +1036,18 @@ static void process_app_command(const uint8_t *data, size_t len) {
       set_lcd_brightness(4); // Level_4
     }
   }
-
-  // 10. 목적지 도착 메시지
-  // Cmd: 19 4D 0B 01 00 2F
-  if (commend == 0x0B && data_length == 0x01 && len >= 6 && data[4] == 0x00) {
-    s_destination_arrived = true;
-    ESP_LOGI(
-        TAG,
-        "ARRIVAL: 목적지 도착 메시지 수신 (0x0B). 다음 소등 명령 대기 중...");
+  // 10. Mode Change via 0x0C Command
+  if (commend == 0x0C && data_length == 0x01 && len >= 6) {
+    uint8_t mode_val = data[4];
+    if (mode_val == 0x00) {
+      // 19 4D 0C 01 00 2F -> 속도계 모드 진입
+      ESP_LOGI(TAG, "Mode switch command received: Switch to SPEEDOMETER");
+      switch_display_mode(DISPLAY_MODE_SPEEDOMETER);
+    } else if (mode_val == 0x01) {
+      // 19 4D 0C 01 01 2F -> HUD 모드 진입
+      ESP_LOGI(TAG, "Mode switch command received: Switch to HUD");
+      switch_display_mode(DISPLAY_MODE_HUD);
+    }
   }
 }
 
@@ -2833,81 +2846,8 @@ static void request_clear_display(uint8_t data1) {
   }
 }
 
-// 목적지 도착 후 1초 뒤 디지털시계 표시 타이머 콜백 (esp_timer ISR 컨텍스트)
-static void arrival_clock_timer_cb(void *arg) {
-  LVGL_LOCK();
 
-  // HUD 모드가 아니면 표시하지 않음 (1초 사이에 모드가 바뀐 경우)
-  if (s_current_mode != DISPLAY_MODE_HUD) {
-    ESP_LOGW("ARRIVAL", "HUD 모드 아님 (mode=%d), 도착 시계 표시 생략",
-             s_current_mode);
-    if (s_arrival_clock_timer != NULL) {
-      esp_timer_delete(s_arrival_clock_timer);
-      s_arrival_clock_timer = NULL;
-    }
-    LVGL_UNLOCK();
-    return;
-  }
 
-  if (s_black_screen_overlay == NULL) {
-    s_black_screen_overlay = lv_obj_create(lv_scr_act());
-    lv_obj_set_size(s_black_screen_overlay, LCD_H_RES, LCD_V_RES);
-    lv_obj_set_style_bg_color(s_black_screen_overlay, lv_color_hex(0x000000),
-                              0);
-    lv_obj_set_style_bg_opa(s_black_screen_overlay, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(s_black_screen_overlay, 0, 0);
-    lv_obj_set_style_pad_all(s_black_screen_overlay, 0, 0);
-    lv_obj_align(s_black_screen_overlay, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_clear_flag(s_black_screen_overlay, LV_OBJ_FLAG_SCROLLABLE);
-  }
-  lv_obj_clear_flag(s_black_screen_overlay, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_move_foreground(s_black_screen_overlay);
-
-  // 현재 시간 가져오기
-  time_t now = time(NULL);
-  struct tm *t = localtime(&now);
-
-  // ① 날짜 레이블 (40pt, 흰색): YYYY년 MM월 DD일
-  char date_buf[64];
-  snprintf(date_buf, sizeof(date_buf), "%04d\ub144 %02d\uc6d4 %02d\uc77c",
-           t->tm_year + 1900, t->tm_mon + 1, t->tm_mday);
-
-  if (s_arrival_date_label == NULL) {
-    s_arrival_date_label = lv_label_create(s_black_screen_overlay);
-    lv_obj_set_style_text_color(s_arrival_date_label, lv_color_white(), 0);
-    lv_obj_set_style_text_font(s_arrival_date_label, &font_kopub_30, 0);
-    lv_obj_set_style_text_align(s_arrival_date_label, LV_TEXT_ALIGN_CENTER, 0);
-  }
-  lv_label_set_text(s_arrival_date_label, date_buf);
-  lv_obj_align(s_arrival_date_label, LV_ALIGN_CENTER, 0, -90); // 중앙 위쪽
-  lv_obj_clear_flag(s_arrival_date_label, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_move_foreground(s_arrival_date_label);
-
-  // ② 시간 레이블 (155pt, 흰색): HH:MM
-  char time_buf[16];
-  snprintf(time_buf, sizeof(time_buf), "%02d:%02d", t->tm_hour, t->tm_min);
-
-  if (s_arrival_time_label == NULL) {
-    s_arrival_time_label = lv_label_create(s_black_screen_overlay);
-    lv_obj_set_style_text_color(s_arrival_time_label, lv_color_white(), 0);
-    lv_obj_set_style_text_font(s_arrival_time_label, &font_vip_100, 0);
-    lv_obj_set_style_text_align(s_arrival_time_label, LV_TEXT_ALIGN_CENTER, 0);
-  }
-  lv_label_set_text(s_arrival_time_label, time_buf);
-  lv_obj_align(s_arrival_time_label, LV_ALIGN_CENTER, 0, 20); // 중앙 약간 아래
-  lv_obj_clear_flag(s_arrival_time_label, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_move_foreground(s_arrival_time_label);
-
-  ESP_LOGI("ARRIVAL", "도착 디지털시계 표시: %s %s", date_buf, time_buf);
-
-  // 타이머 핸들 정리 (one-shot이므로 자동 완료, 핸들만 해제)
-  if (s_arrival_clock_timer != NULL) {
-    esp_timer_delete(s_arrival_clock_timer);
-    s_arrival_clock_timer = NULL;
-  }
-
-  LVGL_UNLOCK();
-}
 
 // Update clear display (called from LVGL task
 // - actual LVGL object manipulation)
@@ -3128,26 +3068,7 @@ static void update_clear_display(uint8_t data1) {
              data1);
   }
 
-  // 목적지 도착 후 소등(0x07) 시: HUD 모드에서만 1초 후 디지털시계 표시
-  if (data1 == 0x07 && s_destination_arrived &&
-      s_current_mode == DISPLAY_MODE_HUD) {
-    s_destination_arrived = false; // 플래그 초기화 (1회만 동작)
-    ESP_LOGI(TAG, "ARRIVAL: 전체 소등 수신. 1초 후 도착 디지털시계 표시 예약");
-    // 기존 타이머가 있으면 삭제
-    if (s_arrival_clock_timer != NULL) {
-      esp_timer_stop(s_arrival_clock_timer);
-      esp_timer_delete(s_arrival_clock_timer);
-      s_arrival_clock_timer = NULL;
-    }
-    const esp_timer_create_args_t timer_args = {
-        .callback = arrival_clock_timer_cb,
-        .arg = NULL,
-        .name = "arrival_clock",
-    };
-    if (esp_timer_create(&timer_args, &s_arrival_clock_timer) == ESP_OK) {
-      esp_timer_start_once(s_arrival_clock_timer, 1000000); // 1초 후
-    }
-  }
+
 }
 
 // Legacy function name - redirects to request
@@ -3700,8 +3621,12 @@ static void time_set(const uint8_t *data, size_t data_len) {
 
   // Enable packet logging from now on
   s_logging_enabled = true;
-  ESP_LOGI(TAG, "Packet logging enabled "
-                "(time data received)");
+  ESP_LOGI(TAG, "Packet logging enabled (time data received)");
+
+  // 부팅 과정 중(BOOT)이거나 아직 초기화 전이라면 대기 모드(디지털 시계)로 전환 예약
+  if (s_current_mode == DISPLAY_MODE_BOOT) {
+    s_boot_clock_trigger = true;
+  }
 
   // Update display immediately (request via flag to be thread-safe)
   s_time_display_update_required = true;
@@ -4546,10 +4471,14 @@ static void hud_send_notify_bytes(const uint8_t *data, uint16_t len) {
              s_image_data_count, (s_current_mode == DISPLAY_MODE_HUD),
              s_hud_image);
 
-    // HUD TX data processing removed - only
-    // FFF2 channel data is processed for TBT
-    // direction display
+    // HUD TX data processing (previously removed logic)
   }
+
+  // 시간 업데이트 요청(0x0D)인 경우에만 예외적으로 로그 기록 (나머지 리턴 메시지는 제외)
+  if (len >= 3 && (data[1] == 0x4D || data[1] == 0x4E) && data[2] == 0x0D) {
+      save_packet_to_sdcard(data, len, "TX");
+  }
+
   esp_err_t ret = esp_ble_gatts_send_indicate(
       s_gatts_if, s_conn_id, s_read_handle, len, (uint8_t *)data, false);
   if (ret != ESP_OK) {
@@ -4974,6 +4903,7 @@ static esp_err_t lvgl_init(void) {
   ESP_LOGI(TAG, "LVGL: Image cache set to 10 entries");
 
   // Create screens for different modes
+  s_boot_screen = lv_obj_create(NULL);
   s_hud_screen = lv_obj_create(NULL);
   s_speedometer_screen = lv_obj_create(NULL);
   s_clock_screen = lv_obj_create(NULL);
@@ -4982,6 +4912,7 @@ static esp_err_t lvgl_init(void) {
   s_virtual_drive_screen = lv_obj_create(NULL);
   s_ota_screen = lv_obj_create(NULL);
 
+  lv_obj_set_style_bg_color(s_boot_screen, lv_color_black(), 0);
   lv_obj_set_style_bg_color(s_hud_screen, lv_color_black(), 0);
   lv_obj_set_style_bg_color(s_speedometer_screen, lv_color_black(), 0);
   lv_obj_set_style_bg_color(s_clock_screen, lv_color_black(), 0);
@@ -5023,6 +4954,7 @@ static esp_err_t lvgl_init(void) {
   }
 
   // Create UI for Clock and Album modes (background ready)
+  create_boot_ui();
   create_clock_ui();
   create_clock2_ui();      // Create Clock 2
   create_speedometer_ui(); // Create Speedometer
@@ -5520,10 +5452,12 @@ static void update_display_mode_ui(display_mode_t mode) {
   }
 
   // Logo/Intro Handling:
-  // Persistent Intro Logic: Display intro/logo ONLY if in HUD mode, NOT
-  // connected, and NEVER connected before.
+  // Persistent Intro Logic:
   if (s_intro_image) {
-    if (mode == DISPLAY_MODE_HUD && !is_active_state && !s_has_ever_connected) {
+    // BOOT 모드이면서 시간이 아직 수신되지 않았을 때만 로고 표시
+    // 로고를 s_boot_screen에 표시하도록 부모 설정
+    if (mode == DISPLAY_MODE_BOOT && !s_time_initialized && !is_active_state && !s_has_ever_connected) {
+      lv_obj_set_parent(s_intro_image, s_boot_screen);
       lv_obj_clear_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
       lv_obj_move_foreground(s_intro_image);
     } else {
@@ -5532,6 +5466,26 @@ static void update_display_mode_ui(display_mode_t mode) {
   }
 
   switch (mode) {
+  case DISPLAY_MODE_BOOT:
+    // 부팅 모드: Intro.gif 로고만 표시
+    if (lv_scr_act() != s_boot_screen) {
+      lv_scr_load(s_boot_screen);
+    }
+    if (s_intro_image) lv_obj_clear_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
+    if (s_boot_time_label) lv_obj_add_flag(s_boot_time_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_boot_sec_label) lv_obj_add_flag(s_boot_sec_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_boot_date_label) lv_obj_add_flag(s_boot_date_label, LV_OBJ_FLAG_HIDDEN);
+    break;
+
+  case DISPLAY_MODE_STANDBY:
+    // 대기 모드: 디지털 시계 표시
+    if (lv_scr_act() != s_boot_screen) {
+      lv_scr_load(s_boot_screen);
+    }
+    if (s_intro_image) lv_obj_add_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
+    if (s_boot_time_label) lv_obj_clear_flag(s_boot_time_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_boot_date_label) lv_obj_clear_flag(s_boot_date_label, LV_OBJ_FLAG_HIDDEN);
+    break;
   case DISPLAY_MODE_HUD:
     if (s_circle_ring) {
       lv_obj_set_parent(s_circle_ring, s_hud_screen);
@@ -5712,7 +5666,9 @@ static void switch_display_mode(display_mode_t new_mode) {
   // 새로운 모드가 가상 운행 모드라면 부팅 로그 파일(log_boot.txt) 닫기
   if (new_mode == DISPLAY_MODE_VIRTUAL_DRIVE) {
     if (s_boot_log_file != NULL) {
-      ESP_LOGI(TAG, "Entering Virtual Drive mode: Closing log_boot.txt");
+      const char *close_msg = "* 가상운행 모드 진입 - 로그 기록을 종료합니다.";
+      ESP_LOGI("BOOT_LOG", "%s", close_msg);
+      fprintf(s_boot_log_file, "\n%s\n", close_msg);
       // 파일 닫기 전 최종 데이터 동기화
       fflush(s_boot_log_file);
       fsync(fileno(s_boot_log_file));
@@ -5731,9 +5687,9 @@ static void switch_display_mode(display_mode_t new_mode) {
   lv_refr_now(NULL);
 
   LVGL_UNLOCK();
-
-  const char *mode_names[] = {"HUD",   "SPEED",   "CLOCK",   "CLOCK2",
-                              "ALBUM", "SETTING", "VIRTUAL", "OTA"};
+ 
+  const char *mode_names[] = {"BOOT", "STANDBY", "SPEED", "HUD", "CLOCK",
+                              "CLOCK2", "ALBUM", "SETTING", "VIRTUAL", "OTA"};
   if (new_mode < DISPLAY_MODE_MAX) {
     ESP_LOGI(TAG, "Display mode switched to: %s (%d)", mode_names[new_mode],
              new_mode);
@@ -6587,7 +6543,7 @@ static esp_attr_value_t s_cccd_attr = {0};
 // 03 12 18 EA FF  (0x1812 + 0xFFEA)
 // - Appearance: 03 19 C1 03 (0x03C1 HID
 // Device, per working device log)
-// - Complete Local Name: 0C 09 "Mando HUD T"
+// - Complete Local Name: 0E 09 "MOVISION HUD1"
 static const uint8_t s_hud_svc_uuid128[16] = {
     0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
     0x00, 0x10, 0x00, 0x00, 0xea, 0xff, 0x00, 0x00};
@@ -6629,11 +6585,11 @@ static const uint8_t s_adv_raw[] = {
 };
 
 // Scan Response raw:
-// - Complete Local Name: 0C 09 "Mando HUD T"
+// - Complete Local Name: 0E 09 "MOVISION HUD1"
 // (duplicated; some scanners only show name
 // from scan rsp)
 static const uint8_t s_scan_rsp_raw[] = {
-    0x0c, 0x09, 'M', 'a', 'n', 'd', 'o', ' ', 'H', 'U', 'D', ' ', 'T',
+    0x0e, 0x09, 'M', 'O', 'V', 'I', 'S', 'I', 'O', 'N', ' ', 'H', 'U', 'D', '1',
 };
 
 static esp_ble_adv_params_t s_adv_params = {
@@ -7274,6 +7230,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
     s_waiting_cccd_logged = false;
     s_connect_tick = 0;
     s_hud_notify_enabled = false;
+    s_time_sync_requested = false; // 연결 끊김 시 초기화
     s_hud_seen_first_cmd = false;
     s_last_ble_activity_tick = 0;
     s_client_started = false;
@@ -7385,14 +7342,14 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
                (unsigned)h);
       send_read_rsp(gatts_if, param, ref, sizeof(ref));
     } else if (h == s_dis_manuf_handle) {
-      static const uint8_t manuf[] = "Mando";
+      static const uint8_t manuf[] = "MOVISION";
       ESP_LOGI(TAG,
                "READ_EVT DIS "
                "ManufacturerName handle=%u",
                (unsigned)h);
       send_read_rsp(gatts_if, param, manuf, sizeof(manuf) - 1);
     } else if (h == s_dis_model_handle) {
-      static const uint8_t model[] = "HUD-T";
+      static const uint8_t model[] = "HUD1";
       ESP_LOGI(TAG,
                "READ_EVT DIS ModelNumber "
                "handle=%u",
@@ -7683,6 +7640,12 @@ static void ble_tx_task(void *arg) {
     // Time request: ask phone for current
     // time after connect. Send via HUD notify
     // channel.
+    if (s_connected && s_hud_notify_enabled && !s_time_sync_requested) {
+      static const uint8_t time_req[] = {0x19, 0x4D, 0x0D, 0x01, 0x00, 0x2F};
+      hud_send_notify_bytes(time_req, sizeof(time_req));
+      s_time_sync_requested = true;
+      ESP_LOGI(TAG, "Sent time sync request to app (0x0D)");
+    }
 
     // HID TX: send HID report notifications
     // periodically when CCCD is enabled.
@@ -7937,10 +7900,16 @@ static esp_err_t init_sdcard(void) {
   // 부팅할 때마다 기존 파일을 덮어쓰거나 새로 생성합니다.
   s_boot_log_file = fopen("/sdcard/log_boot.txt", "w");
   if (s_boot_log_file) {
-    ESP_LOGI(TAG, "Opened /sdcard/log_boot.txt for boot logging");
+    ESP_LOGI("BOOT_LOG", "==================================================");
+    ESP_LOGI("BOOT_LOG", " MOVISION HUD1 - 부팅 및 초기화 통신 로그");
+    ESP_LOGI("BOOT_LOG", "==================================================");
+    ESP_LOGI("BOOT_LOG", "* 기록 시작: 부팅 시점");
+    ESP_LOGI("BOOT_LOG", "* 기록 종료: 가상운행 모드(Virtual Drive) 진입 시");
+    ESP_LOGI("BOOT_LOG", "==================================================");
+
     fprintf(s_boot_log_file,
             "==================================================\n");
-    fprintf(s_boot_log_file, " Mando HUD T - 부팅 및 초기화 통신 로그\n");
+    fprintf(s_boot_log_file, " MOVISION HUD1 - 부팅 및 초기화 통신 로그\n");
     fprintf(s_boot_log_file,
             "==================================================\n");
     fprintf(s_boot_log_file, "* 기록 시작: 부팅 시점\n");
@@ -8016,140 +7985,124 @@ static void flush_packet_log_to_sdcard(void) {
 
 static void save_packet_to_sdcard(const uint8_t *data, size_t len,
                                   const char *prefix) {
-  if (!s_sdcard_mounted || !s_logging_enabled || s_log_buffer_mutex == NULL) {
+  // 패킷 검증
+  if (data == NULL || len < 2 || data[0] != 0x19 || data[len - 1] != 0x2F) {
     return;
   }
 
-  // 패킷 검증: 0x19로 시작하고 0x2F로 끝남
-  if (len < 2 || data[0] != 0x19 || data[len - 1] != 0x2F) {
-    return;
+  // 1. 패킷 설명(desc) 분석
+  const char *desc = "알 수 없는 명령";
+  if (len >= 3 && data[0] == 0x19 && data[1] == 0x4D) {
+    uint8_t cmd = data[2];
+    switch (cmd) {
+    case 0x01: desc = "TBT 방향 정보"; break;
+    case 0x02: desc = "안전운행(Safety) 정보"; break;
+    case 0x03: desc = "주행 속도(Speed) 정보"; break;
+    case 0x04: desc = "외곽 링 상태(00:파랑, 01:초록)"; break;
+    case 0x05: desc = "화면 클리어(Clear) 명령"; break;
+    case 0x06: 
+      if (len >= 5 && data[4] == 0x03) desc = "(펌웨어 정보 문의)";
+      else desc = "화면 밝기 조회(RX)";
+      break;
+    case 0x07: desc = "화면 밝기 설정"; break;
+    case 0x08: desc = "등록되지않은 메시지"; break;
+    case 0x09: desc = "시간 설정(Time Set)"; break;
+    case 0x0A: desc = "목적지 남은 정보"; break;
+    case 0x0B: 
+      if (len >= 4 && data[3] == 0x02) desc = "밝기 조회 응답(TX)";
+      else desc = "목적지 정보 지움";
+      break;
+    case 0x0C: desc = "(모델명과 펌웨어 버전 송신)"; break;
+    case 0x0D: desc = "시간 업데이트 요청(TX)"; break;
+    }
+  } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x4E) {
+    if (data[2] == 0x0B) desc = "밝기 조회 응답(TX)";
+    else if (data[2] == 0x0C) desc = "(모델명과 펌웨어 버전 송신)";
+    else desc = "기기 응답 메시지";
   }
 
-  if (xSemaphoreTake(s_log_buffer_mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
-    return;
-  }
-
+  // 2. 시간 및 터미널 출력용 문자열 생성
   struct timeval tv;
   gettimeofday(&tv, NULL);
   struct tm timeinfo;
   localtime_r(&tv.tv_sec, &timeinfo);
 
-  // 날짜별 폴더 구조: /sdcard/YYYY-MM-DD/
-  char dir_path[64];
-  snprintf(dir_path, sizeof(dir_path), "/sdcard/%04d-%02d-%02d",
-           timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday);
+  char hex_str[128] = {0};
+  int pos = 0;
+  // 시작 바이트(0x19)와 종료 바이트(0x2F)를 제외하고 데이터 영역만 추출
+  for (size_t i = 1; i < (len - 1) && pos < (sizeof(hex_str) - 4); i++) {
+    pos += snprintf(hex_str + pos, sizeof(hex_str) - pos, "%02X ", data[i]);
+  }
+  
+  // 터미널 출력: SD 카드와 동일하게 [HH:MM:SS] 포함 (노랑색 출력을 위해 ESP_LOGW 사용)
+  ESP_LOGW(TAG, "PKT_LOG [%02d:%02d:%02d] [%s] %s// %s", 
+           timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec,
+           (prefix ? prefix : "??"), hex_str, desc);
 
-  // 폴더가 바뀔 때만 생성 (최적화)
-  static char s_last_dir_path[64] = {0};
-  if (strcmp(dir_path, s_last_dir_path) != 0) {
-    mkdir_recursive(dir_path);
-    strncpy(s_last_dir_path, dir_path, sizeof(s_last_dir_path));
+  // 3. SD 카드 기록 로직 (이후부터는 뮤텍스와 마운트 상태 필요)
+  if (s_log_buffer_mutex == NULL || xSemaphoreTake(s_log_buffer_mutex, pdMS_TO_TICKS(50)) != pdTRUE) {
+    return;
   }
 
-  // 분 단위로 새 파일 생성 (같은 초 내 패킷은 같은 파일에 append)
-  // 시간초 단위 파일명: HHMMSS.txt
-  static int s_last_log_minute = -1;
-  static char s_current_log_filename[32] = {0};
-
-  if (timeinfo.tm_min != s_last_log_minute) {
-    s_last_log_minute = timeinfo.tm_min;
-    snprintf(s_current_log_filename, sizeof(s_current_log_filename),
-             "%02d%02d%02d.txt", timeinfo.tm_hour, timeinfo.tm_min,
-             timeinfo.tm_sec);
+  if (!s_sdcard_mounted) {
+    xSemaphoreGive(s_log_buffer_mutex);
+    return;
   }
 
-  char full_path[128];
-  snprintf(full_path, sizeof(full_path), "%s/%s", dir_path,
-           s_current_log_filename);
-
-  FILE *f = fopen(full_path, "a");
-  if (f != NULL) {
-    // 저장 형식: [HH:MM:SS] [RX/TX] 패킷
-    fprintf(f, "[%02d:%02d:%02d] [%s] ", timeinfo.tm_hour, timeinfo.tm_min,
-            timeinfo.tm_sec, (prefix ? prefix : "??"));
-    for (size_t i = 0; i < len; i++) {
-      fprintf(f, "%02X%c", data[i], (i == len - 1) ? '\n' : ' ');
-    }
-    fflush(f);
-    fclose(f);
-  }
-
-  // [부팅 로그] 기록 로직
-  // 부팅 직후부터 데이터가 쌓이며, 가상운행 모드로 전환되는 순간 파일이 닫히고
-  // 기록이 중단됩니다. 전원 차단 시에도 로그가 유실되지 않도록 매 패킷 기록
-  // 시마다 fsync를 수행하여 물리 디스크에 저장합니다.
+  // [부팅 로그 파일 기록]
   if (s_boot_log_file != NULL) {
-    // 패킷 명령어(cmd) 분석을 통해 주석 내용 결정
-    const char *desc = "알 수 없는 명령";
-    if (len >= 3 && data[0] == 0x19 && data[1] == 0x4D) {
-      uint8_t cmd = data[2];
-      switch (cmd) {
-      case 0x01:
-        desc = "TBT 방향 정보";
-        break;
-      case 0x02:
-        desc = "안전운행(Safety) 정보";
-        break;
-      case 0x03:
-        desc = "주행 속도(Speed) 정보";
-        break;
-      case 0x04:
-        desc = "외곽 링 상태(00:파랑-검색중, 01:초록-수신완료)";
-        break;
-      case 0x05:
-        desc = "화면 클리어(Clear) 명령";
-        break;
-      case 0x06:
-        if (len >= 5 && data[4] == 0x03)
-          desc = "(펌웨어 정보 문의)";
-        else
-          desc = "화면 밝기 조회(RX)";
-        break;
-      case 0x07:
-        desc = "화면 밝기 설정";
-        break;
-      case 0x08:
-        desc = "등록되지않은 메시지";
-        break;
-      case 0x09:
-        desc = "시간 설정(Time Set)";
-        break;
-      case 0x0A:
-        desc = "목적지 남은 정보";
-        break;
-      case 0x0B:
-        if (len >= 4 && data[3] == 0x01)
-          desc = "목적지 도착 메시지";
-        else if (len >= 4 && data[3] == 0x02)
-          desc = "밝기 조회 응답(TX)";
-        break;
-      case 0x0C:
-        desc = "(모델명과 펌웨어 버전 송신)";
-        break;
-      }
-    } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x4E) {
-      // 송신용 규격(0x4E) 대응
-      if (data[2] == 0x0B)
-        desc = "밝기 조회 응답(TX)";
-      else if (data[2] == 0x0C)
-        desc = "(모델명과 펌웨어 버전 송신)";
-      else
-        desc = "기기 응답 메시지";
-    }
-
-    fprintf(s_boot_log_file, "[%02d:%02d:%02d] [%s] ", timeinfo.tm_hour,
-            timeinfo.tm_min, timeinfo.tm_sec, (prefix ? prefix : "??"));
-    for (size_t i = 0; i < len; i++) {
-      fprintf(s_boot_log_file, "%02X ", data[i]);
-    }
-    fprintf(s_boot_log_file, "// %s\n", desc); // 각 행 끝에 한글 설명 주석 추가
-
+    fprintf(s_boot_log_file, "[%02d:%02d:%02d] [%s] %s// %s\n", 
+            timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, 
+            (prefix ? prefix : "??"), hex_str, desc);
     fflush(s_boot_log_file);
-    fsync(fileno(s_boot_log_file)); // 전원 차단 시 손상 방지 (즉시 기록 보장)
+    fsync(fileno(s_boot_log_file));
+  }
+
+
+
+
+  // 4. 일반 패킷 로그 저장 (시간 설정 완료 후 분 단위 파일 저장)
+  if (s_logging_enabled) {
+    // 날짜별 폴더 구조: /sdcard/YYYY-MM-DD/
+    char dir_path[64];
+    snprintf(dir_path, sizeof(dir_path), "/sdcard/%04d-%02d-%02d",
+             timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday);
+
+    // 폴더가 바뀔 때만 생성 (최적화)
+    static char s_last_dir_path[64] = {0};
+    if (strcmp(dir_path, s_last_dir_path) != 0) {
+      mkdir_recursive(dir_path);
+      strncpy(s_last_dir_path, dir_path, sizeof(s_last_dir_path));
+    }
+
+    // 분 단위로 새 파일 생성 (같은 초 내 패킷은 같은 파일에 append)
+    static int s_last_log_minute = -1;
+    static char s_current_log_filename[32] = {0};
+
+    if (timeinfo.tm_min != s_last_log_minute) {
+      s_last_log_minute = timeinfo.tm_min;
+      snprintf(s_current_log_filename, sizeof(s_current_log_filename),
+               "%02d%02d%02d.txt", timeinfo.tm_hour, timeinfo.tm_min,
+               timeinfo.tm_sec);
+    }
+
+    char full_path[128];
+    snprintf(full_path, sizeof(full_path), "%s/%s", dir_path,
+             s_current_log_filename);
+
+    FILE *f = fopen(full_path, "a");
+    if (f != NULL) {
+      fprintf(f, "[%02d:%02d:%02d] [%s] %s// %s\n", timeinfo.tm_hour, timeinfo.tm_min,
+              timeinfo.tm_sec, (prefix ? prefix : "??"), hex_str, desc);
+      fflush(f);
+      fclose(f);
+    }
   }
 
   xSemaphoreGive(s_log_buffer_mutex);
 }
+
+
 
 // ---------------------------------------------------------------------------
 // New Mode UIs and Touch Driver
@@ -8181,9 +8134,13 @@ static lv_timer_t *s_clock_timer = NULL;
 static lv_obj_t *s_clock_wday_label = NULL; // Day of Week (SUN, MON...)
 static lv_obj_t *s_clock_day_label = NULL;  // Day of Month (01, 11...)
 
+// Boot Mode 전용 디지털 시계 - Moved to global section at top
+
 static void clock_timer_cb(lv_timer_t *timer) {
   if (s_current_mode != DISPLAY_MODE_CLOCK &&
-      s_current_mode != DISPLAY_MODE_CLOCK2)
+      s_current_mode != DISPLAY_MODE_CLOCK2 &&
+      s_current_mode != DISPLAY_MODE_BOOT &&
+      s_current_mode != DISPLAY_MODE_STANDBY) 
     return;
 
   time_t now;
@@ -8198,7 +8155,17 @@ static void clock_timer_cb(lv_timer_t *timer) {
   int wday = timeinfo.tm_wday;
   const char *week_days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
 
-  if (s_current_mode == DISPLAY_MODE_CLOCK) {
+  if (s_current_mode == DISPLAY_MODE_STANDBY) {
+    if (s_boot_time_label) {
+      lv_label_set_text_fmt(s_boot_time_label, "%02d:%02d", hour, minute);
+    }
+    if (s_boot_date_label) {
+      const char *months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", 
+                              "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+      lv_label_set_text_fmt(s_boot_date_label, "%s %02d %s", 
+                            months[timeinfo.tm_mon % 12], day, week_days[wday % 7]);
+    }
+  } else if (s_current_mode == DISPLAY_MODE_CLOCK) {
     if (s_clock_wday_label) {
       lv_label_set_text(s_clock_wday_label, week_days[wday]);
     }
@@ -8245,10 +8212,50 @@ static void create_clock_ui(void) {
   lv_obj_set_style_border_width(s_clock_center_dot, 0, 0);
   lv_obj_center(s_clock_center_dot);
 
+  // 1. Day of Month (e.g. 01) - Bottom left area of center
+  s_clock_day_label = lv_label_create(s_clock_screen);
+  lv_obj_set_style_text_font(s_clock_day_label, &font_kopub_30, 0);
+  lv_obj_set_style_text_color(s_clock_day_label, lv_color_make(200, 200, 200), 0);
+  lv_obj_align(s_clock_day_label, LV_ALIGN_CENTER, -40, 60);
+  lv_label_set_text(s_clock_day_label, "01");
+
+  // 2. Weekday (e.g. MON) - Bottom right area of center
+  s_clock_wday_label = lv_label_create(s_clock_screen);
+  lv_obj_set_style_text_font(s_clock_wday_label, &font_kopub_30, 0);
+  lv_obj_set_style_text_color(s_clock_wday_label, lv_color_make(200, 200, 200), 0);
+  lv_obj_align(s_clock_wday_label, LV_ALIGN_CENTER, 40, 60);
+  lv_label_set_text(s_clock_wday_label, "SUN");
+
+  // 시계 모드 초기화 시 다시 아날로그 요소들을 보이게 설정
+  lv_obj_clear_flag(s_hour_line, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_clear_flag(s_minute_line, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_clear_flag(s_second_line, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_clear_flag(s_clock_center_dot, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_clear_flag(s_clock_bg_img, LV_OBJ_FLAG_HIDDEN);
+
   // Create timer for clock update (1 sec interval)
   if (s_clock_timer == NULL) {
     s_clock_timer = lv_timer_create(clock_timer_cb, 1000, NULL);
   }
+}
+
+// 부팅 모드 전용 디지털 시계 UI 생성
+static void create_boot_ui(void) {
+  if (s_boot_screen == NULL) return;
+
+  // 1. HH:MM (Large, Center)
+  s_boot_time_label = lv_label_create(s_boot_screen);
+  lv_obj_set_style_text_font(s_boot_time_label, &font_vip_100, 0);
+  lv_obj_set_style_text_color(s_boot_time_label, lv_color_white(), 0);
+  lv_obj_align(s_boot_time_label, LV_ALIGN_CENTER, 0, 0); // Perfectly centered
+  lv_label_set_text(s_boot_time_label, "12:00");
+
+  // 3. Date Header (Top)
+  s_boot_date_label = lv_label_create(s_boot_screen);
+  lv_obj_set_style_text_font(s_boot_date_label, &font_kopub_30, 0);
+  lv_obj_set_style_text_color(s_boot_date_label, lv_color_hex(0xAAAAAA), 0);
+  lv_obj_align(s_boot_date_label, LV_ALIGN_CENTER, 0, -100);
+  lv_label_set_text(s_boot_date_label, "JAN 01 MON");
 }
 
 static void rotate_point(int px, int py, double angle_rad, int *ox, int *oy) {
@@ -9043,27 +9050,31 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
             // HUD→SPEEDOMETER→CLOCK→ALBUM→SETTING→VIRTUAL_DRIVE→HUD
             // 좌→우(Prev):
             // HUD→VIRTUAL_DRIVE→SETTING→ALBUM→CLOCK→SPEEDOMETER→HUD Index:
-            // [HUD=0, SPEED=1, CLOCK=2, CLOCK2=3, ALBUM=4, SETTING=5,
-            // VIRTUAL=6, OTA=7]
+            // [BOOT=0, HUD=1, SPEED=2, CLOCK=3, CLOCK2=4, ALBUM=5, SETTING=6,
+            // VIRTUAL=7, OTA=8]
             static const int mode_next_tbl[DISPLAY_MODE_MAX] = {
-                DISPLAY_MODE_SPEEDOMETER, // HUD(0)          → SPEEDOMETER
-                DISPLAY_MODE_CLOCK,       // SPEEDOMETER(1)  → CLOCK
-                DISPLAY_MODE_ALBUM,       // CLOCK(2)        → ALBUM
-                DISPLAY_MODE_ALBUM,       // CLOCK2(3)       → ALBUM (Consistent)
-                DISPLAY_MODE_SETTING,     // ALBUM(4)        → SETTING
-                DISPLAY_MODE_VIRTUAL_DRIVE, // SETTING(5)      → VIRTUAL_DRIVE
-                DISPLAY_MODE_HUD,           // VIRTUAL_DRIVE(6)→ HUD
-                DISPLAY_MODE_SETTING,       // OTA(7)          → (unused)
+                DISPLAY_MODE_STANDBY,       // BOOT(0)         → STANDBY
+                DISPLAY_MODE_SPEEDOMETER,   // STANDBY(1)      → SPEEDOMETER
+                DISPLAY_MODE_HUD,           // SPEEDOMETER(2)  → HUD
+                DISPLAY_MODE_CLOCK,         // HUD(3)          → CLOCK
+                DISPLAY_MODE_CLOCK2,        // CLOCK(4)        → CLOCK2
+                DISPLAY_MODE_ALBUM,         // CLOCK2(5)       → ALBUM
+                DISPLAY_MODE_STANDBY,       // ALBUM(6)        → STANDBY
+                DISPLAY_MODE_STANDBY,       // SETTING(7)      → (unused)
+                DISPLAY_MODE_STANDBY,       // VIRTUAL_DRIVE(8)→ (unused)
+                DISPLAY_MODE_STANDBY,       // OTA(9)          → (unused)
             };
             static const int mode_prev_tbl[DISPLAY_MODE_MAX] = {
-                DISPLAY_MODE_VIRTUAL_DRIVE, // HUD(0)          → VIRTUAL_DRIVE
-                DISPLAY_MODE_HUD,           // SPEEDOMETER(1)  → HUD
-                DISPLAY_MODE_SPEEDOMETER,   // CLOCK(2)        → SPEEDOMETER
-                DISPLAY_MODE_SPEEDOMETER,   // CLOCK2(3)       → SPEEDOMETER (Consistent)
-                DISPLAY_MODE_CLOCK,   // ALBUM(4)        → CLOCK
-                DISPLAY_MODE_ALBUM,   // SETTING(5)      → ALBUM
-                DISPLAY_MODE_SETTING, // VIRTUAL_DRIVE(6)→ SETTING
-                DISPLAY_MODE_SETTING, // OTA(7)          → (unused)
+                DISPLAY_MODE_STANDBY,       // BOOT(0)         → STANDBY
+                DISPLAY_MODE_ALBUM,         // STANDBY(1)      → ALBUM
+                DISPLAY_MODE_STANDBY,       // SPEEDOMETER(2)  → STANDBY
+                DISPLAY_MODE_SPEEDOMETER,   // HUD(3)          → SPEEDOMETER
+                DISPLAY_MODE_HUD,           // CLOCK(4)        → HUD
+                DISPLAY_MODE_CLOCK,         // CLOCK2(5)       → CLOCK
+                DISPLAY_MODE_CLOCK2,        // ALBUM(6)        → CLOCK2
+                DISPLAY_MODE_ALBUM,         // SETTING(7)      → (unused)
+                DISPLAY_MODE_ALBUM,         // VIRTUAL_DRIVE(8)→ (unused)
+                DISPLAY_MODE_ALBUM,         // OTA(9)          → (unused)
             };
 
             int next_mode;
@@ -9111,6 +9122,12 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
           } else if (s_current_mode == DISPLAY_MODE_OTA) {
             // OTA -> Setting (상하 스와이프으로 이동)
             switch_display_mode(DISPLAY_MODE_SETTING);
+            swiped = true;
+          } else if (s_current_mode == DISPLAY_MODE_HUD) {
+            // HUD 모드: 상하 드래그 시 앱에 시간 업데이트 요청 (0x0D)
+            static const uint8_t time_req[] = {0x19, 0x4D, 0x0D, 0x01, 0x00, 0x2F};
+            hud_send_notify_bytes(time_req, sizeof(time_req));
+            ESP_LOGI("TOUCH", "HUD Vertical Swipe: Manually requested time sync (0x0D)");
             swiped = true;
           }
         }
@@ -9591,7 +9608,7 @@ void app_main(void) {
     ESP_LOGW(TAG, "Recovery conditions met. Starting OTA mode...");
     switch_display_mode(DISPLAY_MODE_OTA);
   } else {
-    switch_display_mode(DISPLAY_MODE_HUD);
+    switch_display_mode(DISPLAY_MODE_BOOT);
   }
   LVGL_UNLOCK();
 
@@ -9610,6 +9627,12 @@ void app_main(void) {
   // keep app_main alive (so monitor doesn't
   // show "Returned from app_main()")
   while (1) {
+    // 부팅 시 시계 화면 전환 트리거 처리 (BTC_TASK 스택 보호를 위해 메인 루프에서 처리)
+    if (s_boot_clock_trigger) {
+      s_boot_clock_trigger = false;
+      ESP_LOGI(TAG, "Main Task: Executing transition to STANDBY mode");
+      switch_display_mode(DISPLAY_MODE_STANDBY);
+    }
     update_auto_brightness();
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
