@@ -74,7 +74,7 @@ static void ota_worker_task(void *param) {
         ESP_LOGI(TAG, "Worker: Incremental Erasing Storage...");
         uint32_t total_erase_len = (s_ota_total_size + 4095) & (~4095);
         uint32_t erased_len = 0;
-        uint32_t chunk_size = 64 * 1024;
+        uint32_t chunk_size = 128 * 1024;
 
         while (erased_len < total_erase_len) {
           uint32_t to_erase = (total_erase_len - erased_len < chunk_size)
@@ -84,8 +84,8 @@ static void ota_worker_task(void *param) {
           esp_partition_erase_range(storage_partition, erased_len, to_erase);
           erased_len += to_erase;
           update_ui_progress(0, "Erasing...");
-          vTaskDelay(pdMS_TO_TICKS(50));
-          if (erased_len % (128 * 1024) == 0 || erased_len == total_erase_len) {
+          vTaskDelay(pdMS_TO_TICKS(10));
+          if (erased_len % (256 * 1024) == 0 || erased_len == total_erase_len) {
             ESP_LOGI(TAG, "Erase Progress: %lu/%lu (%.1f%%)", erased_len,
                      total_erase_len,
                      (float)erased_len * 100 / total_erase_len);

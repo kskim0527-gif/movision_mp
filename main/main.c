@@ -1,4 +1,4 @@
-#define LV_USE_GIF 1
+﻿#define LV_USE_GIF 1
 // #define FACTORY_RESCUE_MODE // Factory(1MB) 빌드 시 이 주석을 해제하세요.
 #include <stdbool.h>
 #include <stdint.h>
@@ -972,6 +972,15 @@ static void process_app_command(const uint8_t *data, size_t len) {
                                dest_data5);
   }
 
+  // 5.1 Clear Destination Info (19 4D 0B 01 00 2F)
+  if (commend == 0x0B && len >= 6) {
+    if (s_current_mode == DISPLAY_MODE_STANDBY) {
+      ESP_LOGI(TAG, "Standby Mode: Ignoring Clear Destination Info command (0x0B)");
+    } else {
+      request_clear_display(0x08); // 0x08 clears destination info
+    }
+  }
+
   // 6. Circle Drawing
   if (commend == 0x04 && data_length == 0x01 && len >= 6) {
     uint8_t circle_data1 = data[4];
@@ -980,8 +989,12 @@ static void process_app_command(const uint8_t *data, size_t len) {
 
   // 7. Clear Display
   if (commend == 0x05 && data_length == 0x01 && len >= 6) {
-    uint8_t clear_data1 = data[4];
-    request_clear_display(clear_data1);
+    if (s_current_mode == DISPLAY_MODE_STANDBY) {
+      ESP_LOGI(TAG, "Standby Mode: Ignoring Clear Display command (0x05)");
+    } else {
+      uint8_t clear_data1 = data[4];
+      request_clear_display(clear_data1);
+    }
   }
 
   // 8. Brightness Query & Firmware Info Query
@@ -7345,7 +7358,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
       static const uint8_t manuf[] = "MOVISION";
       ESP_LOGI(TAG,
                "READ_EVT DIS "
-               "ManufacturerName handle=%u",
+               "ManufacturerName handle=%u (MOVISION)",
                (unsigned)h);
       send_read_rsp(gatts_if, param, manuf, sizeof(manuf) - 1);
     } else if (h == s_dis_model_handle) {
@@ -8012,7 +8025,11 @@ static void save_packet_to_sdcard(const uint8_t *data, size_t len,
       if (len >= 4 && data[3] == 0x02) desc = "밝기 조회 응답(TX)";
       else desc = "목적지 정보 지움";
       break;
-    case 0x0C: desc = "(모델명과 펌웨어 버전 송신)"; break;
+    case 0x0C: 
+      if (len >= 5 && data[4] == 0x01) desc = "(내비기능 시작)";
+      else if (len >= 5 && data[4] == 0x00) desc = "(속도계 모드 시작)";
+      else desc = "(모델명과 펌웨어 버전 송신)"; 
+      break;
     case 0x0D: desc = "시간 업데이트 요청(TX)"; break;
     }
   } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x4E) {
