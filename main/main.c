@@ -1,4 +1,4 @@
-﻿#define LV_USE_GIF 1
+#define LV_USE_GIF 1
 // #define FACTORY_RESCUE_MODE // Factory(1MB) 빌드 시 이 주석을 해제하세요.
 #include <stdbool.h>
 #include <stdint.h>
@@ -156,6 +156,7 @@ typedef enum {
 } display_mode_t;
 
 static display_mode_t s_current_mode = DISPLAY_MODE_BOOT; // 초기 상태는 부팅(로고) 모드
+static display_mode_t s_last_base_mode = DISPLAY_MODE_STANDBY; // 대기, 속도계, HUD 중 마지막 활성 모드
 
 int get_current_display_mode(void) { return (int)s_current_mode; }
 static bool s_virtual_drive_active = false;    // 가상 운행 활성화 플래그
@@ -476,7 +477,7 @@ static lv_obj_t *s_album_gif = NULL;
 static lv_obj_t *s_speedometer_bg_img = NULL;
 static lv_obj_t *s_speedometer_needle_line = NULL;
 static lv_obj_t *s_speedometer_center_img = NULL;
-static lv_point_t s_speedometer_needle_points[2];
+static lv_point_t s_speedometer_needle_points[5];
 
 static lv_obj_t *s_speedometer_speed_label = NULL;
 static lv_obj_t *s_speedometer_unit_label = NULL;
@@ -893,7 +894,7 @@ static void update_clear_display(uint8_t data1);
 
 
 // --- Packet Processing Logic (Extracted for re-use in Virtual Drive) ---
-static void update_auto_brightness(void);
+static void update_auto_brightness(bool force);
 static void hud_send_notify_bytes(const uint8_t *data, uint16_t len);
 static void process_app_command(const uint8_t *data, size_t len) {
   if (len < 5)
@@ -1001,18 +1002,18 @@ static void process_app_command(const uint8_t *data, size_t len) {
   if (commend == 0x06 && len >= 6 && data_length == 0x01) {
     if (data[4] == 0x01) {
       // (1) Brightness Query
-      // Cmd: 19 4D 06 01 01 2F -> Resp: 19 4E 0B 02 xx 00 2F
+      // Cmd: 19 4D 06 01 01 2F -> Resp: 19 4E 0B 02 xx xx 2F
       uint8_t resp[7] = {0x19, 0x4E, 0x0B, 0x02, s_brightness_level,
-                         0x00, 0x2F};
+                         s_brightness_level, 0x2F};
       hud_send_notify_bytes(resp, sizeof(resp));
       save_packet_to_sdcard(resp, sizeof(resp), "TX");
     } else if (data[4] == 0x03) {
       // (2) Firmware Info Query
-      // Cmd: 19 4D 06 01 03 2F -> Resp: 19 4D 0C 0A [HUD1] [YYMMDD] 2F
+      // Cmd: 19 4D 06 01 03 2F -> Resp: 19 4E 0C 0A [HUD1] [YYMMDD] 2F
       const esp_app_desc_t *app_desc = esp_app_get_description();
       uint8_t resp[15];
       resp[0] = 0x19; // Header
-      resp[1] = 0x4D; // ID
+      resp[1] = 0x4E; // ID (Updated to 0x4E per v1.5 protocol)
       resp[2] = 0x0C; // Cmd (F/W Info Resp)
       resp[3] = 0x0A; // D-Len (10 bytes)
 
@@ -1060,6 +1061,16 @@ static void process_app_command(const uint8_t *data, size_t len) {
       // 19 4D 0C 01 01 2F -> HUD 모드 진입
       ESP_LOGI(TAG, "Mode switch command received: Switch to HUD");
       switch_display_mode(DISPLAY_MODE_HUD);
+    }
+  }
+
+  // 11. Destination Arrived (목적지 도착)
+  if (commend == 0x0D && data_length == 0x01 && len >= 6) {
+    if (data[4] == 0x00) { // 목적지 도착
+      if (s_current_mode == DISPLAY_MODE_HUD) {
+        ESP_LOGI(TAG, "Destination Arrived command received: Switch to STANDBY");
+        switch_display_mode(DISPLAY_MODE_STANDBY);
+      }
     }
   }
 }
@@ -2272,15 +2283,23 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
         }
         
         if (s_speedometer_safety_arc != NULL) {
-          s_speedometer_safety_tt_val = data2;
-          if (data2 > 0) {
-            int limit_speed = data2 > 220 ? 220 : data2;
+          int limit_speed = data2 > 220 ? 220 : data2;
+          // 어린이 보호구역(children.png)일 경우 속도 제한을 30km/h로 고정
+          if (strcmp(img_filename, "children.png") == 0) {
+            limit_speed = 30;
+          }
+          s_speedometer_safety_tt_val = (uint8_t)limit_speed;
+
+          if (limit_speed > 0) {
             int start_angle = (int)((limit_speed / 220.0) * 228.0);
             lv_arc_set_angles(s_speedometer_safety_arc, start_angle, 228); // 228 is End Angle relative to rotation (156)
             lv_obj_clear_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
             lv_obj_move_foreground(s_speedometer_safety_arc);
           } else {
-            lv_obj_add_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
+            // 제한속도 표기가 없는 경우 180~220km/h 구간 표시
+            int start_angle = (int)((180 / 220.0) * 228.0);
+            lv_arc_set_angles(s_speedometer_safety_arc, start_angle, 228);
+            lv_obj_clear_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
           }
         }
         
@@ -2317,15 +2336,23 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
         }
         
         if (s_speedometer_safety_arc != NULL) {
-          s_speedometer_safety_tt_val = data2;
-          if (data2 > 0) {
-            int limit_speed = data2 > 220 ? 220 : data2;
+          int limit_speed = data2 > 220 ? 220 : data2;
+          // 어린이 보호구역(children.png)일 경우 속도 제한을 30km/h로 고정
+          if (strcmp(img_filename, "children.png") == 0) {
+            limit_speed = 30;
+          }
+          s_speedometer_safety_tt_val = (uint8_t)limit_speed;
+
+          if (limit_speed > 0) {
             int start_angle = (int)((limit_speed / 220.0) * 228.0);
             lv_arc_set_angles(s_speedometer_safety_arc, start_angle, 228); 
             lv_obj_clear_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
             lv_obj_move_foreground(s_speedometer_safety_arc);
           } else {
-            lv_obj_add_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
+            // 제한속도 표기가 없는 경우 180~220km/h 구간 표시
+            int start_angle = (int)((180 / 220.0) * 228.0);
+            lv_arc_set_angles(s_speedometer_safety_arc, start_angle, 228);
+            lv_obj_clear_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
           }
         }
         
@@ -2415,7 +2442,10 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
       lv_obj_add_flag(s_speedometer_safety_unit_label, LV_OBJ_FLAG_HIDDEN);
     }
     if (s_speedometer_safety_arc != NULL) {
-      lv_obj_add_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
+      // 거리가 가까워져서 지울 때도 180~220km/h 구간 표시 유지
+      int start_angle = (int)((180 / 220.0) * 228.0);
+      lv_arc_set_angles(s_speedometer_safety_arc, start_angle, 228);
+      lv_obj_clear_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
     }
     s_last_distance_m = 0xFFFFFFFF;
     return;
@@ -2928,7 +2958,10 @@ static void update_clear_display(uint8_t data1) {
       lv_obj_add_flag(s_speedometer_safety_unit_label, LV_OBJ_FLAG_HIDDEN);
     }
     if (s_speedometer_safety_arc != NULL) {
-      lv_obj_add_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
+      // 클리어 요청 시에도 180~220km/h 구간 표시 유지
+      int start_angle = (int)((180 / 220.0) * 228.0);
+      lv_arc_set_angles(s_speedometer_safety_arc, start_angle, 228);
+      lv_obj_clear_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
     }
 
     // Show speedometer mode speed labels when safety image is cleared
@@ -3329,11 +3362,28 @@ static void update_speed_label(uint8_t data1, uint8_t speed) {
           int needle_len = radius * 0.85;
           int tail_len = -40; // Tail extending through center
           
-          s_speedometer_needle_points[0].x = center_x + (int)(tail_len * cos(angle_rad));
-          s_speedometer_needle_points[0].y = center_y + (int)(tail_len * sin(angle_rad));
-          s_speedometer_needle_points[1].x = center_x + (int)(needle_len * cos(angle_rad));
-          s_speedometer_needle_points[1].y = center_y + (int)(needle_len * sin(angle_rad));
-          lv_line_set_points(s_speedometer_needle_line, s_speedometer_needle_points, 2);
+          double cos_a = cos(angle_rad);
+          double sin_a = sin(angle_rad);
+          double cos_p = cos(angle_rad + M_PI / 2.0);
+          double sin_p = sin(angle_rad + M_PI / 2.0);
+
+          // Tapered needle using 5 points and 5px line width to fill the center (10px) and tip (5px)
+          // 1. Tip
+          s_speedometer_needle_points[0].x = center_x + (int)(needle_len * cos_a);
+          s_speedometer_needle_points[0].y = center_y + (int)(needle_len * sin_a);
+          // 2. Center-Top (offset 2.5px)
+          s_speedometer_needle_points[1].x = center_x + (int)(2.5 * cos_p);
+          s_speedometer_needle_points[1].y = center_y + (int)(2.5 * sin_p);
+          // 3. Tail
+          s_speedometer_needle_points[2].x = center_x + (int)(tail_len * cos_a);
+          s_speedometer_needle_points[2].y = center_y + (int)(tail_len * sin_a);
+          // 4. Center-Bottom (offset -2.5px)
+          s_speedometer_needle_points[3].x = center_x + (int)(-2.5 * cos_p);
+          s_speedometer_needle_points[3].y = center_y + (int)(-2.5 * sin_p);
+          // 5. Back to Tip
+          s_speedometer_needle_points[4] = s_speedometer_needle_points[0];
+
+          lv_line_set_points(s_speedometer_needle_line, s_speedometer_needle_points, 5);
         }
       }
 
@@ -3677,7 +3727,7 @@ static void time_set(const uint8_t *data, size_t data_len) {
   }
 
   // Update brightness immediately based on new time
-  update_auto_brightness();
+  update_auto_brightness(true);
 }
 
 // 목적지정보 함수
@@ -5674,6 +5724,14 @@ static void switch_display_mode(display_mode_t new_mode) {
   }
 
   s_current_mode = new_mode;
+
+  // 네비게이션용 베이스 모드 업데이트 (대기, 속도계, HUD만 베이스가 됨)
+  if (new_mode == DISPLAY_MODE_STANDBY || 
+      new_mode == DISPLAY_MODE_SPEEDOMETER || 
+      new_mode == DISPLAY_MODE_HUD) {
+    s_last_base_mode = new_mode;
+  }
+
   update_display_mode_ui(new_mode);
 
   // 새로운 모드가 가상 운행 모드라면 부팅 로그 파일(log_boot.txt) 닫기
@@ -5724,9 +5782,9 @@ static void apply_hw_brightness(uint8_t level) {
   LVGL_UNLOCK();
 }
 
-static void update_auto_brightness(void) {
-  if (s_brightness_level != 0)
-    return; // Not in Auto mode
+static void update_auto_brightness(bool force) {
+  if (!force && s_brightness_level != 0)
+    return; // Not in Auto mode and not forced
 
   time_t now;
   struct tm timeinfo;
@@ -5755,7 +5813,7 @@ static void update_auto_brightness(void) {
   }
 
   static uint8_t s_last_applied_auto = 0;
-  if (target_level != s_last_applied_auto) {
+  if (force || target_level != s_last_applied_auto) {
     apply_hw_brightness(target_level);
     s_last_applied_auto = target_level;
     ESP_LOGI(TAG,
@@ -5771,9 +5829,16 @@ static void set_lcd_brightness(uint8_t level) {
   s_brightness_level = level;
 
   if (level == 0) {
-    update_auto_brightness();
+    update_auto_brightness(true);
   } else {
     apply_hw_brightness(level);
+  }
+
+  // Send brightness update to app for synchronization
+  if (s_connected && s_hud_notify_enabled) {
+    uint8_t resp[7] = {0x19, 0x4E, 0x0B, 0x02, level, level, 0x2F};
+    hud_send_notify_bytes(resp, sizeof(resp));
+    save_packet_to_sdcard(resp, sizeof(resp), "TX");
   }
 
   // Update Settings UI if it exists
@@ -7654,10 +7719,10 @@ static void ble_tx_task(void *arg) {
     // time after connect. Send via HUD notify
     // channel.
     if (s_connected && s_hud_notify_enabled && !s_time_sync_requested) {
-      static const uint8_t time_req[] = {0x19, 0x4D, 0x0D, 0x01, 0x00, 0x2F};
+      static const uint8_t time_req[] = {0x19, 0x4E, 0x0D, 0x01, 0x00, 0x2F}; // ID switched to 0x4E
       hud_send_notify_bytes(time_req, sizeof(time_req));
       s_time_sync_requested = true;
-      ESP_LOGI(TAG, "Sent time sync request to app (0x0D)");
+      ESP_LOGI(TAG, "Sent time sync request to app (0x0D with ID 0x4E)");
     }
 
     // HID TX: send HID report notifications
@@ -8022,7 +8087,7 @@ static void save_packet_to_sdcard(const uint8_t *data, size_t len,
     case 0x09: desc = "시간 설정(Time Set)"; break;
     case 0x0A: desc = "목적지 남은 정보"; break;
     case 0x0B: 
-      if (len >= 4 && data[3] == 0x02) desc = "밝기 조회 응답(TX)";
+      if (len >= 4 && data[3] == 0x02) desc = "밝기 설정값 통보(TX)";
       else desc = "목적지 정보 지움";
       break;
     case 0x0C: 
@@ -8030,10 +8095,13 @@ static void save_packet_to_sdcard(const uint8_t *data, size_t len,
       else if (len >= 5 && data[4] == 0x00) desc = "(속도계 모드 시작)";
       else desc = "(모델명과 펌웨어 버전 송신)"; 
       break;
-    case 0x0D: desc = "시간 업데이트 요청(TX)"; break;
+    case 0x0D: 
+      if (data[1] == 0x4E) desc = "시간 업데이트 요청(TX)"; 
+      else desc = "목적지 도착 알림(RX)";
+      break;
     }
   } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x4E) {
-    if (data[2] == 0x0B) desc = "밝기 조회 응답(TX)";
+    if (data[2] == 0x0B) desc = "밝기 설정값 통보(TX)";
     else if (data[2] == 0x0C) desc = "(모델명과 펌웨어 버전 송신)";
     else desc = "기기 응답 메시지";
   }
@@ -8432,9 +8500,9 @@ static void create_speedometer_ui(void) {
   lv_obj_center(s_speedometer_bg_img);
   lv_obj_clear_flag(s_speedometer_bg_img, LV_OBJ_FLAG_CLICKABLE);
 
-  // 2. Needle Line (Directly drawn)
+  // 2. Needle Line (Tapered shape)
   s_speedometer_needle_line = lv_line_create(s_speedometer_screen);
-  lv_obj_set_style_line_width(s_speedometer_needle_line, 8, 0);
+  lv_obj_set_style_line_width(s_speedometer_needle_line, 5, 0); // 5px width * 2 offset = 10px center
   lv_obj_set_style_line_color(s_speedometer_needle_line, lv_color_hex(0xFF0033), 0); // Vibrant Red
   lv_obj_set_style_line_rounded(s_speedometer_needle_line, true, 0);
   lv_obj_clear_flag(s_speedometer_needle_line, LV_OBJ_FLAG_CLICKABLE);
@@ -8444,11 +8512,25 @@ static void create_speedometer_ui(void) {
   int cx = LCD_H_RES / 2;
   int cy = LCD_V_RES / 2;
   int r = (LCD_H_RES < LCD_V_RES ? LCD_H_RES : LCD_V_RES) / 2 - 20;
-  s_speedometer_needle_points[0].x = cx + (int)(-40 * cos(initial_angle_rad));
-  s_speedometer_needle_points[0].y = cy + (int)(-40 * sin(initial_angle_rad));
-  s_speedometer_needle_points[1].x = cx + (int)(r * 0.85 * cos(initial_angle_rad));
-  s_speedometer_needle_points[1].y = cy + (int)(r * 0.85 * sin(initial_angle_rad));
-  lv_line_set_points(s_speedometer_needle_line, s_speedometer_needle_points, 2);
+  int nl = r * 0.85;
+  int tl = -40;
+  
+  double cos_i = cos(initial_angle_rad);
+  double sin_i = sin(initial_angle_rad);
+  double cos_ip = cos(initial_angle_rad + M_PI / 2.0);
+  double sin_ip = sin(initial_angle_rad + M_PI / 2.0);
+
+  s_speedometer_needle_points[0].x = cx + (int)(nl * cos_i);
+  s_speedometer_needle_points[0].y = cy + (int)(nl * sin_i);
+  s_speedometer_needle_points[1].x = cx + (int)(2.5 * cos_ip);
+  s_speedometer_needle_points[1].y = cy + (int)(2.5 * sin_ip);
+  s_speedometer_needle_points[2].x = cx + (int)(tl * cos_i);
+  s_speedometer_needle_points[2].y = cy + (int)(tl * sin_i);
+  s_speedometer_needle_points[3].x = cx + (int)(-2.5 * cos_ip);
+  s_speedometer_needle_points[3].y = cy + (int)(-2.5 * sin_ip);
+  s_speedometer_needle_points[4] = s_speedometer_needle_points[0];
+  
+  lv_line_set_points(s_speedometer_needle_line, s_speedometer_needle_points, 5);
 
   // 3. Center Cap Image
   s_speedometer_center_img = lv_img_create(s_speedometer_screen);
@@ -8471,7 +8553,7 @@ static void create_speedometer_ui(void) {
 
   // 3. Safety UI Elements (Initially Hidden)
   s_speedometer_safety_arc = lv_arc_create(s_speedometer_screen);
-  lv_obj_set_size(s_speedometer_safety_arc, r * 2 * 0.99, r * 2 * 0.99); // Adjust size to be slightly outside the ticks
+  lv_obj_set_size(s_speedometer_safety_arc, 450, 450); // Diameter 450px
   lv_obj_center(s_speedometer_safety_arc);
   
   // Set the arc to match the speedometer scale: 156 start, 228 degrees span
@@ -8483,15 +8565,17 @@ static void create_speedometer_ui(void) {
   lv_obj_set_style_arc_width(s_speedometer_safety_arc, 0, LV_PART_MAIN); // Hide background completely
   lv_obj_set_style_arc_rounded(s_speedometer_safety_arc, false, LV_PART_MAIN);
   
-  lv_obj_set_style_arc_width(s_speedometer_safety_arc, 18, LV_PART_INDICATOR); // Thinner to reduce draw area
+  lv_obj_set_style_arc_width(s_speedometer_safety_arc, 10, LV_PART_INDICATOR); // Width 10px
   lv_obj_set_style_arc_color(s_speedometer_safety_arc, lv_color_hex(0xFF8800), LV_PART_INDICATOR); // Orange
   lv_obj_set_style_arc_opa(s_speedometer_safety_arc, LV_OPA_COVER, LV_PART_INDICATOR); // 100% opaque to skip alpha blending overhead
   lv_obj_set_style_arc_rounded(s_speedometer_safety_arc, false, LV_PART_INDICATOR); // Flat ends exactly stop at intended angle
   
-  lv_arc_set_angles(s_speedometer_safety_arc, 0, 0); // Initial empty
+  // 180~220km/h 구간 표시 (기본값)
+  int start_angle = (int)((180 / 220.0) * 228.0);
+  lv_arc_set_angles(s_speedometer_safety_arc, start_angle, 228);
   
   lv_obj_clear_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_add_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN); // Initially hidden
+  lv_obj_clear_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN); // 기본적으로 표시됨
 
   s_speedometer_safety_image = lv_img_create(s_speedometer_screen);
   lv_obj_add_flag(s_speedometer_safety_image, LV_OBJ_FLAG_HIDDEN);
@@ -8552,6 +8636,9 @@ static void create_speedometer_ui(void) {
   lv_label_set_text(s_speedometer_avr_speed_unit_label, "km/h");
   // Position will be set dynamically in update_speed_label (Right of Value)
   lv_obj_add_flag(s_speedometer_avr_speed_unit_label, LV_OBJ_FLAG_HIDDEN);
+
+  // 5. Ensure Center Cap is on top level
+  lv_obj_move_foreground(s_speedometer_center_img);
 }
 
 static void create_setting_ui(void) {
@@ -9064,41 +9151,33 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
           } else {
             // OTA는 실수 방지를 위해 스와이프 순환에서 제외
             // 우→좌(Next):
-            // HUD→SPEEDOMETER→CLOCK→ALBUM→SETTING→VIRTUAL_DRIVE→HUD
-            // 좌→우(Prev):
-            // HUD→VIRTUAL_DRIVE→SETTING→ALBUM→CLOCK→SPEEDOMETER→HUD Index:
-            // [BOOT=0, HUD=1, SPEED=2, CLOCK=3, CLOCK2=4, ALBUM=5, SETTING=6,
-            // VIRTUAL=7, OTA=8]
-            static const int mode_next_tbl[DISPLAY_MODE_MAX] = {
-                DISPLAY_MODE_STANDBY,       // BOOT(0)         → STANDBY
-                DISPLAY_MODE_SPEEDOMETER,   // STANDBY(1)      → SPEEDOMETER
-                DISPLAY_MODE_HUD,           // SPEEDOMETER(2)  → HUD
-                DISPLAY_MODE_CLOCK,         // HUD(3)          → CLOCK
-                DISPLAY_MODE_CLOCK2,        // CLOCK(4)        → CLOCK2
-                DISPLAY_MODE_ALBUM,         // CLOCK2(5)       → ALBUM
-                DISPLAY_MODE_STANDBY,       // ALBUM(6)        → STANDBY
-                DISPLAY_MODE_STANDBY,       // SETTING(7)      → (unused)
-                DISPLAY_MODE_STANDBY,       // VIRTUAL_DRIVE(8)→ (unused)
-                DISPLAY_MODE_STANDBY,       // OTA(9)          → (unused)
-            };
-            static const int mode_prev_tbl[DISPLAY_MODE_MAX] = {
-                DISPLAY_MODE_STANDBY,       // BOOT(0)         → STANDBY
-                DISPLAY_MODE_ALBUM,         // STANDBY(1)      → ALBUM
-                DISPLAY_MODE_STANDBY,       // SPEEDOMETER(2)  → STANDBY
-                DISPLAY_MODE_SPEEDOMETER,   // HUD(3)          → SPEEDOMETER
-                DISPLAY_MODE_HUD,           // CLOCK(4)        → HUD
-                DISPLAY_MODE_CLOCK,         // CLOCK2(5)       → CLOCK
-                DISPLAY_MODE_CLOCK2,        // ALBUM(6)        → CLOCK2
-                DISPLAY_MODE_ALBUM,         // SETTING(7)      → (unused)
-                DISPLAY_MODE_ALBUM,         // VIRTUAL_DRIVE(8)→ (unused)
-                DISPLAY_MODE_ALBUM,         // OTA(9)          → (unused)
-            };
-
             int next_mode;
-            if (dx < 0) { // 좌→우 (이전 모드)
-              next_mode = mode_prev_tbl[s_current_mode];
-            } else { // 우→좌 (다음 모드)
-              next_mode = mode_next_tbl[s_current_mode];
+            if (dx > 0) { // 우→좌 (다음 모드: R->L Swipe)
+                // 순환: Base -> CLOCK -> ALBUM -> SETTING -> VIRTUAL_DRIVE -> Base
+                switch(s_current_mode) {
+                    case DISPLAY_MODE_STANDBY:
+                    case DISPLAY_MODE_SPEEDOMETER:
+                    case DISPLAY_MODE_HUD:      next_mode = DISPLAY_MODE_CLOCK; break;
+                    case DISPLAY_MODE_CLOCK:    
+                    case DISPLAY_MODE_CLOCK2:   next_mode = DISPLAY_MODE_ALBUM; break;
+                    case DISPLAY_MODE_ALBUM:    next_mode = DISPLAY_MODE_SETTING; break;
+                    case DISPLAY_MODE_SETTING:  next_mode = DISPLAY_MODE_VIRTUAL_DRIVE; break;
+                    case DISPLAY_MODE_VIRTUAL_DRIVE: next_mode = s_last_base_mode; break;
+                    default:                     next_mode = s_last_base_mode; break;
+                }
+            } else { // 좌→우 (이전 모드: L->R Swipe)
+                // 순환: Base -> VIRTUAL_DRIVE -> SETTING -> ALBUM -> CLOCK -> Base
+                switch(s_current_mode) {
+                    case DISPLAY_MODE_STANDBY:
+                    case DISPLAY_MODE_SPEEDOMETER:
+                    case DISPLAY_MODE_HUD:      next_mode = DISPLAY_MODE_VIRTUAL_DRIVE; break;
+                    case DISPLAY_MODE_VIRTUAL_DRIVE: next_mode = DISPLAY_MODE_SETTING; break;
+                    case DISPLAY_MODE_SETTING:  next_mode = DISPLAY_MODE_ALBUM; break;
+                    case DISPLAY_MODE_ALBUM:    next_mode = DISPLAY_MODE_CLOCK; break;
+                    case DISPLAY_MODE_CLOCK:    
+                    case DISPLAY_MODE_CLOCK2:   next_mode = s_last_base_mode; break;
+                    default:                     next_mode = s_last_base_mode; break;
+                }
             }
 
             if (next_mode == DISPLAY_MODE_ALBUM &&
@@ -9140,11 +9219,21 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
             // OTA -> Setting (상하 스와이프으로 이동)
             switch_display_mode(DISPLAY_MODE_SETTING);
             swiped = true;
-          } else if (s_current_mode == DISPLAY_MODE_HUD) {
-            // HUD 모드: 상하 드래그 시 앱에 시간 업데이트 요청 (0x0D)
-            static const uint8_t time_req[] = {0x19, 0x4D, 0x0D, 0x01, 0x00, 0x2F};
-            hud_send_notify_bytes(time_req, sizeof(time_req));
-            ESP_LOGI("TOUCH", "HUD Vertical Swipe: Manually requested time sync (0x0D)");
+          } else if (s_current_mode == DISPLAY_MODE_STANDBY || 
+                     s_current_mode == DISPLAY_MODE_SPEEDOMETER || 
+                     s_current_mode == DISPLAY_MODE_HUD) {
+            // Base Mode Vertical Cycle: STANDBY <-> SPEEDOMETER <-> HUD
+            display_mode_t next_base;
+            if (dy < 0) { // Swipe Up
+              if (s_current_mode == DISPLAY_MODE_STANDBY) next_base = DISPLAY_MODE_SPEEDOMETER;
+              else if (s_current_mode == DISPLAY_MODE_SPEEDOMETER) next_base = DISPLAY_MODE_HUD;
+              else next_base = DISPLAY_MODE_STANDBY;
+            } else { // Swipe Down
+              if (s_current_mode == DISPLAY_MODE_STANDBY) next_base = DISPLAY_MODE_HUD;
+              else if (s_current_mode == DISPLAY_MODE_HUD) next_base = DISPLAY_MODE_SPEEDOMETER;
+              else next_base = DISPLAY_MODE_STANDBY;
+            }
+            switch_display_mode(next_base);
             swiped = true;
           }
         }
@@ -9650,7 +9739,7 @@ void app_main(void) {
       ESP_LOGI(TAG, "Main Task: Executing transition to STANDBY mode");
       switch_display_mode(DISPLAY_MODE_STANDBY);
     }
-    update_auto_brightness();
+    update_auto_brightness(false);
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
