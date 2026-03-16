@@ -18,6 +18,18 @@ __pycache__/
 # Logs
 *.log
 
+# IDE Cache
+.cache/
+
+# Temporary Scripts
+fix_idf_git*.py
+degit_submodules.py
+read_log.py
+fix_idf_git.py
+fix_idf_git_v2.py
+fix_idf_git_v3.py
+fix_idf_git_v4.py
+
 # Test videos
 *.mp4
 *.avi
