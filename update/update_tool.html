@@ -161,9 +161,9 @@
 
         <div id="step1" class="step-card">
             <div class="step-title"><span class="step-number">1</span> 업데이트 파일 준비</div>
-            <div id="fileInfo" class="file-info">update.bin 파일을 선택해 주세요.</div>
-            <input type="file" id="fileInput" accept=".bin" class="hidden">
-            <button id="selectFileBtn">파일 선택</button>
+            <div id="fileInfo" class="file-info">bin 파일들(5개)을 한꺼번에 선택해 주세요.</div>
+            <input type="file" id="fileInput" accept=".bin" class="hidden" multiple>
+            <button id="selectFileBtn">파일 선택 (5개 세트)</button>
         </div>
 
         <div id="step2" class="step-card">
@@ -212,14 +212,13 @@
         const loadEngine = async () => {
             try {
                 log("엔진 로딩 중...");
-                const blob = new Blob([Uint8Array.from(atob(b64Data), c => c.charCodeAt(0))], { type: 'application/javascript' });
+                const bytes = Uint8Array.from(atob(b64Data), c => c.charCodeAt(0));
+                const blob = new Blob([bytes], { type: 'application/javascript' });
                 const url = URL.createObjectURL(blob);
-                const module = await import(url);
-                URL.revokeObjectURL(url);
-                log("엔진 로딩 완료.");
-                return module;
+                const lib = await import(url);
+                return lib;
             } catch (err) {
-                log("❌ 엔진 로딩 실패: " + err.message);
+                log("엔진 로드 실패: " + err.message);
                 throw err;
             }
         };
@@ -228,19 +227,25 @@
 
         fileInput.onchange = () => {
             if (fileInput.files.length > 0) {
-                const file = fileInput.files[0];
-                fileInfo.innerText = `📦 ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                statusMsg.innerText = `${fileInput.files.length}개의 파일 선택됨`;
+                const fileNames = Array.from(fileInput.files).map(f => f.name).join(', ');
+                fileInfo.innerText = "선택됨: " + (fileNames.length > 50 ? fileNames.substring(0, 47) + "..." : fileNames);
                 if (engineReady) {
                     connectBtn.disabled = false;
-                    statusMsg.innerText = "연결할 준비가 되었습니다.";
+                    statusMsg.innerText = "연결 준비 완료";
                 }
+            } else {
+                statusMsg.innerText = "파일을 선택해 주세요.";
+                fileInfo.innerText = "bin 파일들(5개)을 한꺼번에 선택해 주세요.";
+                connectBtn.disabled = true;
             }
         };
 
         connectBtn.onclick = async () => {
-            if (!fileInput.files.length) return;
+            if (!fileInput.files.length || !engineReady) return;
             
             try {
+                connectBtn.disabled = true;
                 log("사용자 포트 요청 중...");
                 const port = await navigator.serial.requestPort();
                 
@@ -259,77 +264,78 @@
                 statusMsg.innerText = "장치와 통신 시도 중...";
                 await esploader.main();
                 
-                log("업데이트 패키지 분석 중...");
-                const fileReader = new FileReader();
-                
-                fileReader.onload = async (e) => {
-                    const fullBuffer = e.target.result;
-                    const view = new DataView(fullBuffer);
-                    
-                    if (view.getUint32(0, true) !== 0x44475055) {
-                        log("❌ 오류: 유효한 패키지가 아닙니다.");
-                        statusMsg.innerText = "잘못된 파일 형식";
-                        return;
-                    }
-
-                    const appSize = view.getUint32(4, true);
-                    const storageSize = view.getUint32(8, true);
-                    log(`패키지 인식: 앱(${appSize} bytes), 데이터(${storageSize} bytes)`);
-
-                    const fileArray = [];
-                    let pointer = 16;
-
-                    if (appSize > 0) {
-                        const slice = fullBuffer.slice(pointer, pointer + appSize);
-                        fileArray.push({
-                            data: ui8ToBstr(new Uint8Array(slice)),
-                            address: 0x20000
-                        });
-                        pointer += appSize;
-                        log("- 앱 바이너리 변환 완료");
-                    }
-
-                    if (storageSize > 0) {
-                        const slice = fullBuffer.slice(pointer, pointer + storageSize);
-                        fileArray.push({
-                            data: ui8ToBstr(new Uint8Array(slice)),
-                            address: 0x3B2000
-                        });
-                        log("- 데이터 바이너리 변환 완료");
-                    }
-
-                    progressWrapper.classList.remove('hidden');
-                    statusMsg.innerText = "업데이트 진행 중...";
-
-                    try {
-                        await esploader.writeFlash({
-                            fileArray: fileArray,
-                            flashSize: "keep",
-                            flashMode: "keep",
-                            flashFreq: "keep",
-                            eraseAll: false,
-                            compress: true,
-                            reportProgress: (fileIndex, written, total) => {
-                                const percent = Math.floor((written / total) * 100);
-                                progressBar.style.width = percent + "%";
-                                statusMsg.innerText = `전송 중... [${fileIndex + 1}/${fileArray.length}] ${percent}%`;
-                            }
-                        });
-
-                        log("✅ 성공: 모든 데이터가 전송되었습니다!");
-                        statusMsg.innerText = "완료! 장치가 재부팅됩니다.";
-                        await esploader.after("hard_reset");
-                    } catch (err) {
-                        log("❌ 전송 오류: " + err.message);
-                        statusMsg.innerText = "전송 실패";
-                    }
+                const ADDR_MAP = {
+                    'bootloader.bin': 0x0,
+                    'partition-table.bin': 0x8000,
+                    'ota_data_initial.bin': 0xF000,
+                    'update.bin': 0x20000,
+                    'storage.bin': 0x3B2000
                 };
-                
-                fileReader.readAsArrayBuffer(fileInput.files[0]);
 
+                const fileArray = [];
+                const readPromises = Array.from(fileInput.files).map(file => {
+                    return new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            const address = ADDR_MAP[file.name];
+                            if (address !== undefined) {
+                                fileArray.push({
+                                    data: ui8ToBstr(new Uint8Array(e.target.result)),
+                                    address: address,
+                                    name: file.name
+                                });
+                                log(`- 인식됨: ${file.name} -> 0x${address.toString(16)}`);
+                            } else {
+                                log(`- 무시됨 (알 수 없는 파일명): ${file.name}`);
+                            }
+                            resolve();
+                        };
+                        reader.readAsArrayBuffer(file);
+                    });
+                });
+
+                await Promise.all(readPromises);
+
+                if (fileArray.length === 0) {
+                    log("❌ 오류: 인식 가능한 바이너리 파일이 없습니다.");
+                    statusMsg.innerText = "파일 인식 실패";
+                    connectBtn.disabled = false;
+                    return;
+                }
+
+                fileArray.sort((a, b) => a.address - b.address);
+                log(`총 ${fileArray.length}개의 파일을 전송 준비합니다.`);
+
+                progressWrapper.classList.remove('hidden');
+                statusMsg.innerText = "업데이트 진행 중...";
+
+                try {
+                    await esploader.writeFlash({
+                        fileArray: fileArray,
+                        flashSize: "keep",
+                        flashMode: "keep",
+                        flashFreq: "keep",
+                        eraseAll: false,
+                        compress: true,
+                        reportProgress: (fileIndex, written, total) => {
+                            const percent = Math.floor((written / total) * 100);
+                            progressBar.style.width = percent + "%";
+                            statusMsg.innerText = `전송 중... [${fileIndex + 1}/${fileArray.length}] ${percent}%`;
+                        }
+                    });
+
+                    log("✅ 성공: 모든 데이터가 전송되었습니다!");
+                    statusMsg.innerText = "완료! 장치가 재부팅됩니다.";
+                    await esploader.after("hard_reset");
+                } catch (err) {
+                    log("❌ 전송 오류: " + err.message);
+                    statusMsg.innerText = "전송 실패";
+                }
             } catch (err) {
                 log("❌ 연결 오류: " + err.message);
                 statusMsg.innerText = "연결 실패";
+            } finally {
+                connectBtn.disabled = false;
             }
         };
 
@@ -337,14 +343,15 @@
             try {
                 targetLib = await loadEngine();
                 engineReady = true;
-                logArea.innerText = "시스템 준비 완료.\n";
+                log("시스템 준비 완료.");
                 if (fileInput.files.length > 0) {
                     connectBtn.disabled = false;
-                    statusMsg.innerText = "준비 완료!";
+                    statusMsg.innerText = "연결 준비 완료";
                 } else {
-                    statusMsg.innerText = "업데이트 파일을 선택해 주세요.";
+                    statusMsg.innerText = "업데이트 파일을 한꺼번에 선택해 주세요.";
                 }
             } catch (e) {
+                log("초기화 실패: " + e.message);
                 statusMsg.innerText = "시스템 초기화 실패";
             }
         })();
