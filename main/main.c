@@ -2460,8 +2460,8 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
   static uint32_t s_last_distance_m = 0xFFFFFFFF;
   static uint8_t s_last_distance_mode = 0xFF;
 
-  // safety거리값이 20 이하이면 표기하지 않음
-  if (distance_m <= 20) {
+  // safety거리값이 20 이하이거나 999km 이상(0xFFFFFF 포함)인 경우 표기하지 않음
+  if (distance_m <= 20 || distance_m >= 999000) {
     if (s_safety_length_value_label != NULL) {
       lv_obj_add_flag(s_safety_length_value_label, LV_OBJ_FLAG_HIDDEN);
     }
@@ -3886,7 +3886,51 @@ static void update_road_name_label(const char *road_name) {
   }
 
   ESP_LOGI(TAG, "Road Name: Updating label to '%s'", road_name);
-  lv_label_set_text(s_road_name_label, road_name);
+
+  // Road Name Line Break Logic: "로" + "숫자" + "길" -> Insert \n
+  // "로" (UTF-8: EB A1 9C), "길" (UTF-8: EA B8 B8)
+  char processed_name[256];
+  strncpy(processed_name, road_name, sizeof(processed_name) - 1);
+  processed_name[sizeof(processed_name) - 1] = '\0';
+
+  bool updated = false;
+  // 문자열 전체에서 "로"를 찾아서 그 뒤에 "숫자+길" 패턴이 오는지 확인
+  const char *ro_search_start = processed_name;
+  while (1) {
+    char *ro_ptr = strstr((char *)ro_search_start, "\xEB\xA1\x9C"); // "로"
+    if (!ro_ptr) break;
+
+    char *pattern_ptr = ro_ptr + 3; // "로" 이후
+    // 공백 건너뛰기
+    while (*pattern_ptr == ' ') pattern_ptr++;
+
+    // 숫자가 나오는지 확인
+    if (*pattern_ptr >= '0' && *pattern_ptr <= '9') {
+      char *digit_start = pattern_ptr;
+      // 숫자 부분 건너뛰기
+      while (*pattern_ptr >= '0' && *pattern_ptr <= '9') pattern_ptr++;
+      
+      // "길"이 나오는지 확인
+      if (strncmp(pattern_ptr, "\xEA\xB8\xB8", 3) == 0) {
+        char final_name[512];
+        size_t head_len = digit_start - processed_name;
+        // 숫자 앞의 공백 제거
+        while (head_len > 0 && processed_name[head_len - 1] == ' ') head_len--;
+        
+        snprintf(final_name, sizeof(final_name), "%.*s\n%s", (int)head_len, processed_name, digit_start);
+        ESP_LOGI(TAG, "Road Name (Processed): '%s' -> '%s'", road_name, final_name);
+        lv_label_set_text(s_road_name_label, final_name);
+        updated = true;
+        break; // 패턴을 찾았으므로 루프 종료
+      }
+    }
+    // 이번 "로" 다음 위치부터 다시 검색
+    ro_search_start = ro_ptr + 3;
+  }
+
+  if (!updated) {
+    lv_label_set_text(s_road_name_label, road_name);
+  }
 
   // HUD 모드일 때만 가시성 제어
   if (s_current_mode == DISPLAY_MODE_HUD) {
@@ -3897,8 +3941,8 @@ static void update_road_name_label(const char *road_name) {
     // 2. Remove Debug Background (Reset to transparent)
     lv_obj_set_style_bg_opa(s_road_name_label, 0, 0); 
     
-    // 3. Force re-alignment (화면 중앙에서 아래로 170pt)
-    lv_obj_align(s_road_name_label, LV_ALIGN_CENTER, 0, 170); 
+    // 3. Force re-alignment (화면 중앙에서 아래로 177pt)
+    lv_obj_align(s_road_name_label, LV_ALIGN_CENTER, 0, 177); 
     
     // 색상을 노란색으로 적용
     lv_obj_set_style_text_color(s_road_name_label, lv_palette_main(LV_PALETTE_YELLOW), 0);
@@ -5468,7 +5512,8 @@ static esp_err_t lvgl_init(void) {
   s_road_name_label = lv_label_create(s_hud_screen);
   lv_obj_set_style_text_color(s_road_name_label, lv_palette_main(LV_PALETTE_YELLOW), 0);
   lv_obj_set_style_text_font(s_road_name_label, &font_addr_30, 0);
-  lv_obj_align(s_road_name_label, LV_ALIGN_CENTER, 0, 170);
+  lv_obj_set_style_text_align(s_road_name_label, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(s_road_name_label, LV_ALIGN_CENTER, 0, 177);
   lv_label_set_text(s_road_name_label, "");
   lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
 
