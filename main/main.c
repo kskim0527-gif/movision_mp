@@ -45,6 +45,7 @@ static lv_font_t *s_font_kopub_40 = NULL;
 static lv_font_t *s_font_vip_100 = NULL;
 static lv_font_t *s_font_vip_155 = NULL;
 static lv_font_t *s_font_gman_188 = NULL;
+static lv_font_t *s_font_addr_30 = NULL; // 도로명 표시용 폰트 (font_addr_30)
 
 #define SAFE_FONT(f)                                                           \
   ((f) ? (f) : (&lv_font_montserrat_14)) // LVGL default fallback
@@ -56,6 +57,7 @@ static lv_font_t *s_font_gman_188 = NULL;
 #define font_vip_100 (*SAFE_FONT(s_font_vip_100))
 #define font_VIP_155 (*SAFE_FONT(s_font_vip_155))
 #define font_gman_188 (*SAFE_FONT(s_font_gman_188))
+#define font_addr_30 (*SAFE_FONT(s_font_addr_30))
 #if LV_USE_FS_POSIX
 // POSIX file system driver header (will be available after build)
 // Function declaration is in lv_fsdrv.h, but we can declare it here
@@ -174,6 +176,8 @@ static QueueHandle_t s_circle_update_queue =
     NULL; // Queue for circle update requests
 static QueueHandle_t s_clear_display_queue =
     NULL; // Queue for clear display requests
+static QueueHandle_t s_road_name_update_queue =
+    NULL; // Queue for road name update requests (도로명 전송 0x0E)
 
 // Task handles for monitoring
 static TaskHandle_t s_lvgl_task_handle = NULL;
@@ -545,6 +549,7 @@ static lv_obj_t *s_dest_distance_unit_label =
     NULL; // 목적지남은거리단위 표시용 label (20pt, 회색)
 static lv_obj_t *s_dest_image = NULL; // 목적지정보 이미지 (go_to.bmp)
 static lv_obj_t *s_dest_label = NULL; // "도착지까지" 라벨
+static lv_obj_t *s_road_name_label = NULL; // 도로명 표시 라벨 (Sector 12)
 static lv_obj_t *s_rssi_label = NULL; // 블루투스 RSSI 표시용 label (20pt, 흰색)
 static lv_obj_t *s_speed_mark_value_label =
     NULL; // speed_mark 속도 값 표시용 (155pt, 흰색)
@@ -598,6 +603,11 @@ static image_data_entry_t *s_image_data_entries = NULL;
 static size_t s_image_data_count = 0;
 
 static safety_data_entry_t *s_safety_data_entries = NULL;
+
+// Road Name update request structure
+typedef struct {
+  char road_name[128];
+} road_name_update_request_t;
 static size_t s_safety_data_count = 0;
 
 // Current BLE data values for image matching (data2, data3, data4 from HUD TX
@@ -896,6 +906,17 @@ static void update_clear_display(uint8_t data1);
 // --- Packet Processing Logic (Extracted for re-use in Virtual Drive) ---
 static void update_auto_brightness(bool force);
 static void hud_send_notify_bytes(const uint8_t *data, uint16_t len);
+static void request_road_name_update(const char *road_name) {
+  if (s_road_name_update_queue == NULL)
+    return;
+
+  road_name_update_request_t req;
+  memset(req.road_name, 0, sizeof(req.road_name));
+  strncpy(req.road_name, road_name, sizeof(req.road_name) - 1);
+
+  xQueueSend(s_road_name_update_queue, &req, 0);
+}
+
 static void process_app_command(const uint8_t *data, size_t len) {
   if (len < 5)
     return;
@@ -1071,6 +1092,18 @@ static void process_app_command(const uint8_t *data, size_t len) {
         ESP_LOGI(TAG, "Destination Arrived command received: Switch to STANDBY");
         switch_display_mode(DISPLAY_MODE_STANDBY);
       }
+    }
+  }
+
+  // 12. Road Name (도로명 전송)
+  if (commend == 0x0E && len >= 5) {
+    size_t name_len = (data_length > (len - 4)) ? (len - 4) : data_length;
+    if (name_len > 0) {
+      char road_name[128];
+      if (name_len > 127) name_len = 127;
+      memcpy(road_name, &data[4], name_len);
+      road_name[name_len] = '\0';
+      request_road_name_update(road_name);
     }
   }
 }
@@ -2170,9 +2203,9 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
       offset_x = 0;
       offset_y = -66;
       break;
-    case 12: // LCD 중앙에서 위로 80pt, 우측으로 130pt 이동
+    case 12: // LCD 중앙에서 위로 85pt, 우측으로 130pt 이동 (이전 -90에서 수정)
       offset_x = 130;
-      offset_y = -80;
+      offset_y = -85;
       break;
     case 6: // LCD 중앙에서 아래로 100pt 이동
       offset_x = 0;
@@ -2498,18 +2531,18 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
   lv_obj_set_style_text_color(s_safety_length_value_label,
                               lv_color_hex(0x00FF00),
                               0); // 녹색
-  lv_obj_set_style_text_font(s_safety_length_value_label, &font_kopub_25,
-                             0); // 25pt 폰트
+  lv_obj_set_style_text_font(s_safety_length_value_label, &font_kopub_35,
+                             0); // 35pt 폰트로 상향 (기존 25pt)
 
   // Get total width and last char width for alignment
   lv_coord_t value_width = lv_txt_get_width(
-      value_text, strlen(value_text), &font_kopub_25, 0, LV_TEXT_FLAG_NONE);
+      value_text, strlen(value_text), &font_kopub_35, 0, LV_TEXT_FLAG_NONE); // 35pt 기준으로 너비 계산
   size_t val_len = strlen(value_text);
   lv_coord_t last_char_width = 0;
   if (val_len > 0) {
     char last_char_str[2] = {value_text[val_len - 1], '\0'};
-    last_char_width = lv_txt_get_width(last_char_str, 1, &font_kopub_25, 0,
-                                       LV_TEXT_FLAG_NONE);
+    last_char_width = lv_txt_get_width(last_char_str, 1, &font_kopub_35, 0,
+                                       LV_TEXT_FLAG_NONE); // 35pt 기준으로 너비 계산
   }
 
   // Align: center of last digit at X=130, 위로 9pt (Y=-9)
@@ -3042,6 +3075,9 @@ static void update_clear_display(uint8_t data1) {
       lv_obj_add_flag(s_dest_image, LV_OBJ_FLAG_HIDDEN);
       lv_img_set_src(s_dest_image, NULL);
     }
+    if (s_dest_label != NULL) {
+      lv_obj_add_flag(s_dest_label, LV_OBJ_FLAG_HIDDEN);
+    }
     s_current_dest_image_path[0] = '\0';
   }
 
@@ -3259,29 +3295,24 @@ static void update_speed_mark(uint8_t data2) {
   lv_obj_align(s_speed_mark_value_label, LV_ALIGN_CENTER, 0, 83);
   lv_obj_clear_flag(s_speed_mark_value_label, LV_OBJ_FLAG_HIDDEN);
 
-  // Update KM/H unit label (35pt, white, center + 164pt down)
-  lv_label_set_text(s_speed_mark_unit_label, "km/h");
-  lv_obj_set_style_text_color(s_speed_mark_unit_label, lv_color_white(), 0);
-  lv_obj_set_style_text_font(s_speed_mark_unit_label, &font_kopub_35, 0);
-  lv_obj_align(s_speed_mark_unit_label, LV_ALIGN_CENTER, 0, 164);
-
-  // --- NEW: Hide current speed unit if average speed labels are visible ---
-  bool avr_speed_visible = false;
-  if (s_avr_speed_value_label != NULL) {
-    avr_speed_visible =
-        !lv_obj_has_flag(s_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN);
-  }
-
-  if (avr_speed_visible) {
+  // --- HUD 모드 요청: 도로명이 있으면 단위(km/h) 숨기고, 없으면 표시 ---
+  bool road_name_visible = (s_road_name_label != NULL && !lv_obj_has_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN));
+  
+  if (road_name_visible) {
     lv_obj_add_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
   } else {
+    // 도로명이 없을 때는 기존 km/h 단위 표시 (164pt 하단)
+    lv_label_set_text(s_speed_mark_unit_label, "km/h");
+    lv_obj_set_style_text_color(s_speed_mark_unit_label, lv_color_white(), 0);
+    lv_obj_set_style_text_font(s_speed_mark_unit_label, &font_kopub_35, 0);
+    lv_obj_align(s_speed_mark_unit_label, LV_ALIGN_CENTER, 0, 164);
     lv_obj_clear_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
   }
+  lv_obj_invalidate(s_speed_mark_unit_label);
 
   static uint8_t s_last_logged_speed = 255;
   if (speed != s_last_logged_speed) {
-    ESP_LOGI(TAG, "speed_mark: speed=%u (unit_hidden=%d)", (unsigned int)speed,
-             avr_speed_visible ? 1 : 0);
+    ESP_LOGI(TAG, "speed_mark: speed=%u (unit_hidden=%d)", (unsigned int)speed, road_name_visible ? 1 : 0);
     s_last_logged_speed = speed;
   }
 }
@@ -3834,6 +3865,68 @@ static void request_destination_update(uint8_t data1, uint8_t data2,
   // task - actual LVGL object manipulation)
 }
 
+static void update_road_name_label(const char *road_name) {
+  if (s_road_name_label == NULL) {
+    ESP_LOGW(TAG, "Road Name: s_road_name_label is NULL!");
+    return;
+  }
+
+  LVGL_LOCK(); // Ensure thread safety
+
+  if (road_name == NULL || strlen(road_name) == 0) {
+    ESP_LOGI(TAG, "Road Name: Received empty string, hiding label");
+    lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+    // 도로명이 사라지면 km/h 단위 다시 표시
+    if (s_speed_mark_unit_label) {
+      lv_obj_clear_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_invalidate(s_speed_mark_unit_label);
+    }
+    LVGL_UNLOCK();
+    return;
+  }
+
+  ESP_LOGI(TAG, "Road Name: Updating label to '%s'", road_name);
+  lv_label_set_text(s_road_name_label, road_name);
+
+  // HUD 모드일 때만 가시성 제어
+  if (s_current_mode == DISPLAY_MODE_HUD) {
+    // 1. Ensure parenting and Z-order
+    lv_obj_set_parent(s_road_name_label, s_hud_screen);
+    lv_obj_move_foreground(s_road_name_label); // Bring to front
+    
+    // 2. Remove Debug Background (Reset to transparent)
+    lv_obj_set_style_bg_opa(s_road_name_label, 0, 0); 
+    
+    // 3. Force re-alignment (화면 중앙에서 아래로 170pt)
+    lv_obj_align(s_road_name_label, LV_ALIGN_CENTER, 0, 170); 
+    
+    // 색상을 노란색으로 적용
+    lv_obj_set_style_text_color(s_road_name_label, lv_palette_main(LV_PALETTE_YELLOW), 0);
+
+    // 4. Reveal
+    lv_obj_clear_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_invalidate(s_road_name_label); 
+    
+    ESP_LOGI(TAG, "Road Name: Label unhidden at 0, 170 with Yellow color (HUD Mode)");
+
+    // 도로명이 나타나면 km/h 단위 숨김
+    if (s_speed_mark_unit_label) {
+      lv_obj_add_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_invalidate(s_speed_mark_unit_label);
+    }
+  } else {
+    lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+    // HUD 모드가 아닐 때도 도로명이 숨겨지면 km/h 단위 표시 상태 복구 (HUD모드로 돌아올 때를 대비)
+    if (s_speed_mark_unit_label) {
+      lv_obj_clear_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_invalidate(s_speed_mark_unit_label);
+    }
+    ESP_LOGI(TAG, "Road Name: Label hidden (Not in HUD Mode: %d)", s_current_mode);
+  }
+
+  LVGL_UNLOCK();
+}
+
 // Update destination info (called from LVGL task)
 // Update destination info (called from LVGL task)
 static void update_destination_info(uint8_t data1, uint8_t data2, uint8_t data3,
@@ -3879,11 +3972,35 @@ static void update_destination_info(uint8_t data1, uint8_t data2, uint8_t data3,
   if (show_hours) {
     // 61분 이상: "H시간 MM분"
 
-    // 1. Hour Value (녹색, 25pt)
+    // 1시간 30분 형태인 경우 전체 문장의 너비를 계산하여 중앙 정렬 (기준점: -175)
+    lv_coord_t w_hour_val =
+        lv_txt_get_width(time_hour_text, strlen(time_hour_text), &font_kopub_35,
+                         0, LV_TEXT_FLAG_NONE);
+    lv_coord_t w_hour_unit =
+        lv_txt_get_width("시간", strlen("시간"), &font_kopub_25, 0,
+                         LV_TEXT_FLAG_NONE);
+    lv_coord_t w_min_val =
+        lv_txt_get_width(time_minute_text, strlen(time_minute_text), &font_kopub_35,
+                         0, LV_TEXT_FLAG_NONE);
+    lv_coord_t w_min_unit =
+        lv_txt_get_width("분", strlen("분"), &font_kopub_25, 0,
+                         LV_TEXT_FLAG_NONE);
+    
+    // 전체 너비 = 각 요소 너비 + 간격(1pt * 3)
+    lv_coord_t total_width = w_hour_val + 1 + w_hour_unit + 1 + w_min_val + 1 + w_min_unit;
+    
+    // 시작점 계산: 기준점(-150)이 전체 너비의 중앙이 되도록 함
+    // start_x (전체 문장의 왼쪽 끝) = -150 - (total_width / 2)
+    lv_coord_t start_x = -150 - (total_width / 2); // 좌측 150pt로 이동 (기존 -100)
+
+    // 1. Hour Value: 시작점에서 자신의 너비 절반만큼 오른쪽으로 정렬
     lv_label_set_text(s_dest_time_value_label, time_hour_text);
     lv_obj_set_style_text_color(s_dest_time_value_label, lv_color_hex(0x00FF00),
                                 0); // 녹색
-    lv_obj_set_style_text_font(s_dest_time_value_label, &font_kopub_25, 0);
+    lv_obj_set_style_text_font(s_dest_time_value_label, &font_kopub_35, 0);
+    lv_obj_align(s_dest_time_value_label, LV_ALIGN_CENTER,
+                 start_x + (w_hour_val / 2), -15);
+    lv_obj_clear_flag(s_dest_time_value_label, LV_OBJ_FLAG_HIDDEN);
 
     // 2. Hour Unit "시간" (회색, 25pt)
     lv_label_set_text(s_dest_time_hour_unit_label, "시간");
@@ -3891,11 +4008,11 @@ static void update_destination_info(uint8_t data1, uint8_t data2, uint8_t data3,
                                 0); // 흰색
     lv_obj_set_style_text_font(s_dest_time_hour_unit_label, &font_kopub_25, 0);
 
-    // 3. Minute Value (녹색, 25pt)
+    // 3. Minute Value (녹색, 35pt)
     lv_label_set_text(s_dest_time_minute_value_label, time_minute_text);
     lv_obj_set_style_text_color(s_dest_time_minute_value_label,
                                 lv_color_hex(0x00FF00), 0); // 녹색
-    lv_obj_set_style_text_font(s_dest_time_minute_value_label, &font_kopub_25,
+    lv_obj_set_style_text_font(s_dest_time_minute_value_label, &font_kopub_35,
                                0);
 
     // 4. Minute Unit "분" (회색, 25pt)
@@ -3903,18 +4020,6 @@ static void update_destination_info(uint8_t data1, uint8_t data2, uint8_t data3,
     lv_obj_set_style_text_color(s_dest_time_unit_label, lv_color_white(),
                                 0); // 흰색
     lv_obj_set_style_text_font(s_dest_time_unit_label, &font_kopub_25, 0);
-
-    // Positioning Reference: Leftmost digit (Hour Value) left edge at
-    // Center-190, Center-15
-    lv_coord_t hour_width =
-        lv_txt_get_width(time_hour_text, strlen(time_hour_text), &font_kopub_25,
-                         0, LV_TEXT_FLAG_NONE);
-
-    // Align Hour Value: Left edge at -190
-    // Center X = TargetLeftX + Width/2 = -190 + Width/2
-    lv_obj_align(s_dest_time_value_label, LV_ALIGN_CENTER,
-                 -190 + (hour_width / 2), -15);
-    lv_obj_clear_flag(s_dest_time_value_label, LV_OBJ_FLAG_HIDDEN);
 
     // Align Hour Unit: Right of Hour Value (1pt spacing)
     lv_obj_align_to(s_dest_time_hour_unit_label, s_dest_time_value_label,
@@ -3934,11 +4039,28 @@ static void update_destination_info(uint8_t data1, uint8_t data2, uint8_t data3,
   } else {
     // 60분 이하: "MM분"
 
-    // 1. Minute Value (using time value label) (녹색, 25pt)
+    // 30분 형태인 경우 전체 문장의 너비를 계산하여 중앙 정렬 (기준점: -175)
+    lv_coord_t w_val =
+        lv_txt_get_width(time_value_text, strlen(time_value_text),
+                         &font_kopub_35, 0, LV_TEXT_FLAG_NONE);
+    lv_coord_t w_unit =
+        lv_txt_get_width("분", strlen("분"), &font_kopub_25, 0,
+                         LV_TEXT_FLAG_NONE);
+    
+    // 전체 너비 = 값 너비 + 간격(1pt) + 단위 너비
+    lv_coord_t total_width = w_val + 1 + w_unit;
+    
+    // 시작점 계산: 기준점(-150)이 전체 너비의 중앙이 되도록 함
+    lv_coord_t start_x = -150 - (total_width / 2); // 좌측 150pt로 이동 (기존 -100)
+
+    // 1. Minute Value (using time value label) (녹색, 35pt)
     lv_label_set_text(s_dest_time_value_label, time_value_text);
     lv_obj_set_style_text_color(s_dest_time_value_label, lv_color_hex(0x00FF00),
                                 0); // 녹색
-    lv_obj_set_style_text_font(s_dest_time_value_label, &font_kopub_25, 0);
+    lv_obj_set_style_text_font(s_dest_time_value_label, &font_kopub_35, 0);
+    lv_obj_align(s_dest_time_value_label, LV_ALIGN_CENTER,
+                 start_x + (w_val / 2), -15);
+    lv_obj_clear_flag(s_dest_time_value_label, LV_OBJ_FLAG_HIDDEN);
 
     // 2. Minute Unit "분" (회색, 25pt)
     lv_label_set_text(s_dest_time_unit_label, "분");
@@ -3949,18 +4071,6 @@ static void update_destination_info(uint8_t data1, uint8_t data2, uint8_t data3,
     // Hide Unused
     lv_obj_add_flag(s_dest_time_hour_unit_label, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(s_dest_time_minute_value_label, LV_OBJ_FLAG_HIDDEN);
-
-    // Positioning: Leftmost digit (Minute Value) left edge at Center-190,
-    // Center-15
-    lv_coord_t time_width =
-        lv_txt_get_width(time_value_text, strlen(time_value_text),
-                         &font_kopub_25, 0, LV_TEXT_FLAG_NONE);
-
-    // Align Minute Value: Left edge at -190
-    // Center X = TargetLeftX + Width/2 = -190 + Width/2
-    lv_obj_align(s_dest_time_value_label, LV_ALIGN_CENTER,
-                 -190 + (time_width / 2), -15);
-    lv_obj_clear_flag(s_dest_time_value_label, LV_OBJ_FLAG_HIDDEN);
 
     // Align Minute Unit: Right of Minute Value (1pt spacing)
     lv_obj_align_to(s_dest_time_unit_label, s_dest_time_value_label,
@@ -3985,7 +4095,7 @@ static void update_destination_info(uint8_t data1, uint8_t data2, uint8_t data3,
 
     // Align Left edge at -190
     // Center X = TargetLeftX + Width/2 = -190 + Width/2
-    // Align Y at -50
+    // Align Y at -110 (Moved up 60pt from previous -50)
     lv_obj_align(s_dest_label, LV_ALIGN_CENTER, -190 + (label_width / 2), -50);
 
     lv_obj_clear_flag(s_dest_label, LV_OBJ_FLAG_HIDDEN);
@@ -4293,6 +4403,12 @@ static void update_hud_image_for_data(const image_data_entry_t *entry,
   // during high-frequency TBT updates
   // (distance changes only)
   if (strcmp(img_path, s_current_image_path) == 0 && !force_update) {
+    // BUG FIX: Even if path is same, if image is hidden (e.g. by clear command),
+    // we must unhide it to show it again with the distance update.
+    if (s_hud_image != NULL && lv_obj_has_flag(s_hud_image, LV_OBJ_FLAG_HIDDEN)) {
+      lv_obj_clear_flag(s_hud_image, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_invalidate(s_hud_image);
+    }
     return;
   }
 
@@ -4829,6 +4945,15 @@ static void load_all_fonts(void) {
   s_font_vip_100 = load_font_from_fs("font_vip_100");
   s_font_vip_155 = load_font_from_fs("font_vip_155");
   s_font_gman_188 = load_font_from_fs("font_gman_188");
+  s_font_addr_30 = load_font_from_fs("font_addr_30");
+
+  // Multi-font fallback chain for Road Name (addr -> kopub)
+  if (s_font_addr_30 && s_font_kopub_30) {
+      s_font_addr_30->fallback = s_font_kopub_30;
+      ESP_LOGI(TAG, "Font: Linked font_kopub_30 as fallback for font_addr_30");
+  } else if (s_font_kopub_30 && s_font_addr_30 == NULL) {
+      ESP_LOGW(TAG, "Font: font_addr_30 failed to load, road name will use kopub_30 fallback");
+  }
 
   // Link font_gman_188 as fallback for font_vip_155 if both are available
   if (s_font_vip_155 && s_font_gman_188) {
@@ -5105,8 +5230,8 @@ static esp_err_t lvgl_init(void) {
   lv_obj_set_style_text_color(s_safety_length_value_label,
                               lv_color_hex(0x00FF00),
                               0); // 녹색
-  lv_obj_set_style_text_font(s_safety_length_value_label, &font_kopub_25,
-                             0); // 25pt 폰트
+  lv_obj_set_style_text_font(s_safety_length_value_label, &font_kopub_35,
+                             0); // 35pt 폰트로 상향 (기존 25pt)
   lv_obj_align(s_safety_length_value_label, LV_ALIGN_CENTER, 130,
                -9); // 중앙에서 우측으로 130pt, 위로 9pt
   lv_label_set_text(s_safety_length_value_label, "");
@@ -5287,7 +5412,7 @@ static esp_err_t lvgl_init(void) {
                               lv_palette_main(LV_PALETTE_YELLOW),
                               0); // 노랑색
   lv_obj_set_style_text_font(s_dest_time_value_label, &font_kopub_35,
-                             0); // 30pt 폰트
+                             0); // 35pt 폰트로 환원 (기존 40pt)
   // 앞자리 숫자 위치 기준: LCD 중앙에서
   // 좌측으로 190pt (233-190=43)
   lv_obj_align(s_dest_time_value_label, LV_ALIGN_LEFT_MID, 43,
@@ -5319,7 +5444,7 @@ static esp_err_t lvgl_init(void) {
                               lv_palette_main(LV_PALETTE_YELLOW),
                               0); // 노랑색
   lv_obj_set_style_text_font(s_dest_time_minute_value_label, &font_kopub_35,
-                             0); // 30pt 폰트
+                             0); // 35pt 폰트로 환원 (기존 40pt)
   // 위치는 동적으로 "시간"의 끝자리 기준으로
   // 1pt 거리로 설정됨
   lv_label_set_text(s_dest_time_minute_value_label, "");
@@ -5329,13 +5454,24 @@ static esp_err_t lvgl_init(void) {
                   LV_OBJ_FLAG_HIDDEN); // 초기에는 숨김
 
   // Create "도착지까지" label (20pt, Gray)
-  s_dest_label = lv_label_create(lv_scr_act());
+  // Parent changed to s_hud_screen for coordinate consistency
+  s_dest_label = lv_label_create(s_hud_screen);
   lv_obj_set_style_text_color(s_dest_label, lv_color_white(),
                               0); // 흰색
   lv_obj_set_style_text_font(s_dest_label, &font_kopub_20, 0);
-  lv_obj_align(s_dest_label, LV_ALIGN_CENTER, -100, -40);
+  lv_obj_align(s_dest_label, LV_ALIGN_CENTER, -100, -50);
   lv_label_set_text(s_dest_label, "도착지까지");
   lv_obj_add_flag(s_dest_label, LV_OBJ_FLAG_HIDDEN);
+
+  // Road Name Label (font_addr_35 with kopub fallback)
+  // Position: Center X=0, Down 170pt (Y=170), Color: Yellow
+  s_road_name_label = lv_label_create(s_hud_screen);
+  lv_obj_set_style_text_color(s_road_name_label, lv_palette_main(LV_PALETTE_YELLOW), 0);
+  lv_obj_set_style_text_font(s_road_name_label, &font_addr_30, 0);
+  lv_obj_align(s_road_name_label, LV_ALIGN_CENTER, 0, 170);
+  lv_label_set_text(s_road_name_label, "");
+  lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+
   lv_obj_add_flag(s_dest_time_minute_value_label,
                   LV_OBJ_FLAG_HIDDEN); // 초기에는 숨김
 
@@ -5361,7 +5497,7 @@ static esp_err_t lvgl_init(void) {
                               lv_color_make(135, 206, 235),
                               0); // 하늘색 (RGB: 135, 206, 235)
   lv_obj_set_style_text_font(s_dest_distance_value_label, &font_kopub_35,
-                             0); // 30pt 폰트
+                             0); // 35pt 폰트로 환원 (기존 40pt)
   // 앞자리 숫자 위치 기준: LCD 중앙에서
   // 좌측으로 130pt (233-130=103), 아래로 25pt
   lv_obj_align(s_dest_distance_value_label, LV_ALIGN_LEFT_MID, 103,
@@ -5566,6 +5702,18 @@ static void update_display_mode_ui(display_mode_t mode) {
       lv_obj_set_parent(s_avr_speed_value_label, s_hud_screen);
     if (s_avr_speed_unit_label)
       lv_obj_set_parent(s_avr_speed_unit_label, s_hud_screen);
+    
+    // Ensure road name label is parented and shown if it has text
+    if (s_road_name_label) {
+      lv_obj_set_parent(s_road_name_label, s_hud_screen);
+      lv_obj_move_foreground(s_road_name_label); // Bring to front
+      const char *current_road = lv_label_get_text(s_road_name_label);
+      if (current_road && strlen(current_road) > 0) {
+        lv_obj_clear_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_invalidate(s_road_name_label);
+        ESP_LOGI(TAG, "HUD: Road name label restored on HUD screen: '%s'", current_road);
+      }
+    }
 
     // Apply alignment immediately to avoid sticky positions
     align_avr_speed_labels();
@@ -6370,15 +6518,24 @@ static void lvgl_handler_task(void *arg) {
           }
         }
         processed++;
-        // Yield to other tasks periodically
-        // (reduced delay)
+        // Yield to other tasks periodically (reduced delay)
         if (processed % 5 == 0) {
-          update_heartbeat_lvgl(); // 하트비트
-                                   // 업데이트
+          update_heartbeat_lvgl(); // 하트비트 업데이트
           vTaskDelay(pdMS_TO_TICKS(1));
         }
       }
       ESP_LOGD(TAG, "LVGL: Image update queue processed");
+    }
+
+    // Check for road name update requests
+    if (s_road_name_update_queue != NULL) {
+      road_name_update_request_t road_req;
+      if (xQueueReceive(s_road_name_update_queue, &road_req, 0) == pdTRUE) {
+        update_heartbeat_lvgl();
+        // update_road_name_label internal handles LVGL_LOCK
+        update_road_name_label(road_req.road_name);
+        update_heartbeat_lvgl();
+      }
     }
 
     // Check for Safety_DRV update requests
@@ -8095,10 +8252,11 @@ static void save_packet_to_sdcard(const uint8_t *data, size_t len,
       else if (len >= 5 && data[4] == 0x00) desc = "(속도계 모드 시작)";
       else desc = "(모델명과 펌웨어 버전 송신)"; 
       break;
-    case 0x0D: 
-      if (data[1] == 0x4E) desc = "시간 업데이트 요청(TX)"; 
-      else desc = "목적지 도착 알림(RX)";
-      break;
+      case 0x0D: 
+        if (data[1] == 0x4E) desc = "시간 업데이트 요청(TX)"; 
+        else desc = "목적지 도착 알림(RX)";
+        break;
+      case 0x0E: desc = "도로명 정보(Road Name)"; break;
     }
   } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x4E) {
     if (data[2] == 0x0B) desc = "밝기 설정값 통보(TX)";
@@ -9461,6 +9619,11 @@ void app_main(void) {
       s_clear_display_queue = xQueueCreate(50, sizeof(clear_display_request_t));
       if (!s_clear_display_queue)
         ESP_LOGE(TAG, "Failed to create clear display queue");
+
+      s_road_name_update_queue =
+          xQueueCreate(10, sizeof(road_name_update_request_t));
+      if (!s_road_name_update_queue)
+        ESP_LOGE(TAG, "Failed to create road name update queue");
 
       // Start LVGL Handler Task for Update UI
       s_lvgl_task_handle = NULL;
