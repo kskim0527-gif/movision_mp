@@ -75,6 +75,7 @@ extern void lv_fs_posix_init(void);
 
 // LittleFS
 #include "esp_littlefs.h"
+#include "img_transfer.h"
 
 // SDMMC (SD Card)
 #include "driver/sdmmc_host.h"
@@ -757,7 +758,7 @@ static void request_image_update(uint8_t start, uint8_t id, uint8_t commend,
                                  uint8_t data4, uint8_t data5);
 static esp_err_t load_image_data_csv(void);
 static esp_err_t load_safety_data_csv(void);
-static void save_packet_to_sdcard(const uint8_t *data, size_t len,
+void save_packet_to_sdcard(const uint8_t *data, size_t len,
                                   const char *prefix);
 static void scan_intro_images(void);
 static void
@@ -905,7 +906,7 @@ static void update_clear_display(uint8_t data1);
 
 // --- Packet Processing Logic (Extracted for re-use in Virtual Drive) ---
 static void update_auto_brightness(bool force);
-static void hud_send_notify_bytes(const uint8_t *data, uint16_t len);
+void hud_send_notify_bytes(const uint8_t *data, uint16_t len);
 static void request_road_name_update(const char *road_name) {
   if (s_road_name_update_queue == NULL)
     return;
@@ -930,7 +931,16 @@ static void process_app_command(const uint8_t *data, size_t len) {
   // uint8_t end = data[len-1]; // 0x2F
 
   // Basic validation
-  if (start != 0x19 || id != 0x4D)
+  if (start != 0x19)
+    return;
+
+  if (id == 0x50) {
+    save_packet_to_sdcard(data, len, "RX");
+    process_img_command(data, len);
+    return;
+  }
+
+  if (id != 0x4D)
     return;
 
   // 1. Time Set
@@ -4651,7 +4661,7 @@ void note_ble_activity(void) {
                           // 하트비트 업데이트
 }
 
-static void hud_send_notify_bytes(const uint8_t *data, uint16_t len) {
+void hud_send_notify_bytes(const uint8_t *data, uint16_t len) {
   if (!s_connected || s_gatts_if == ESP_GATT_IF_NONE || s_read_handle == 0) {
     // ESP_LOGW(TAG, "HUD notify skipped:
     // connected=%d gatts_if=%d handle=%u",
@@ -7797,7 +7807,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
       // now) echo the command via notify as
       // an ACK.
       if (param->write.len >= 5 && param->write.value[0] == 0x19 &&
-          param->write.value[1] == 0x4D &&
+          (param->write.value[1] == 0x4D || param->write.value[1] == 0x50) &&
           param->write.value[param->write.len - 1] == 0x2F) {
 
         // Minimal ack: echo the received
@@ -8263,7 +8273,7 @@ static void flush_packet_log_to_sdcard(void) {
   xSemaphoreGive(s_log_buffer_mutex);
 }
 
-static void save_packet_to_sdcard(const uint8_t *data, size_t len,
+void save_packet_to_sdcard(const uint8_t *data, size_t len,
                                   const char *prefix) {
   // 패킷 검증
   if (data == NULL || len < 2 || data[0] != 0x19 || data[len - 1] != 0x2F) {
@@ -8302,6 +8312,18 @@ static void save_packet_to_sdcard(const uint8_t *data, size_t len,
         else desc = "목적지 도착 알림(RX)";
         break;
       case 0x0E: desc = "도로명 정보(Road Name)"; break;
+    }
+  } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x50) {
+    uint8_t cmd = data[2];
+    switch (cmd) {
+    case 0x01: desc = "이미지 정보 전달(RX)"; break;
+    case 0x02: desc = "이미지 데이터 블록(RX)"; break;
+    case 0x03: desc = "이미지 전송 결과(Seq)(TX)"; break;
+    case 0x04: desc = "이미지 업로드 완료(TX)"; break;
+    case 0x05: desc = "이미지 삭제 명령(RX)"; break;
+    case 0x06: desc = "이미지 자동 모드 설정(RX)"; break;
+    case 0x07: desc = "이미지 상태 요청(TX)"; break;
+    case 0x08: desc = "이미지 상태 전달(RX)"; break;
     }
   } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x4E) {
     if (data[2] == 0x0B) desc = "밝기 설정값 통보(TX)";
@@ -9712,6 +9734,7 @@ void app_main(void) {
   }
 
   ESP_ERROR_CHECK(init_ble());
+  img_transfer_init();
 
   // 앱이 정상 부팅되었음을 마킹 (Rollback 방지)
   esp_ota_mark_app_valid_cancel_rollback();
