@@ -6896,7 +6896,7 @@ static void try_start_advertising(void) {
   // started before advertising, so the phone
   // doesn't connect and cache an incomplete
   // GATT database.
-  if (!s_hud_service_started || !s_hid_service_started || !s_adv_data_ready ||
+  if (!s_hud_service_started || !s_hid_service_started || !ota_ble_is_ready() || !s_adv_data_ready ||
       !s_scan_rsp_ready || s_adv_active || s_adv_starting) {
     return;
   }
@@ -7057,6 +7057,12 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event,
       s_rssi_value = param->read_rssi_cmpl.rssi;
       s_rssi_read_once = true;
     }
+    break;
+  case ESP_GAP_BLE_PHY_UPDATE_COMPLETE_EVT:
+    ESP_LOGI(TAG, "PHY Update Complete: status=%d, tx_phy=%d, rx_phy=%d", 
+             param->phy_update.status, 
+             param->phy_update.tx_phy, 
+             param->phy_update.rx_phy);
     break;
 
   default:
@@ -7888,6 +7894,10 @@ static void gatts_event_handler(esp_gatts_cb_event_t event,
 
   ota_ble_gatts_event_handler(event, gatts_if, param);
   gatts_profile_event_handler(event, gatts_if, param);
+  
+  if (event == ESP_GATTS_START_EVT) {
+    try_start_advertising();
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -25,6 +25,8 @@ static uint8_t ota_data_uuid128[16] = {0xCE, 0x73, 0x96, 0xFC, 0x07, 0xCC,
                                        0x8C, 0xAB, 0x0B, 0x41, 0x37, 0x35,
                                        0x57, 0x36, 0x32, 0x80};
 
+static bool s_ota_service_ready = false;
+
 static uint16_t s_ota_gatts_if = 0xFFFF;
 static uint16_t s_service_handle, s_char_ctrl_handle, s_char_data_handle;
 
@@ -221,7 +223,12 @@ void ota_ble_gatts_event_handler(esp_gatts_cb_event_t event,
     } else {
       s_char_data_handle = param->add_char.attr_handle;
       esp_ble_gatts_start_service(s_service_handle);
-      ESP_LOGI(TAG, "OTA Service started successfully.");
+    }
+    break;
+  case ESP_GATTS_START_EVT:
+    if (param->start.status == ESP_GATT_OK && param->start.service_handle == s_service_handle) {
+      s_ota_service_ready = true;
+      ESP_LOGI(TAG, "OTA Service started successfully and is now ready.");
     }
     break;
   case ESP_GATTS_WRITE_EVT:
@@ -339,4 +346,8 @@ void ota_ble_gatts_event_handler(esp_gatts_cb_event_t event,
   default:
     break;
   }
+}
+
+bool ota_ble_is_ready(void) {
+  return s_ota_service_ready;
 }

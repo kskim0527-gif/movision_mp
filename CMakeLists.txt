@@ -18,26 +18,20 @@ littlefs_create_partition_image(storage main/flash_data FLASH_IN_PROJECT)
 
 # Define directories for update files
 set(UPDATE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/update")
-set(FACTORY_DIR "${UPDATE_DIR}/factory")
-set(CONSUMER_DIR "${UPDATE_DIR}/consumer")
 set(VERSION_DIR "${UPDATE_DIR}/update_movision-hd1_v${PROJECT_VER}")
 
 # Post-build step to copy binaries after compilation
 add_custom_target(copy_update_files ALL
     DEPENDS gen_project_binary
 
-    # Create directories if they don't exist
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${FACTORY_DIR}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CONSUMER_DIR}
+    # Create directory if it doesn't exist
     COMMAND ${CMAKE_COMMAND} -E make_directory ${VERSION_DIR}
     
     # Message for visibility
     COMMAND ${CMAKE_COMMAND} -E echo "Copying update files to ${UPDATE_DIR}..."
 
-    # Copy the main app bin for various targets
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.bin ${CONSUMER_DIR}/${PROJECT_NAME}_ota.bin
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.bin ${FACTORY_DIR}/${PROJECT_NAME}_factory.bin
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.bin ${VERSION_DIR}/update.bin
+    # Copy the main app bin to VERSION_DIR
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.bin ${VERSION_DIR}/movision.bin
     
     # Copy partition table, bootloader, and other binaries to VERSION_DIR
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/partition_table/partition-table.bin ${VERSION_DIR}/
@@ -45,8 +39,9 @@ add_custom_target(copy_update_files ALL
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/ota_data_initial.bin ${VERSION_DIR}/
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/storage.bin ${VERSION_DIR}/
 
-    # Copy templates to VERSION_DIR
-    COMMAND ${CMAKE_COMMAND} -E copy ${UPDATE_DIR}/usb_update.bat.template ${VERSION_DIR}/usb_update.bat
+    # Copy BLE Update Tools to VERSION_DIR
+    COMMAND ${CMAKE_COMMAND} -E copy ${UPDATE_DIR}/ble_update.bat ${VERSION_DIR}/
+    COMMAND ${CMAKE_COMMAND} -E copy ${UPDATE_DIR}/ble_ota_tool.py ${VERSION_DIR}/
     
     # Copy Web Update Tools for PC without Python
     COMMAND ${CMAKE_COMMAND} -E copy ${UPDATE_DIR}/update_tool.html ${VERSION_DIR}/
@@ -58,6 +53,13 @@ add_custom_target(copy_update_files ALL
     COMMAND cmd /c echo Build Time: ${BUILD_VERSION} >> ${VERSION_DIR}/readme.txt
     COMMAND cmd /c echo. >> ${VERSION_DIR}/readme.txt
     COMMAND cmd /c echo [How to update] >> ${VERSION_DIR}/readme.txt
-    COMMAND cmd /c echo 1. If Python is installed: Run usb_update.bat >> ${VERSION_DIR}/readme.txt
-    COMMAND cmd /c echo 2. If NO Python: Open update_tool.html in Chrome/Edge browser >> ${VERSION_DIR}/readme.txt
+    COMMAND cmd /c echo 1. USB Update: Open update_tool.html in Chrome/Edge browser >> ${VERSION_DIR}/readme.txt
+    COMMAND cmd /c echo 2. BLE Update: Run ble_update.bat (No cable needed) >> ${VERSION_DIR}/readme.txt
+    COMMAND cmd /c echo. >> ${VERSION_DIR}/readme.txt
+    COMMAND cmd /c echo [Bin File Download Addresses] >> ${VERSION_DIR}/readme.txt
+    COMMAND cmd /c echo 0x000000      bootloader.bin >> ${VERSION_DIR}/readme.txt
+    COMMAND cmd /c echo 0x008000      partition-table.bin >> ${VERSION_DIR}/readme.txt
+    COMMAND cmd /c echo 0x00f000      ota_data_initial.bin >> ${VERSION_DIR}/readme.txt
+    COMMAND cmd /c echo 0x020000      movision.bin >> ${VERSION_DIR}/readme.txt
+    COMMAND cmd /c echo 0x3b2000      storage.bin >> ${VERSION_DIR}/readme.txt
 )
