@@ -353,14 +353,14 @@ static void buffer_queue_monitor_task(void *arg);
 #define LCD_V_RES (466)
 #define LCD_BITS_PER_PIXEL (16) // RGB565
 
-// LCD Pin Definitions (Waveshare 1.75" AMOLED QSPI) - AI_DRV reference
-#define PIN_NUM_LCD_CS (GPIO_NUM_12)
-#define PIN_NUM_LCD_PCLK (GPIO_NUM_38)
-#define PIN_NUM_LCD_DATA0 (GPIO_NUM_4) // D0
-#define PIN_NUM_LCD_DATA1 (GPIO_NUM_5) // D1
-#define PIN_NUM_LCD_DATA2 (GPIO_NUM_6) // D2
-#define PIN_NUM_LCD_DATA3 (GPIO_NUM_7) // D3
-#define PIN_NUM_LCD_RST (GPIO_NUM_39)
+// LCD Pin Definitions - movision (0223 보드)
+#define PIN_NUM_LCD_CS    (GPIO_NUM_14)
+#define PIN_NUM_LCD_PCLK  (GPIO_NUM_7)
+#define PIN_NUM_LCD_DATA0 (GPIO_NUM_8)   // D0
+#define PIN_NUM_LCD_DATA1 (GPIO_NUM_13)  // D1
+#define PIN_NUM_LCD_DATA2 (GPIO_NUM_6)   // D2
+#define PIN_NUM_LCD_DATA3 (GPIO_NUM_12)  // D3
+#define PIN_NUM_LCD_RST   (GPIO_NUM_9)
 #define PIN_NUM_LCD_VCI_EN (GPIO_NUM_18) // LCD Power Enable
 #define PIN_NUM_LCD_TE (-1)              // TFT_TE (not used)
 
@@ -439,11 +439,11 @@ static void create_boot_ui(void);
 // Touch device handle
 static lv_indev_t *s_touch_indev = NULL;
 
-// Touch Pins (CST92xx I2C)
-#define PIN_TOUCH_SDA GPIO_NUM_15
-#define PIN_TOUCH_SCL GPIO_NUM_14
+// Touch Pins (CST92xx I2C) - movision (0223 보드)
+#define PIN_TOUCH_SDA GPIO_NUM_10
+#define PIN_TOUCH_SCL GPIO_NUM_17
 #define PIN_TOUCH_INT GPIO_NUM_11
-#define PIN_TOUCH_RST GPIO_NUM_40
+#define PIN_TOUCH_RST GPIO_NUM_15
 #define TOUCH_I2C_ADDR 0x5A
 #define TOUCH_I2C_FREQ_HZ 100000
 
@@ -3320,11 +3320,11 @@ static void update_speed_mark(uint8_t data2) {
   }
   lv_obj_invalidate(s_speed_mark_unit_label);
 
-  static uint8_t s_last_logged_speed = 255;
-  if (speed != s_last_logged_speed) {
-    ESP_LOGI(TAG, "speed_mark: speed=%u (unit_hidden=%d)", (unsigned int)speed, road_name_visible ? 1 : 0);
-    s_last_logged_speed = speed;
-  }
+  // static uint8_t s_last_logged_speed = 255;
+  // if (speed != s_last_logged_speed) {
+  //   ESP_LOGI(TAG, "speed_mark: speed=%u (unit_hidden=%d)", (unsigned int)speed, road_name_visible ? 1 : 0);
+  //   s_last_logged_speed = speed;
+  // }
 }
 
 // Helper to align average speed labels based on current mode
