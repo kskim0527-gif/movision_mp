@@ -1,8 +1,0 @@
-모델명 : MOVISION-HD1
-빌드 날짜 : %BUILD_DATE%
-F/W 버전 : %VERSION%
-
-【 수동 업데이트 방법 】
-1. USB 케이블로 장치와 PC를 연결합니다.
-2. 현재 폴더의 usb_update.bat 파일을 실행합니다.
-3. 업데이트 메뉴를 선택하여 진행합니다.
