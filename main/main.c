@@ -369,8 +369,10 @@ static void buffer_queue_monitor_task(void *arg);
 static esp_lcd_panel_handle_t s_lcd_panel = NULL;
 static esp_lcd_panel_io_handle_t s_lcd_io_handle =
     NULL; // LCD IO handle for brightness control
-static uint8_t s_brightness_level =
-    0; // 0=Auto, 1=max, 5=min, (0x00 for Off is handled separately)
+static uint8_t s_brightness_level = 0; // 0=Auto, 1=max, 5=min
+static uint8_t s_album_option = 0;      // 0=Auto(5s), 1~5=Static
+static uint8_t s_clock_option = 0;      // 0=Auto(1h), 1=Clock1, 2=Clock2
+static uint8_t s_setting_page_index = 1; // 1 or 2
 
 typedef struct {
   uint16_t sunrise_min;
@@ -461,6 +463,7 @@ static void draw_analog_clock2(int hour, int minute,
                                int second); // Forward decl
 static void create_album_ui(void);
 static void create_setting_ui(void);       // Setting UI Forward Decl
+static void update_setting_ui_labels(void); // Helper Forward Decl
 static void create_virtual_drive_ui(void); // Forward decl
 static void create_ota_ui(void);           // Forward decl
 
@@ -523,6 +526,15 @@ static lv_obj_t *s_avr_speed_unit_label = NULL;  // 구간속도 단위 표시�
 static lv_obj_t *s_setting_bright_val_label = NULL;
 static lv_obj_t *s_setting_btn_down = NULL;
 static lv_obj_t *s_setting_btn_up = NULL;
+static lv_obj_t *s_setting_album_val_label = NULL;
+static lv_obj_t *s_setting_album_btn_down = NULL;
+static lv_obj_t *s_setting_album_btn_up = NULL;
+static lv_obj_t *s_setting_clock_val_label = NULL;
+static lv_obj_t *s_setting_clock_btn_down = NULL;
+static lv_obj_t *s_setting_clock_btn_up = NULL;
+static lv_obj_t *s_setting_page1_obj = NULL;
+static lv_obj_t *s_setting_page2_obj = NULL;
+static lv_obj_t *s_setting_title_label = NULL; // Single title that updates (SETUP 1/2)
 // 설정 모드 밝기 숫자 라벨
 static lv_obj_t *s_circle_ring = NULL; // 외곽 링 객체 (GPS 상태 표시용)
 // Time display labels (날짜: MM월dd일, 시간: HH:mm:ss)
@@ -3256,8 +3268,8 @@ static void speed_mark(uint8_t start, uint8_t id, uint8_t commend,
   // 19 4D 03 02 01
   if (start != 0x19 || id != 0x4D || commend != 0x03 || data_length != 0x02 ||
       (data1 != 0x00 && data1 != 0x01)) {
-    ESP_LOGW(TAG, "speed_mark: data format mismatch, "
-                  "expected 19 4D 03 02 00 or 01");
+    // ESP_LOGW(TAG, "speed_mark: data format mismatch, "
+    //               "expected 19 4D 03 02 00 or 01");
     return;
   }
 
@@ -3320,11 +3332,11 @@ static void update_speed_mark(uint8_t data2) {
   }
   lv_obj_invalidate(s_speed_mark_unit_label);
 
-  // static uint8_t s_last_logged_speed = 255;
-  // if (speed != s_last_logged_speed) {
-  //   ESP_LOGI(TAG, "speed_mark: speed=%u (unit_hidden=%d)", (unsigned int)speed, road_name_visible ? 1 : 0);
-  //   s_last_logged_speed = speed;
-  // }
+  static uint8_t s_last_logged_speed = 255;
+  if (speed != s_last_logged_speed) {
+    // ESP_LOGI(TAG, "speed_mark: speed=%u (unit_hidden=%d)", (unsigned int)speed, road_name_visible ? 1 : 0);
+    s_last_logged_speed = speed;
+  }
 }
 
 // Helper to align average speed labels based on current mode
@@ -6045,52 +6057,7 @@ static void set_lcd_brightness(uint8_t level) {
   }
 
   // Update Settings UI if it exists
-  if (s_setting_bright_val_label) {
-    if (level == 0) {
-      lv_label_set_text(s_setting_bright_val_label, "A");
-    } else {
-      char buf[4];
-      snprintf(buf, sizeof(buf), "%d", level);
-      lv_label_set_text(s_setting_bright_val_label, buf);
-    }
-
-    // Update Button states (No cycling, gray out at boundaries)
-    if (s_setting_btn_up && s_setting_btn_down) {
-      // Up button (Towards A - now on the Left)
-      if (level == 0) {
-        lv_obj_add_state(s_setting_btn_up, LV_STATE_DISABLED);
-        lv_obj_set_style_bg_color(s_setting_btn_up, lv_color_hex(0x444444), 0);
-        lv_obj_t *label = lv_obj_get_child(s_setting_btn_up, 0);
-        if (label)
-          lv_obj_set_style_text_color(label, lv_color_hex(0x666666), 0);
-      } else {
-        lv_obj_clear_state(s_setting_btn_up, LV_STATE_DISABLED);
-        lv_obj_set_style_bg_color(s_setting_btn_up, lv_color_hex(0x222222), 0);
-        lv_obj_t *label = lv_obj_get_child(s_setting_btn_up, 0);
-        if (label)
-          lv_obj_set_style_text_color(label, lv_palette_main(LV_PALETTE_BLUE),
-                                      0);
-      }
-
-      // Down button (Towards 5 - now on the Right)
-      if (level == 5) {
-        lv_obj_add_state(s_setting_btn_down, LV_STATE_DISABLED);
-        lv_obj_set_style_bg_color(s_setting_btn_down, lv_color_hex(0x444444),
-                                  0);
-        lv_obj_t *label = lv_obj_get_child(s_setting_btn_down, 0);
-        if (label)
-          lv_obj_set_style_text_color(label, lv_color_hex(0x666666), 0);
-      } else {
-        lv_obj_clear_state(s_setting_btn_down, LV_STATE_DISABLED);
-        lv_obj_set_style_bg_color(s_setting_btn_down, lv_color_hex(0x222222),
-                                  0);
-        lv_obj_t *label = lv_obj_get_child(s_setting_btn_down, 0);
-        if (label)
-          lv_obj_set_style_text_color(label, lv_palette_main(LV_PALETTE_BLUE),
-                                      0);
-      }
-    }
-  }
+  update_setting_ui_labels();
 
   ESP_LOGI(TAG, "Brightness level set to: %s",
            level == 0
@@ -6117,6 +6084,101 @@ static void brightness_up_event_cb(lv_event_t *e) {
   (void)e;
   if (s_brightness_level > 0) {
     set_lcd_brightness(s_brightness_level - 1);
+  }
+}
+
+// Helper to update all setting labels and button states
+static void update_setting_ui_labels(void) {
+  char buf[8];
+  
+  // 1. Brightness
+  if (s_setting_bright_val_label) {
+    if (s_brightness_level == 0) lv_label_set_text(s_setting_bright_val_label, "A");
+    else { snprintf(buf, sizeof(buf), "%d", s_brightness_level); lv_label_set_text(s_setting_bright_val_label, buf); }
+    
+    // Disable buttons at bounds
+    if (s_brightness_level == 0) lv_obj_add_state(s_setting_btn_up, LV_STATE_DISABLED);
+    else lv_obj_clear_state(s_setting_btn_up, LV_STATE_DISABLED);
+    
+    if (s_brightness_level == 5) lv_obj_add_state(s_setting_btn_down, LV_STATE_DISABLED);
+    else lv_obj_clear_state(s_setting_btn_down, LV_STATE_DISABLED);
+  }
+
+  // 2. Album Option
+  if (s_setting_album_val_label) {
+    if (s_album_option == 0) lv_label_set_text(s_setting_album_val_label, "A");
+    else { snprintf(buf, sizeof(buf), "%d", s_album_option); lv_label_set_text(s_setting_album_val_label, buf); }
+
+    if (s_album_option == 0) lv_obj_add_state(s_setting_album_btn_up, LV_STATE_DISABLED);
+    else lv_obj_clear_state(s_setting_album_btn_up, LV_STATE_DISABLED);
+    
+    if (s_album_option == 5) lv_obj_add_state(s_setting_album_btn_down, LV_STATE_DISABLED);
+    else lv_obj_clear_state(s_setting_album_btn_down, LV_STATE_DISABLED);
+  }
+
+  // 3. Clock Option
+  if (s_setting_clock_val_label) {
+    if (s_clock_option == 0) lv_label_set_text(s_setting_clock_val_label, "1");
+    else if (s_clock_option == 1) lv_label_set_text(s_setting_clock_val_label, "2");
+    else lv_label_set_text(s_setting_clock_val_label, "A");
+
+    if (s_clock_option == 0) lv_obj_add_state(s_setting_clock_btn_up, LV_STATE_DISABLED);
+    else lv_obj_clear_state(s_setting_clock_btn_up, LV_STATE_DISABLED);
+    
+    if (s_clock_option == 2) lv_obj_add_state(s_setting_clock_btn_down, LV_STATE_DISABLED);
+    else lv_obj_clear_state(s_setting_clock_btn_down, LV_STATE_DISABLED);
+  }
+}
+
+static void album_up_event_cb(lv_event_t *e) {
+  (void)e;
+  if (s_album_option > 0) {
+    s_album_option--;
+    update_setting_ui_labels();
+  }
+}
+
+static void album_down_event_cb(lv_event_t *e) {
+  (void)e;
+  if (s_album_option < 5) {
+    s_album_option++;
+    update_setting_ui_labels();
+  }
+}
+
+static void clock_up_event_cb(lv_event_t *e) {
+  (void)e;
+  if (s_clock_option > 0) {
+    s_clock_option--;
+    update_setting_ui_labels();
+  }
+}
+
+static void setting_page_cb(lv_event_t *e) {
+  (void)e;
+  s_setting_page_index = (s_setting_page_index == 1) ? 2 : 1;
+  
+  if (s_setting_page_index == 1) {
+    lv_obj_clear_flag(s_setting_page1_obj, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(s_setting_page2_obj, LV_OBJ_FLAG_HIDDEN);
+    if (s_setting_title_label) lv_label_set_text(s_setting_title_label, "SETUP 1");
+  } else {
+    lv_obj_add_flag(s_setting_page1_obj, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(s_setting_page2_obj, LV_OBJ_FLAG_HIDDEN);
+    if (s_setting_title_label) lv_label_set_text(s_setting_title_label, "SETUP 2");
+  }
+}
+
+static void ota_btn_event_cb(lv_event_t *e) {
+  (void)e;
+  switch_display_mode(DISPLAY_MODE_OTA);
+}
+
+static void clock_down_event_cb(lv_event_t *e) {
+  (void)e;
+  if (s_clock_option < 2) {
+    s_clock_option++;
+    update_setting_ui_labels();
   }
 }
 
@@ -8880,102 +8942,193 @@ static void create_setting_ui(void) {
   if (s_setting_screen == NULL)
     return;
 
-  // 1. SETUP Title (Text -> 40pt)
-  lv_obj_t *title = lv_label_create(s_setting_screen);
-  lv_obj_set_style_text_font(title, &font_kopub_40, 0);
-  lv_obj_set_style_text_color(title, lv_color_white(), 0);
-  lv_label_set_text(title, "SETUP");
-  lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 50);
+  // 1. SETUP Title (Moved Up for Safe Zone)
+  s_setting_title_label = lv_label_create(s_setting_screen);
+  lv_obj_set_style_text_font(s_setting_title_label, &font_kopub_40, 0);
+  lv_obj_set_style_text_color(s_setting_title_label, lv_color_white(), 0);
+  lv_label_set_text(s_setting_title_label, "SETUP 1");
+  lv_obj_align(s_setting_title_label, LV_ALIGN_TOP_MID, 0, 70);
 
-  // 2. Subtitle: Brightness (Text -> 40pt)
-  lv_obj_t *subtitle = lv_label_create(s_setting_screen);
-  lv_obj_set_style_text_font(subtitle, &font_kopub_40, 0);
-  lv_obj_set_style_text_color(subtitle, lv_color_white(), 0);
-  lv_label_set_text(subtitle, "Brightness");
-  lv_obj_align(subtitle, LV_ALIGN_TOP_MID, 0, 100);
+  // --- PAGE 1 CONTAINER (Narrow & Safe) ---
+  s_setting_page1_obj = lv_obj_create(s_setting_screen);
+  lv_obj_set_size(s_setting_page1_obj, 460, 280); 
+  lv_obj_align(s_setting_page1_obj, LV_ALIGN_TOP_MID, 0, 125);
+  lv_obj_set_style_bg_opa(s_setting_page1_obj, 0, 0);
+  lv_obj_set_style_border_width(s_setting_page1_obj, 0, 0);
+  lv_obj_set_scrollbar_mode(s_setting_page1_obj, LV_SCROLLBAR_MODE_OFF);
 
-  // 3. Central Brightness Value (Number -> 155pt restored)
-  s_setting_bright_val_label = lv_label_create(s_setting_screen);
-  lv_obj_set_style_text_font(s_setting_bright_val_label, &font_VIP_155, 0);
-  lv_obj_set_style_text_color(s_setting_bright_val_label,
-                              lv_palette_main(LV_PALETTE_YELLOW), 0);
-  lv_label_set_text(s_setting_bright_val_label,
-                    ""); // Will be set by set_lcd_brightness call below
-  lv_obj_center(s_setting_bright_val_label);
+    // Row 1: 밝기 옵션 (Moved Left)
+    lv_obj_t *label1 = lv_label_create(s_setting_page1_obj);
+    lv_obj_set_style_text_font(label1, &font_addr_30, 0);
+    lv_obj_set_style_text_color(label1, lv_palette_main(LV_PALETTE_YELLOW), 0);
+    lv_label_set_text(label1, "밝기 옵션");
+    lv_obj_align(label1, LV_ALIGN_TOP_MID, -115, 10);
 
-  // 4. Up Button (Left, Rounded Rect) - Moves from 5 towards A
-  s_setting_btn_up = lv_btn_create(s_setting_screen);
-  lv_obj_set_size(s_setting_btn_up, 100, 100);
-  lv_obj_align(s_setting_btn_up, LV_ALIGN_CENTER, -145, 0); // Position Left
-  lv_obj_set_style_radius(s_setting_btn_up, 15, 0);
-  lv_obj_set_style_bg_color(s_setting_btn_up, lv_color_hex(0x222222), 0);
-  lv_obj_set_style_bg_opa(s_setting_btn_up, LV_OPA_COVER, 0);
-  lv_obj_set_style_border_width(s_setting_btn_up, 2, 0);
-  lv_obj_set_style_border_color(s_setting_btn_up, lv_color_hex(0x444444), 0);
+    s_setting_btn_down = lv_btn_create(s_setting_page1_obj);
+    lv_obj_set_size(s_setting_btn_down, 60, 60); 
+    lv_obj_align(s_setting_btn_down, LV_ALIGN_TOP_MID, 15, 0);
+    lv_obj_set_style_radius(s_setting_btn_down, 15, 0);
+    lv_obj_set_style_bg_color(s_setting_btn_down, lv_color_hex(0x222222), 0);
+    lv_obj_add_event_cb(s_setting_btn_down, brightness_down_event_cb, LV_EVENT_CLICKED, NULL);
 
-  // Strong Pressed Style for Up Button
-  lv_obj_set_style_bg_color(
-      s_setting_btn_up, lv_palette_main(LV_PALETTE_ORANGE), LV_STATE_PRESSED);
-  lv_obj_set_style_transform_zoom(s_setting_btn_up, 115, LV_STATE_PRESSED);
+    // Vector Arrow Down (Centered & Corrected)
+    static lv_point_t points_dn[3] = {{13, 20}, {28, 36}, {43, 20}};
+    lv_obj_t *l1_dn = lv_line_create(s_setting_btn_down);
+    lv_obj_set_size(l1_dn, 60, 60);
+    lv_line_set_points(l1_dn, points_dn, 3);
+    lv_obj_set_style_line_width(l1_dn, 6, 0);
+    lv_obj_set_style_line_color(l1_dn, lv_palette_main(LV_PALETTE_YELLOW), 0);
+    lv_obj_set_style_line_rounded(l1_dn, true, 0);
+    lv_obj_align(l1_dn, LV_ALIGN_CENTER, 0, 0);
 
-  lv_obj_add_event_cb(s_setting_btn_up, brightness_up_event_cb,
-                      LV_EVENT_CLICKED, NULL);
+    s_setting_bright_val_label = lv_label_create(s_setting_page1_obj);
+    lv_obj_set_style_text_font(s_setting_bright_val_label, &font_kopub_35, 0);
+    lv_obj_set_style_text_color(s_setting_bright_val_label, lv_palette_main(LV_PALETTE_YELLOW), 0);
+    lv_obj_align(s_setting_bright_val_label, LV_ALIGN_TOP_MID, 75, 10);
 
-  lv_obj_t *label_up_arrow = lv_label_create(s_setting_btn_up);
-  lv_obj_set_style_text_font(label_up_arrow, &lv_font_montserrat_48, 0);
-  lv_obj_set_style_text_color(label_up_arrow, lv_palette_main(LV_PALETTE_BLUE),
-                              0);
-  lv_obj_set_style_text_color(label_up_arrow, lv_color_black(),
-                              LV_STATE_PRESSED);
-  lv_label_set_text(label_up_arrow, LV_SYMBOL_UP);
-  lv_obj_center(label_up_arrow);
+    s_setting_btn_up = lv_btn_create(s_setting_page1_obj);
+    lv_obj_set_size(s_setting_btn_up, 60, 60);
+    lv_obj_align(s_setting_btn_up, LV_ALIGN_TOP_MID, 135, 0);
+    lv_obj_set_style_radius(s_setting_btn_up, 15, 0);
+    lv_obj_set_style_bg_color(s_setting_btn_up, lv_color_hex(0x222222), 0);
+    lv_obj_add_event_cb(s_setting_btn_up, brightness_up_event_cb, LV_EVENT_CLICKED, NULL);
 
-  // 5. Down Button (Right, Rounded Rect) - Moves from A towards 5
-  s_setting_btn_down = lv_btn_create(s_setting_screen);
-  lv_obj_set_size(s_setting_btn_down, 100, 100);
-  lv_obj_align(s_setting_btn_down, LV_ALIGN_CENTER, 145, 0); // Position Right
-  lv_obj_set_style_radius(s_setting_btn_down, 15, 0);
-  lv_obj_set_style_bg_color(s_setting_btn_down, lv_color_hex(0x222222), 0);
-  lv_obj_set_style_bg_opa(s_setting_btn_down, LV_OPA_COVER, 0);
-  lv_obj_set_style_border_width(s_setting_btn_down, 2, 0);
-  lv_obj_set_style_border_color(s_setting_btn_down, lv_color_hex(0x444444), 0);
+    // Vector Arrow Up (Centered & Corrected)
+    static lv_point_t points_up[3] = {{13, 36}, {28, 20}, {43, 36}};
+    lv_obj_t *l1_up = lv_line_create(s_setting_btn_up);
+    lv_obj_set_size(l1_up, 60, 60);
+    lv_line_set_points(l1_up, points_up, 3);
+    lv_obj_set_style_line_width(l1_up, 6, 0);
+    lv_obj_set_style_line_color(l1_up, lv_palette_main(LV_PALETTE_YELLOW), 0);
+    lv_obj_set_style_line_rounded(l1_up, true, 0);
+    lv_obj_align(l1_up, LV_ALIGN_CENTER, 0, 0);
 
-  // Strong Pressed Style for Down Button
-  lv_obj_set_style_bg_color(
-      s_setting_btn_down, lv_palette_main(LV_PALETTE_ORANGE), LV_STATE_PRESSED);
-  lv_obj_set_style_transform_zoom(s_setting_btn_down, 115, LV_STATE_PRESSED);
+    // Row 2: 앨범 옵션 (Moved Left)
+    lv_obj_t *label2 = lv_label_create(s_setting_page1_obj);
+    lv_obj_set_style_text_font(label2, &font_addr_30, 0);
+    lv_obj_set_style_text_color(label2, lv_palette_main(LV_PALETTE_YELLOW), 0);
+    lv_label_set_text(label2, "앨범 옵션");
+    lv_obj_align(label2, LV_ALIGN_TOP_MID, -115, 100);
 
-  lv_obj_add_event_cb(s_setting_btn_down, brightness_down_event_cb,
-                      LV_EVENT_CLICKED, NULL);
+    s_setting_album_btn_down = lv_btn_create(s_setting_page1_obj);
+    lv_obj_set_size(s_setting_album_btn_down, 60, 60);
+    lv_obj_align(s_setting_album_btn_down, LV_ALIGN_TOP_MID, 15, 90);
+    lv_obj_set_style_radius(s_setting_album_btn_down, 15, 0);
+    lv_obj_set_style_bg_color(s_setting_album_btn_down, lv_color_hex(0x222222), 0);
+    lv_obj_add_event_cb(s_setting_album_btn_down, album_down_event_cb, LV_EVENT_CLICKED, NULL);
 
-  lv_obj_t *label_down_arrow = lv_label_create(s_setting_btn_down);
-  lv_obj_set_style_text_font(label_down_arrow, &lv_font_montserrat_48, 0);
-  lv_obj_set_style_text_color(label_down_arrow,
-                              lv_palette_main(LV_PALETTE_BLUE), 0);
-  lv_obj_set_style_text_color(label_down_arrow, lv_color_black(),
-                              LV_STATE_PRESSED);
-  lv_label_set_text(label_down_arrow, LV_SYMBOL_DOWN);
-  lv_obj_center(label_down_arrow);
+    lv_obj_t *l2_dn = lv_line_create(s_setting_album_btn_down);
+    lv_obj_set_size(l2_dn, 60, 60);
+    lv_line_set_points(l2_dn, points_dn, 3);
+    lv_obj_set_style_line_width(l2_dn, 6, 0);
+    lv_obj_set_style_line_color(l2_dn, lv_palette_main(LV_PALETTE_YELLOW), 0);
+    lv_obj_set_style_line_rounded(l2_dn, true, 0);
+    lv_obj_align(l2_dn, LV_ALIGN_CENTER, 0, 0);
 
-  // 6. Version Info (Bottom)
-  lv_obj_t *rev_label = lv_label_create(s_setting_screen);
-  lv_obj_set_style_text_font(rev_label, &font_kopub_25,
-                             0); // Number part -> 25pt
-  lv_obj_set_style_text_color(rev_label, lv_color_hex(0xCCCCCC), 0);
-  const esp_app_desc_t *app_desc = esp_app_get_description();
-  char ver_buf[64];
-  snprintf(ver_buf, sizeof(ver_buf), "S/W %s", app_desc->version);
-  lv_label_set_text(rev_label, ver_buf);
-  lv_obj_align(rev_label, LV_ALIGN_BOTTOM_MID, 0, -80);
+    s_setting_album_val_label = lv_label_create(s_setting_page1_obj);
+    lv_obj_set_style_text_font(s_setting_album_val_label, &font_kopub_35, 0);
+    lv_obj_set_style_text_color(s_setting_album_val_label, lv_palette_main(LV_PALETTE_YELLOW), 0);
+    lv_obj_align(s_setting_album_val_label, LV_ALIGN_TOP_MID, 75, 100);
 
-  lv_obj_t *brand_label = lv_label_create(s_setting_screen);
-  lv_obj_set_style_text_font(brand_label, &font_kopub_40, 0); // Text -> 40pt
-  lv_obj_set_style_text_color(brand_label, lv_color_white(), 0);
-  lv_label_set_text(brand_label, "movision");
-  lv_obj_align(brand_label, LV_ALIGN_BOTTOM_MID, 0, -35);
+    s_setting_album_btn_up = lv_btn_create(s_setting_page1_obj);
+    lv_obj_set_size(s_setting_album_btn_up, 60, 60);
+    lv_obj_align(s_setting_album_btn_up, LV_ALIGN_TOP_MID, 135, 90);
+    lv_obj_set_style_radius(s_setting_album_btn_up, 15, 0);
+    lv_obj_set_style_bg_color(s_setting_album_btn_up, lv_color_hex(0x222222), 0);
+    lv_obj_add_event_cb(s_setting_album_btn_up, album_up_event_cb, LV_EVENT_CLICKED, NULL);
 
-  // Initial update
+    lv_obj_t *l2_up = lv_line_create(s_setting_album_btn_up);
+    lv_obj_set_size(l2_up, 60, 60);
+    lv_line_set_points(l2_up, points_up, 3);
+    lv_obj_set_style_line_width(l2_up, 6, 0);
+    lv_obj_set_style_line_color(l2_up, lv_palette_main(LV_PALETTE_YELLOW), 0);
+    lv_obj_set_style_line_rounded(l2_up, true, 0);
+    lv_obj_align(l2_up, LV_ALIGN_CENTER, 0, 0);
+
+    // Row 3: 시계 옵션 (Moved Left)
+    lv_obj_t *label3 = lv_label_create(s_setting_page1_obj);
+    lv_obj_set_style_text_font(label3, &font_addr_30, 0);
+    lv_obj_set_style_text_color(label3, lv_palette_main(LV_PALETTE_YELLOW), 0);
+    lv_label_set_text(label3, "시계 옵션");
+    lv_obj_align(label3, LV_ALIGN_TOP_MID, -115, 190);
+
+    s_setting_clock_btn_down = lv_btn_create(s_setting_page1_obj);
+    lv_obj_set_size(s_setting_clock_btn_down, 60, 60);
+    lv_obj_align(s_setting_clock_btn_down, LV_ALIGN_TOP_MID, 15, 180);
+    lv_obj_set_style_radius(s_setting_clock_btn_down, 15, 0);
+    lv_obj_set_style_bg_color(s_setting_clock_btn_down, lv_color_hex(0x222222), 0);
+    lv_obj_add_event_cb(s_setting_clock_btn_down, clock_down_event_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *l3_dn = lv_line_create(s_setting_clock_btn_down);
+    lv_obj_set_size(l3_dn, 60, 60);
+    lv_line_set_points(l3_dn, points_dn, 3);
+    lv_obj_set_style_line_width(l3_dn, 6, 0);
+    lv_obj_set_style_line_color(l3_dn, lv_palette_main(LV_PALETTE_YELLOW), 0);
+    lv_obj_set_style_line_rounded(l3_dn, true, 0);
+    lv_obj_align(l3_dn, LV_ALIGN_CENTER, 0, 0);
+
+    s_setting_clock_val_label = lv_label_create(s_setting_page1_obj);
+    lv_obj_set_style_text_font(s_setting_clock_val_label, &font_kopub_35, 0);
+    lv_obj_set_style_text_color(s_setting_clock_val_label, lv_palette_main(LV_PALETTE_YELLOW), 0);
+    lv_obj_align(s_setting_clock_val_label, LV_ALIGN_TOP_MID, 75, 190);
+
+    s_setting_clock_btn_up = lv_btn_create(s_setting_page1_obj);
+    lv_obj_set_size(s_setting_clock_btn_up, 60, 60);
+    lv_obj_align(s_setting_clock_btn_up, LV_ALIGN_TOP_MID, 135, 180);
+    lv_obj_set_style_radius(s_setting_clock_btn_up, 15, 0);
+    lv_obj_set_style_bg_color(s_setting_clock_btn_up, lv_color_hex(0x222222), 0);
+    lv_obj_add_event_cb(s_setting_clock_btn_up, clock_up_event_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *l3_up = lv_line_create(s_setting_clock_btn_up);
+    lv_obj_set_size(l3_up, 60, 60);
+    lv_line_set_points(l3_up, points_up, 3);
+    lv_obj_set_style_line_width(l3_up, 6, 0);
+    lv_obj_set_style_line_color(l3_up, lv_palette_main(LV_PALETTE_YELLOW), 0);
+    lv_obj_set_style_line_rounded(l3_up, true, 0);
+    lv_obj_align(l3_up, LV_ALIGN_CENTER, 0, 0);
+
+  // --- PAGE 2 CONTAINER ---
+  s_setting_page2_obj = lv_obj_create(s_setting_screen);
+  lv_obj_set_size(s_setting_page2_obj, 460, 280);
+  lv_obj_align(s_setting_page2_obj, LV_ALIGN_TOP_MID, 0, 125);
+  lv_obj_set_style_bg_opa(s_setting_page2_obj, 0, 0);
+  lv_obj_set_style_border_width(s_setting_page2_obj, 0, 0);
+  lv_obj_set_scrollbar_mode(s_setting_page2_obj, LV_SCROLLBAR_MODE_OFF);
+  lv_obj_add_flag(s_setting_page2_obj, LV_OBJ_FLAG_HIDDEN);
+
+    // 1. WiFi OTA Update Button
+    lv_obj_t *ota_btn = lv_btn_create(s_setting_page2_obj);
+    lv_obj_set_size(ota_btn, 240, 60);
+    lv_obj_align(ota_btn, LV_ALIGN_TOP_MID, 0, 20);
+    lv_obj_set_style_bg_color(ota_btn, lv_color_hex(0x0066CC), 0);
+    lv_obj_set_style_radius(ota_btn, 10, 0);
+    lv_obj_add_event_cb(ota_btn, ota_btn_event_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *ota_label = lv_label_create(ota_btn);
+    lv_obj_set_style_text_font(ota_label, &font_addr_30, 0);
+    lv_label_set_text(ota_label, "WiFi OTA 업데이트");
+    lv_obj_center(ota_label);
+
+    // 2. Version Info
+    lv_obj_t *rev_label = lv_label_create(s_setting_page2_obj);
+    lv_obj_set_style_text_font(rev_label, &font_kopub_30, 0);
+    lv_obj_set_style_text_color(rev_label, lv_color_hex(0xCCCCCC), 0);
+    const esp_app_desc_t *app_desc = esp_app_get_description();
+    char ver_buf[64];
+    snprintf(ver_buf, sizeof(ver_buf), "S/W Version: %s", app_desc->version);
+    lv_label_set_text(rev_label, ver_buf);
+    lv_obj_align(rev_label, LV_ALIGN_TOP_MID, 0, 120);
+
+    // 3. Brand Label
+    lv_obj_t *brand_label = lv_label_create(s_setting_page2_obj);
+    lv_obj_set_style_text_font(brand_label, &font_kopub_40, 0);
+    lv_obj_set_style_text_color(brand_label, lv_color_white(), 0);
+    lv_label_set_text(brand_label, "movision");
+    lv_obj_align(brand_label, LV_ALIGN_TOP_MID, 0, 180);
+
+  // Initial state update
   set_lcd_brightness(s_brightness_level);
+  update_setting_ui_labels();
 }
 
 static void create_virtual_drive_ui(void) {
@@ -9359,9 +9512,9 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
       uint16_t y = ((read_buf[2] << 4) | (read_buf[3] & 0x0F));
 
       data->state = LV_INDEV_STATE_PR;
-      // Flip X coordinate to resolve inverted touch input (AI_DRV reference)
+      // Flip X and Y coordinates to resolve inverted touch input
       data->point.x = (LCD_H_RES - 1 - x);
-      data->point.y = y;
+      data->point.y = (LCD_V_RES - 1 - y);
 
       ESP_LOGI("TOUCH", "Touch: raw_x=%d, raw_y=%d -> mapped_x=%d, mapped_y=%d",
                x, y, (int)data->point.x, (int)data->point.y);
@@ -9447,8 +9600,8 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
             update_display_mode_ui(s_current_mode);
             swiped = true;
           } else if (s_current_mode == DISPLAY_MODE_SETTING) {
-            // Setting -> OTA (상하 스와이프 모두 진입)
-            switch_display_mode(DISPLAY_MODE_OTA);
+            // Setting Page Toggle (Vertical swipe)
+            setting_page_cb(NULL);
             swiped = true;
           } else if (s_current_mode == DISPLAY_MODE_OTA) {
             // OTA -> Setting (상하 스와이프으로 이동)
@@ -9974,12 +10127,37 @@ void app_main(void) {
   // keep app_main alive (so monitor doesn't
   // show "Returned from app_main()")
   while (1) {
+    static uint32_t s_album_auto_timer = 0;
+    static uint32_t s_clock_auto_timer = 0;
+
     // 부팅 시 시계 화면 전환 트리거 처리 (BTC_TASK 스택 보호를 위해 메인 루프에서 처리)
     if (s_boot_clock_trigger) {
       s_boot_clock_trigger = false;
       ESP_LOGI(TAG, "Main Task: Executing transition to STANDBY mode");
       switch_display_mode(DISPLAY_MODE_STANDBY);
     }
+
+    // 1. 앨범 자동 갱신 (5초)
+    if (s_album_option == 0 && s_current_mode == DISPLAY_MODE_ALBUM) {
+      if (++s_album_auto_timer >= 5) {
+        s_album_auto_timer = 0;
+        load_image_from_sd(1); // Next
+      }
+    } else {
+      s_album_auto_timer = 0;
+    }
+
+    // 2. 시계 자동 갱신 (1시간 = 3600초)
+    if (s_clock_option == 2 && (s_current_mode == DISPLAY_MODE_CLOCK || s_current_mode == DISPLAY_MODE_CLOCK2)) {
+      if (++s_clock_auto_timer >= 3600) {
+        s_clock_auto_timer = 0;
+        if (s_current_mode == DISPLAY_MODE_CLOCK) switch_display_mode(DISPLAY_MODE_CLOCK2);
+        else switch_display_mode(DISPLAY_MODE_CLOCK);
+      }
+    } else {
+      s_clock_auto_timer = 0;
+    }
+
     update_auto_brightness(false);
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
