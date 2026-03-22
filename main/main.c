@@ -9632,45 +9632,45 @@ static void create_setting_ui(void) {
   lv_obj_set_scrollbar_mode(s_setting_page2_obj, LV_SCROLLBAR_MODE_OFF);
   lv_obj_add_flag(s_setting_page2_obj, LV_OBJ_FLAG_HIDDEN);
 
-  // --- 1. Info Texts with Colon Alignment ---
+  // --- 1. Info Texts Control (Centered Colon Alignment) ---
   const char *keys[] = {"Model", "S/W Version", "Serial No"};
   const char *values[] = {"MOVISION HUD1", "V260322", "OA2B1-00001"};
   int start_y = 5;
-  int row_h = 35;
+  int row_h = 34; // font_addr_30 height (~30) + 4px gap
 
   for (int i = 0; i < 3; i++) {
-    // Key Label (Right aligned to center point)
+    // Colon (Center Reference)
+    lv_obj_t *colon_label = lv_label_create(s_setting_page2_obj);
+    lv_obj_set_style_text_font(colon_label, &font_addr_30, 0);
+    lv_obj_set_style_text_color(colon_label, lv_color_hex(0xFFFF00), 0);
+    lv_label_set_text(colon_label, ":");
+    lv_obj_align(colon_label, LV_ALIGN_TOP_MID, 0, start_y + (i * row_h));
+
+    // Key (To the left of colon)
     lv_obj_t *key_label = lv_label_create(s_setting_page2_obj);
     lv_obj_set_style_text_font(key_label, &font_addr_30, 0);
     lv_obj_set_style_text_color(key_label, lv_color_hex(0xFFFF00), 0);
     lv_label_set_text(key_label, keys[i]);
-    lv_obj_align(key_label, LV_ALIGN_TOP_RIGHT, -240, start_y + (i * row_h)); // -240 from right edge of 460w container is approx center-left
+    lv_obj_align_to(key_label, colon_label, LV_ALIGN_OUT_LEFT_MID, -15, 0);
 
-    // Colon Label
-    lv_obj_t *colon_label = lv_label_create(s_setting_page2_obj);
-    lv_obj_set_style_text_font(colon_label, &font_addr_30, 0);
-    lv_obj_set_style_text_color(colon_label, lv_color_hex(0xFFFF00), 0);
-    lv_label_set_text(colon_label, " : ");
-    lv_obj_align(colon_label, LV_ALIGN_TOP_MID, -25, start_y + (i * row_h));
-
-    // Value Label (Left aligned from center point)
+    // Value (To the right of colon)
     lv_obj_t *val_label = lv_label_create(s_setting_page2_obj);
     lv_obj_set_style_text_font(val_label, &font_addr_30, 0);
     lv_obj_set_style_text_color(val_label, lv_color_hex(0xFFFF00), 0);
     lv_label_set_text(val_label, values[i]);
-    lv_obj_align(val_label, LV_ALIGN_TOP_LEFT, 215, start_y + (i * row_h)); // 215 from left edge
+    lv_obj_align_to(val_label, colon_label, LV_ALIGN_OUT_RIGHT_MID, 15, 0);
   }
 
-  // --- 2. QR Code (Page Content) ---
-  lv_obj_t *qr = lv_qrcode_create(s_setting_page2_obj, 110, lv_color_black(), lv_color_hex(0xFFFF00));
+  // --- 2. QR Code (White theme, Bottom Aligned) ---
+  lv_obj_t *qr = lv_qrcode_create(s_setting_page2_obj, 120, lv_color_black(), lv_color_white());
   if (qr) {
     const char *qr_data = "Model:MOVISION HUD1,SW:V260322,SN:OA2B1-00001";
     lv_qrcode_update(qr, qr_data, strlen(qr_data));
-    lv_obj_align(qr, LV_ALIGN_TOP_MID, 0, 115);
+    lv_obj_align(qr, LV_ALIGN_BOTTOM_MID, 0, -5); // Positioned at bottom with slight padding
     
-    // Aesthetic border for QR
-    lv_obj_set_style_border_color(qr, lv_color_hex(0xFFFF00), 0);
-    lv_obj_set_style_border_width(qr, 3, 0);
+    // Clean white border for the QR
+    lv_obj_set_style_border_color(qr, lv_color_white(), 0);
+    lv_obj_set_style_border_width(qr, 4, 0);
     lv_obj_set_style_border_side(qr, LV_BORDER_SIDE_FULL, 0);
   }
 
