@@ -8374,23 +8374,6 @@ static esp_err_t init_ble(void) {
   s_read_uuid.uuid.uuid128[12] = 0xf1; // FFF1
   s_read_uuid.uuid.uuid128[13] = 0xff;
 
-// Clock 1 Objects (Pill Style Redesign)
-static lv_obj_t *s_clock1_hour_bg;
-static lv_obj_t *s_clock1_hour_fg;
-static lv_obj_t *s_clock1_minute_bg;
-static lv_obj_t *s_clock1_minute_fg;
-static lv_point_t s_clock1_hour_points[2];
-static lv_point_t s_clock1_minute_points[2];
-static lv_obj_t *s_clock_bg_img = NULL;
-static lv_obj_t *s_clock_center_dot = NULL;
-
-// Clock 2 Objects (Reverted to Gold Stick Style)
-static lv_obj_t *s_clock2_hour_line;
-static lv_obj_t *s_clock2_minute_line;
-static lv_obj_t *s_clock2_second_line;
-static lv_point_t s_clock2_hour_points[2];
-static lv_point_t s_clock2_minute_points[2];
-static lv_point_t s_clock2_second_points[2];
 
   s_write_uuid.len = ESP_UUID_LEN_128;
   memcpy(s_write_uuid.uuid.uuid128, s_hud_svc_uuid128, 16);
@@ -8908,71 +8891,6 @@ static void clock_timer_cb(lv_timer_t *timer) {
   }
 }
 
-static void create_clock_ui(void) {
-  if (s_clock_screen == NULL)
-    return;
-
-  // Background Image (Static background is still PNG for aesthetics)
-  s_clock_bg_img = lv_img_create(s_clock_screen);
-  lv_img_set_src(s_clock_bg_img, "S:/littlefs/clock_1/screen.png");
-  lv_obj_center(s_clock_bg_img);
-  lv_obj_clear_flag(s_clock_bg_img, LV_OBJ_FLAG_CLICKABLE);
-
-  // Create clock hand lines (polygons)
-  s_hour_line = lv_line_create(s_clock_screen);
-  lv_obj_set_style_line_width(s_hour_line, 4, 0);
-  lv_obj_set_style_line_color(s_hour_line, lv_color_make(160, 160, 160),
-                              0); // Medium Metallic Silver
-  lv_obj_clear_flag(s_hour_line, LV_OBJ_FLAG_CLICKABLE);
-
-  s_minute_line = lv_line_create(s_clock_screen);
-  lv_obj_set_style_line_width(s_minute_line, 4, 0);
-  lv_obj_set_style_line_color(s_minute_line, lv_color_make(175, 175, 175),
-                              0); // Medium Metallic Silver
-  lv_obj_clear_flag(s_minute_line, LV_OBJ_FLAG_CLICKABLE);
-
-  s_second_line = lv_line_create(s_clock_screen);
-  lv_obj_set_style_line_width(s_second_line, 2, 0);
-  lv_obj_set_style_line_color(s_second_line, lv_color_make(255, 0, 0), 0);
-  lv_obj_clear_flag(s_second_line, LV_OBJ_FLAG_CLICKABLE);
-
-  // Decorative center dot
-  s_clock_center_dot = lv_obj_create(s_clock_screen);
-  lv_obj_set_size(s_clock_center_dot, 12, 12);
-  lv_obj_set_style_radius(s_clock_center_dot, LV_RADIUS_CIRCLE, 0);
-  lv_obj_set_style_bg_color(s_clock_center_dot, lv_color_make(150, 150, 150),
-                            0);
-  lv_obj_set_style_border_width(s_clock_center_dot, 0, 0);
-  lv_obj_center(s_clock_center_dot);
-
-  // 1. Day of Month (e.g. 01) - Bottom left area of center
-  s_clock_day_label = lv_label_create(s_clock_screen);
-  lv_obj_set_style_text_font(s_clock_day_label, &font_kopub_30, 0);
-  lv_obj_set_style_text_color(s_clock_day_label, lv_color_make(200, 200, 200),
-                              0);
-  lv_obj_align(s_clock_day_label, LV_ALIGN_CENTER, -40, 60);
-  lv_label_set_text(s_clock_day_label, "01");
-
-  // 2. Weekday (e.g. MON) - Bottom right area of center
-  s_clock_wday_label = lv_label_create(s_clock_screen);
-  lv_obj_set_style_text_font(s_clock_wday_label, &font_kopub_30, 0);
-  lv_obj_set_style_text_color(s_clock_wday_label, lv_color_make(200, 200, 200),
-                              0);
-  lv_obj_align(s_clock_wday_label, LV_ALIGN_CENTER, 40, 60);
-  lv_label_set_text(s_clock_wday_label, "SUN");
-
-  // 시계 모드 초기화 시 다시 아날로그 요소들을 보이게 설정
-  lv_obj_clear_flag(s_hour_line, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_clear_flag(s_minute_line, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_clear_flag(s_second_line, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_clear_flag(s_clock_center_dot, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_clear_flag(s_clock_bg_img, LV_OBJ_FLAG_HIDDEN);
-
-  // Create timer for clock update (1 sec interval)
-  if (s_clock_timer == NULL) {
-    s_clock_timer = lv_timer_create(clock_timer_cb, 1000, NULL);
-  }
-}
 
 // 부팅 모드 전용 디지털 시계 UI 생성
 static void create_boot_ui(void) {
