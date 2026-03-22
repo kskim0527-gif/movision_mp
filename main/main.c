@@ -8919,10 +8919,10 @@ static void draw_analog_clock(int hour, int minute, int second) {
   const int cy = LCD_V_RES / 2;
   const int r = (LCD_H_RES < LCD_V_RES ? LCD_H_RES : LCD_V_RES) / 2 - 20;
 
-  // Hour Hand
+  // Hour Hand (Proportional increase and match thickness)
   double h_rad = ((hour % 12) * 30 + minute * 0.5 - 90) * M_PI / 180.0;
-  int hl = r * 0.5;
-  int h_off = 50; // Infill starts from 50px
+  int hl = r * 0.62; 
+  int h_off = 50; 
 
   // BG (Full length)
   s_clock1_hour_points[0].x = cx; s_clock1_hour_points[0].y = cy;
@@ -8937,10 +8937,10 @@ static void draw_analog_clock(int hour, int minute, int second) {
   s_clock1_hour_fg_points[1].y = s_clock1_hour_points[1].y;
   lv_line_set_points(s_clock1_hour_fg, s_clock1_hour_fg_points, 2);
 
-  // Minute Hand
+  // Minute Hand (Maximize length)
   double m_rad = (minute * 6 + second * 0.1 - 90) * M_PI / 180.0;
-  int ml = r * 0.75;
-  int m_off = 50; // Infill starts from 50px
+  int ml = r * 0.92; 
+  int m_off = 50; 
 
   // BG (Full length)
   s_clock1_minute_points[0].x = cx; s_clock1_minute_points[0].y = cy;
@@ -8996,12 +8996,12 @@ static void create_clock_ui(void) {
   lv_color_t dark_fill = lv_color_make(32, 32, 32);     
 
   s_clock1_hour_bg = lv_line_create(s_clock_screen);
-  lv_obj_set_style_line_width(s_clock1_hour_bg, 26, 0);
+  lv_obj_set_style_line_width(s_clock1_hour_bg, 22, 0); // Matched to minute
   lv_obj_set_style_line_color(s_clock1_hour_bg, lv_color_white(), 0);
   lv_obj_set_style_line_rounded(s_clock1_hour_bg, true, 0);
 
   s_clock1_hour_fg = lv_line_create(s_clock_screen);
-  lv_obj_set_style_line_width(s_clock1_hour_fg, 14, 0);
+  lv_obj_set_style_line_width(s_clock1_hour_fg, 10, 0); // Matched to minute
   lv_obj_set_style_line_color(s_clock1_hour_fg, dark_fill, 0);
   lv_obj_set_style_line_rounded(s_clock1_hour_fg, true, 0);
 
