@@ -9661,7 +9661,13 @@ static void create_setting_ui(void) {
     lv_obj_align_to(val_label, colon_label, LV_ALIGN_OUT_RIGHT_MID, 15, 0);
   }
 
-  // --- 2. QR Code (White theme, Center @ Y=+120) ---
+  // --- 2. URL Text and QR Code (White theme, Center @ Y=+120) ---
+  lv_obj_t *url_label = lv_label_create(s_setting_page2_obj);
+  lv_obj_set_style_text_font(url_label, &font_addr_30, 0);
+  lv_obj_set_style_text_color(url_label, lv_color_hex(0xFFFF00), 0);
+  lv_label_set_text(url_label, "www.naver.com");
+  lv_obj_align(url_label, LV_ALIGN_TOP_MID, 0, 165);
+
   lv_obj_t *qr = lv_qrcode_create(s_setting_page2_obj, 120, lv_color_black(), lv_color_white());
   if (qr) {
     const char *qr_data = "Model:MOVISION HUD1,SW:V260322,SN:OA2B1-00001";
