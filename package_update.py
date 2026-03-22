@@ -8,7 +8,7 @@ def package(board_name="hd1"):
     update_root = r"C:\vscode\movition_ws\update"
     
     # Custom naming logic as per user request
-    if board_name == "0223":
+    if board_name == "movision":
         folder_name = f"update_movision_v{version}"
     elif board_name in ["ws", "hd1"]:
         folder_name = f"update_movision_ws_v{version}"

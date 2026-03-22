@@ -29,9 +29,9 @@ if %errorlevel% neq 0 goto :error
 
 echo.
 echo ==========================================
-echo [2/2] Building for movision-0223...
+echo [2/2] Building for movision...
 echo ==========================================
-"%PYTHON_EXE%" "%SCRIPT_APPLY_PIN%" 0223
+"%PYTHON_EXE%" "%SCRIPT_APPLY_PIN%" movision
 if %errorlevel% neq 0 goto :error
 
 :: Force clean build for the second board too
@@ -41,7 +41,7 @@ if exist build rd /s /q build
 call "%PYTHON_EXE%" "%IDF_PATH%\tools\idf.py" build
 if %errorlevel% neq 0 goto :error
 
-"%PYTHON_EXE%" "%SCRIPT_PACKAGE%" 0223
+"%PYTHON_EXE%" "%SCRIPT_PACKAGE%" movision
 if %errorlevel% neq 0 goto :error
 
 echo.

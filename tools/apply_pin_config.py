@@ -26,7 +26,7 @@ WS_PINS = """// board_config.h - movision_ws
 #endif
 """
 
-B0223_PINS = """// board_config.h - movision (0223)
+MOVISION_PINS = """// board_config.h - movision
 #ifndef BOARD_CONFIG_H
 #define BOARD_CONFIG_H
 #include "driver/gpio.h"
@@ -52,8 +52,8 @@ B0223_PINS = """// board_config.h - movision (0223)
 def apply_config(board_type):
     if board_type == "ws":
         content = WS_PINS
-    elif board_type == "0223":
-        content = B0223_PINS
+    elif board_type == "movision":
+        content = MOVISION_PINS
     else:
         print(f"Unknown board type: {board_type}")
         return False
@@ -65,6 +65,6 @@ def apply_config(board_type):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python apply_pin_config.py [ws|0223]")
+        print("Usage: python apply_pin_config.py [ws|movision]")
     else:
         apply_config(sys.argv[1])
