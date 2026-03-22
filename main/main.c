@@ -9661,20 +9661,20 @@ static void create_setting_ui(void) {
     lv_obj_align_to(val_label, colon_label, LV_ALIGN_OUT_RIGHT_MID, 15, 0);
   }
 
-  // --- 2. URL Text and QR Code (White theme, Center @ Y=+120) ---
+  // --- 2. URL Text and QR Code (White theme, Shifted UP by 50px) ---
   lv_obj_t *url_label = lv_label_create(s_setting_page2_obj);
   lv_obj_set_style_text_font(url_label, &font_addr_30, 0);
   lv_obj_set_style_text_color(url_label, lv_color_hex(0xFFFF00), 0);
   lv_label_set_text(url_label, "www.naver.com");
-  lv_obj_align(url_label, LV_ALIGN_TOP_MID, 0, 165);
+  lv_obj_align(url_label, LV_ALIGN_TOP_MID, 0, 115);
 
   lv_obj_t *qr = lv_qrcode_create(s_setting_page2_obj, 120, lv_color_black(), lv_color_white());
   if (qr) {
     const char *qr_data = "Model:MOVISION HUD1,SW:V260322,SN:OA2B1-00001";
     lv_qrcode_update(qr, qr_data, strlen(qr_data));
-    // Based on center (240, 240): Target Y center = 360 (+120). Container top = 99. 360-99= 261 (Relative Y center).
-    // Target Y top = 261 - 60 = 201.
-    lv_obj_align(qr, LV_ALIGN_TOP_MID, 0, 201); 
+    // Center was @ Y=+120 (360). Shifted UP 50 -> Target Center Y=310.
+    // Container top = 99. Relative Y center = 211. Relative Y top = 211 - 60 = 151.
+    lv_obj_align(qr, LV_ALIGN_TOP_MID, 0, 151); 
     
     // Clean white border for the QR
     lv_obj_set_style_border_color(qr, lv_color_white(), 0);
