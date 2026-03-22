@@ -1,7 +1,7 @@
 @echo off
-set "IDF_PATH=C:\esp\v5.5.3\esp-idf"
+set "IDF_PATH=C:\esp"
 set "PATH=C:\Espressif\tools\xtensa-esp-elf\esp-14.2.0_20251107\xtensa-esp-elf\bin;C:\Espressif\tools\ninja\1.12.1;C:\Espressif\tools\cmake\3.30.2\bin;%PATH%"
-set "PYTHON=C:\Espressif\tools\python\v5.5.3\venv\Scripts\python.exe"
+set "PYTHON=C:\Espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe"
 set "IDF_SKIP_CHECK_SUBMODULES=1"
 
 echo ========================================
