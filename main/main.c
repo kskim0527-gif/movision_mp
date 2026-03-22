@@ -9118,14 +9118,11 @@ static void create_clock2_ui(void) {
   lv_obj_set_style_line_rounded(s_clock2_second_line, true, 0);
   lv_obj_clear_flag(s_clock2_second_line, LV_OBJ_FLAG_CLICKABLE);
 
-  // Center Cap (Gold matching hands to complete aesthetic)
-  lv_obj_t *center = lv_obj_create(s_clock2_screen);
-  lv_obj_set_size(center, 12, 12);
-  lv_obj_set_style_radius(center, LV_RADIUS_CIRCLE, 0);
-  lv_obj_set_style_bg_color(center, gold_color, 0);
-  lv_obj_set_style_border_width(center, 0, 0);
-  lv_obj_clear_flag(center, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_center(center);
+  // Center Image (Aesthetic cap from center.png)
+  lv_obj_t *center_img = lv_img_create(s_clock2_screen);
+  lv_img_set_src(center_img, "S:/littlefs/clock_2/center.png");
+  lv_obj_center(center_img);
+  lv_obj_clear_flag(center_img, LV_OBJ_FLAG_CLICKABLE);
 }
 
 static void scan_intro_images(void);
