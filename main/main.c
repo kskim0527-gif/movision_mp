@@ -9636,15 +9636,15 @@ static void create_setting_ui(void) {
   const char *keys[] = {"Model", "S/W Ver.", "Serial No"};
   const char *values[] = {"MOVISION HUD1", "V260322", "OA2B1-00001"};
   int start_y = 5;
-  int row_h = 34; // font_addr_30 height (~30) + 4px gap
+  int row_h = 40; // font_addr_30 height (~30) + 10px gap
 
   for (int i = 0; i < 3; i++) {
-    // Colon (Center Reference)
+    // Colon (Center Reference - Move Left by 60px)
     lv_obj_t *colon_label = lv_label_create(s_setting_page2_obj);
     lv_obj_set_style_text_font(colon_label, &font_addr_30, 0);
     lv_obj_set_style_text_color(colon_label, lv_color_hex(0xFFFF00), 0);
     lv_label_set_text(colon_label, ":");
-    lv_obj_align(colon_label, LV_ALIGN_TOP_MID, 0, start_y + (i * row_h));
+    lv_obj_align(colon_label, LV_ALIGN_TOP_MID, -60, start_y + (i * row_h));
 
     // Key (To the left of colon)
     lv_obj_t *key_label = lv_label_create(s_setting_page2_obj);
