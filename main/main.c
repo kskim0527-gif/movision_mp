@@ -9625,7 +9625,7 @@ static void create_setting_ui(void) {
 
   // --- PAGE 2 CONTAINER ---
   s_setting_page2_obj = lv_obj_create(s_setting_screen);
-  lv_obj_set_size(s_setting_page2_obj, 460, 280);
+  lv_obj_set_size(s_setting_page2_obj, 460, 360); // Expanded height for lower QR
   lv_obj_align(s_setting_page2_obj, LV_ALIGN_TOP_MID, 0, 99);
   lv_obj_set_style_bg_opa(s_setting_page2_obj, 0, 0);
   lv_obj_set_style_border_width(s_setting_page2_obj, 0, 0);
@@ -9661,12 +9661,14 @@ static void create_setting_ui(void) {
     lv_obj_align_to(val_label, colon_label, LV_ALIGN_OUT_RIGHT_MID, 15, 0);
   }
 
-  // --- 2. QR Code (White theme, Bottom Aligned) ---
+  // --- 2. QR Code (White theme, Center @ Y=+150) ---
   lv_obj_t *qr = lv_qrcode_create(s_setting_page2_obj, 120, lv_color_black(), lv_color_white());
   if (qr) {
     const char *qr_data = "Model:MOVISION HUD1,SW:V260322,SN:OA2B1-00001";
     lv_qrcode_update(qr, qr_data, strlen(qr_data));
-    lv_obj_align(qr, LV_ALIGN_BOTTOM_MID, 0, -5); // Positioned at bottom with slight padding
+    // Based on center (240, 240): Target Y center = 390. Container top = 99. 390-99= 291 (Relative Y center).
+    // Target Y top = 291 - 60 = 231.
+    lv_obj_align(qr, LV_ALIGN_TOP_MID, 0, 231); 
     
     // Clean white border for the QR
     lv_obj_set_style_border_color(qr, lv_color_white(), 0);
