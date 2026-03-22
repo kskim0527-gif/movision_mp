@@ -12,9 +12,9 @@ set "SCRIPT_APPLY_PIN=tools\apply_pin_config.py"
 set "SCRIPT_PACKAGE=package_update.py"
 
 echo ==========================================
-echo [1/2] Building for movision_ws...
+echo [1/2] Building for movision...
 echo ==========================================
-"%PYTHON_EXE%" "%SCRIPT_APPLY_PIN%" ws
+"%PYTHON_EXE%" "%SCRIPT_APPLY_PIN%" movision
 if %errorlevel% neq 0 goto :error
 
 :: Force clean build by removing build directory
@@ -24,14 +24,14 @@ if exist build rd /s /q build
 call "%PYTHON_EXE%" "%IDF_PATH%\tools\idf.py" build
 if %errorlevel% neq 0 goto :error
 
-"%PYTHON_EXE%" "%SCRIPT_PACKAGE%" ws
+"%PYTHON_EXE%" "%SCRIPT_PACKAGE%" movision
 if %errorlevel% neq 0 goto :error
 
 echo.
 echo ==========================================
-echo [2/2] Building for movision...
+echo [2/2] Building for movision_ws...
 echo ==========================================
-"%PYTHON_EXE%" "%SCRIPT_APPLY_PIN%" movision
+"%PYTHON_EXE%" "%SCRIPT_APPLY_PIN%" ws
 if %errorlevel% neq 0 goto :error
 
 :: Force clean build for the second board too
@@ -41,7 +41,7 @@ if exist build rd /s /q build
 call "%PYTHON_EXE%" "%IDF_PATH%\tools\idf.py" build
 if %errorlevel% neq 0 goto :error
 
-"%PYTHON_EXE%" "%SCRIPT_PACKAGE%" movision
+"%PYTHON_EXE%" "%SCRIPT_PACKAGE%" ws
 if %errorlevel% neq 0 goto :error
 
 echo.
