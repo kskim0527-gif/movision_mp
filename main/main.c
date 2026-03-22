@@ -1,4 +1,4 @@
-﻿#define LV_USE_GIF 1
+#define LV_USE_GIF 1
 // #define FACTORY_RESCUE_MODE // Factory(1MB) 빌드 시 이 주석을 해제하세요.
 #include <stdbool.h>
 #include <stdint.h>
@@ -9632,35 +9632,47 @@ static void create_setting_ui(void) {
   lv_obj_set_scrollbar_mode(s_setting_page2_obj, LV_SCROLLBAR_MODE_OFF);
   lv_obj_add_flag(s_setting_page2_obj, LV_OBJ_FLAG_HIDDEN);
 
-  // 1. WiFi OTA Update Button
-  lv_obj_t *ota_btn = lv_btn_create(s_setting_page2_obj);
-  lv_obj_set_size(ota_btn, 240, 60);
-  lv_obj_align(ota_btn, LV_ALIGN_TOP_MID, 0, 20);
-  lv_obj_set_style_bg_color(ota_btn, lv_color_hex(0x0066CC), 0);
-  lv_obj_set_style_radius(ota_btn, 10, 0);
-  lv_obj_add_event_cb(ota_btn, ota_btn_event_cb, LV_EVENT_CLICKED, NULL);
+  // --- 1. Info Texts with Colon Alignment ---
+  const char *keys[] = {"Model", "S/W Version", "Serial No"};
+  const char *values[] = {"MOVISION HUD1", "V260322", "OA2B1-00001"};
+  int start_y = 5;
+  int row_h = 35;
 
-  lv_obj_t *ota_label = lv_label_create(ota_btn);
-  lv_obj_set_style_text_font(ota_label, &font_addr_30, 0);
-  lv_label_set_text(ota_label, "WiFi OTA 업데이트");
-  lv_obj_center(ota_label);
+  for (int i = 0; i < 3; i++) {
+    // Key Label (Right aligned to center point)
+    lv_obj_t *key_label = lv_label_create(s_setting_page2_obj);
+    lv_obj_set_style_text_font(key_label, &font_addr_30, 0);
+    lv_obj_set_style_text_color(key_label, lv_color_hex(0xFFFF00), 0);
+    lv_label_set_text(key_label, keys[i]);
+    lv_obj_align(key_label, LV_ALIGN_TOP_RIGHT, -240, start_y + (i * row_h)); // -240 from right edge of 460w container is approx center-left
 
-  // 2. Version Info
-  lv_obj_t *rev_label = lv_label_create(s_setting_page2_obj);
-  lv_obj_set_style_text_font(rev_label, &font_kopub_30, 0);
-  lv_obj_set_style_text_color(rev_label, lv_color_hex(0xCCCCCC), 0);
-  const esp_app_desc_t *app_desc = esp_app_get_description();
-  char ver_buf[64];
-  snprintf(ver_buf, sizeof(ver_buf), "S/W Version: %s", app_desc->version);
-  lv_label_set_text(rev_label, ver_buf);
-  lv_obj_align(rev_label, LV_ALIGN_TOP_MID, 0, 120);
+    // Colon Label
+    lv_obj_t *colon_label = lv_label_create(s_setting_page2_obj);
+    lv_obj_set_style_text_font(colon_label, &font_addr_30, 0);
+    lv_obj_set_style_text_color(colon_label, lv_color_hex(0xFFFF00), 0);
+    lv_label_set_text(colon_label, " : ");
+    lv_obj_align(colon_label, LV_ALIGN_TOP_MID, -25, start_y + (i * row_h));
 
-  // 3. Brand Label
-  lv_obj_t *brand_label = lv_label_create(s_setting_page2_obj);
-  lv_obj_set_style_text_font(brand_label, &font_kopub_40, 0);
-  lv_obj_set_style_text_color(brand_label, lv_color_white(), 0);
-  lv_label_set_text(brand_label, "movision");
-  lv_obj_align(brand_label, LV_ALIGN_TOP_MID, 0, 180);
+    // Value Label (Left aligned from center point)
+    lv_obj_t *val_label = lv_label_create(s_setting_page2_obj);
+    lv_obj_set_style_text_font(val_label, &font_addr_30, 0);
+    lv_obj_set_style_text_color(val_label, lv_color_hex(0xFFFF00), 0);
+    lv_label_set_text(val_label, values[i]);
+    lv_obj_align(val_label, LV_ALIGN_TOP_LEFT, 215, start_y + (i * row_h)); // 215 from left edge
+  }
+
+  // --- 2. QR Code (Page Content) ---
+  lv_obj_t *qr = lv_qrcode_create(s_setting_page2_obj, 110, lv_color_black(), lv_color_hex(0xFFFF00));
+  if (qr) {
+    const char *qr_data = "Model:MOVISION HUD1,SW:V260322,SN:OA2B1-00001";
+    lv_qrcode_update(qr, qr_data, strlen(qr_data));
+    lv_obj_align(qr, LV_ALIGN_TOP_MID, 0, 115);
+    
+    // Aesthetic border for QR
+    lv_obj_set_style_border_color(qr, lv_color_hex(0xFFFF00), 0);
+    lv_obj_set_style_border_width(qr, 3, 0);
+    lv_obj_set_style_border_side(qr, LV_BORDER_SIDE_FULL, 0);
+  }
 
   // Initial state update
   set_lcd_brightness(s_brightness_level);
