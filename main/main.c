@@ -9072,8 +9072,8 @@ static void draw_analog_clock2(int hour, int minute, int second) {
   // Second Hand (Thin Gold Stick)
   double second_angle = (second * 6 - 90) * M_PI / 180.0;
   int second_len = radius * 0.85;
-  // Tail implementation for second hand
-  int second_tail = -20;
+  // Tail implementation for second hand (Extended to 50px)
+  int second_tail = -50;
   s_clock2_second_points[0].x =
       center_x + (int)(second_tail * cos(second_angle));
   s_clock2_second_points[0].y =
