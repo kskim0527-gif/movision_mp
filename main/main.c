@@ -8830,7 +8830,9 @@ static lv_obj_t *s_clock1_hour_fg;
 static lv_obj_t *s_clock1_minute_bg;
 static lv_obj_t *s_clock1_minute_fg;
 static lv_point_t s_clock1_hour_points[2];
+static lv_point_t s_clock1_hour_fg_points[2];
 static lv_point_t s_clock1_minute_points[2];
+static lv_point_t s_clock1_minute_fg_points[2];
 static lv_obj_t *s_clock_bg_img = NULL;
 static lv_obj_t *s_clock_center_dot = NULL;
 
@@ -8879,12 +8881,6 @@ static void clock_timer_cb(lv_timer_t *timer) {
                             week_days[wday % 7]);
     }
   } else if (s_current_mode == DISPLAY_MODE_CLOCK1) {
-    if (s_clock_wday_label) {
-      lv_label_set_text(s_clock_wday_label, week_days[wday]);
-    }
-    if (s_clock_day_label) {
-      lv_label_set_text_fmt(s_clock_day_label, "%02d", day);
-    }
     draw_analog_clock(hour, minute, second);
   } else if (s_current_mode == DISPLAY_MODE_CLOCK2) {
     draw_analog_clock2(hour, minute, second);
@@ -8923,21 +8919,41 @@ static void draw_analog_clock(int hour, int minute, int second) {
   const int cy = LCD_V_RES / 2;
   const int r = (LCD_H_RES < LCD_V_RES ? LCD_H_RES : LCD_V_RES) / 2 - 20;
 
+  // Hour Hand
   double h_rad = ((hour % 12) * 30 + minute * 0.5 - 90) * M_PI / 180.0;
   int hl = r * 0.5;
+  int h_off = 50; // Infill starts from 50px
+
+  // BG (Full length)
   s_clock1_hour_points[0].x = cx; s_clock1_hour_points[0].y = cy;
   s_clock1_hour_points[1].x = cx + (int)(hl * cos(h_rad));
   s_clock1_hour_points[1].y = cy + (int)(hl * sin(h_rad));
   lv_line_set_points(s_clock1_hour_bg, s_clock1_hour_points, 2);
-  lv_line_set_points(s_clock1_hour_fg, s_clock1_hour_points, 2);
 
+  // FG (Offset Start)
+  s_clock1_hour_fg_points[0].x = cx + (int)(h_off * cos(h_rad));
+  s_clock1_hour_fg_points[0].y = cy + (int)(h_off * sin(h_rad));
+  s_clock1_hour_fg_points[1].x = s_clock1_hour_points[1].x;
+  s_clock1_hour_fg_points[1].y = s_clock1_hour_points[1].y;
+  lv_line_set_points(s_clock1_hour_fg, s_clock1_hour_fg_points, 2);
+
+  // Minute Hand
   double m_rad = (minute * 6 + second * 0.1 - 90) * M_PI / 180.0;
   int ml = r * 0.75;
+  int m_off = 50; // Infill starts from 50px
+
+  // BG (Full length)
   s_clock1_minute_points[0].x = cx; s_clock1_minute_points[0].y = cy;
   s_clock1_minute_points[1].x = cx + (int)(ml * cos(m_rad));
   s_clock1_minute_points[1].y = cy + (int)(ml * sin(m_rad));
   lv_line_set_points(s_clock1_minute_bg, s_clock1_minute_points, 2);
-  lv_line_set_points(s_clock1_minute_fg, s_clock1_minute_points, 2);
+
+  // FG (Offset Start)
+  s_clock1_minute_fg_points[0].x = cx + (int)(m_off * cos(m_rad));
+  s_clock1_minute_fg_points[0].y = cy + (int)(m_off * sin(m_rad));
+  s_clock1_minute_fg_points[1].x = s_clock1_minute_points[1].x;
+  s_clock1_minute_fg_points[1].y = s_clock1_minute_points[1].y;
+  lv_line_set_points(s_clock1_minute_fg, s_clock1_minute_fg_points, 2);
 }
 
 static void draw_analog_clock2(int hour, int minute, int second) {
@@ -9005,16 +9021,6 @@ static void create_clock_ui(void) {
   lv_obj_set_style_bg_color(s_clock_center_dot, lv_color_white(), 0);
   lv_obj_set_style_border_width(s_clock_center_dot, 0, 0);
   lv_obj_center(s_clock_center_dot);
-
-  s_clock_day_label = lv_label_create(s_clock_screen);
-  lv_obj_set_style_text_font(s_clock_day_label, &font_kopub_30, 0);
-  lv_obj_set_style_text_color(s_clock_day_label, lv_color_make(200, 200, 200), 0);
-  lv_obj_align(s_clock_day_label, LV_ALIGN_CENTER, -40, 60);
-  
-  s_clock_wday_label = lv_label_create(s_clock_screen);
-  lv_obj_set_style_text_font(s_clock_wday_label, &font_kopub_30, 0);
-  lv_obj_set_style_text_color(s_clock_wday_label, lv_color_make(200, 200, 200), 0);
-  lv_obj_align(s_clock_wday_label, LV_ALIGN_CENTER, 40, 60);
 
   if (s_clock_timer == NULL) s_clock_timer = lv_timer_create(clock_timer_cb, 1000, NULL);
 }
