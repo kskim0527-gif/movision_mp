@@ -8835,13 +8835,13 @@ static lv_point_t s_hour_poly_points[11];
 static lv_point_t s_min_poly_points[11];
 static lv_point_t s_second_poly_points[2];
 
-// Clock 2 Objects
-static lv_obj_t *s_clock2_hour_line;
-static lv_obj_t *s_clock2_minute_line;
-static lv_obj_t *s_clock2_second_line;
+// Clock 2 Objects (Pill Style)
+static lv_obj_t *s_clock2_hour_bg;
+static lv_obj_t *s_clock2_hour_fg;
+static lv_obj_t *s_clock2_minute_bg;
+static lv_obj_t *s_clock2_minute_fg;
 static lv_point_t s_clock2_hour_points[2];
 static lv_point_t s_clock2_minute_points[2];
-static lv_point_t s_clock2_second_points[2];
 
 static lv_timer_t *s_clock_timer = NULL;
 static lv_obj_t *s_clock_wday_label = NULL; // Day of Week (SUN, MON...)
@@ -9040,49 +9040,38 @@ static void draw_analog_clock(int hour, int minute, int second) {
     lv_line_set_points(s_second_line, s_second_poly_points, 2);
 }
 
-// Draw function for Clock 2 (Modern Gold Style)
+// Draw function for Clock 2 (Modern Pill Style)
 static void draw_analog_clock2(int hour, int minute, int second) {
-  if (!s_clock2_second_line)
+  if (!s_clock2_hour_bg)
     return;
 
   const int center_x = LCD_H_RES / 2;
   const int center_y = LCD_V_RES / 2;
   const int radius = (LCD_H_RES < LCD_V_RES ? LCD_H_RES : LCD_V_RES) / 2 - 20;
 
-  // Hour Hand (Thick Gold Stick)
+  // Hour Hand Angle
   double hour_angle = ((hour % 12) * 30 + minute * 0.5 - 90) * M_PI / 180.0;
-  int hour_len = radius * 0.55;
+  int hour_len = radius * 0.5; // Slightly shorter for hour
   s_clock2_hour_points[0].x = center_x;
   s_clock2_hour_points[0].y = center_y;
   s_clock2_hour_points[1].x = center_x + (int)(hour_len * cos(hour_angle));
   s_clock2_hour_points[1].y = center_y + (int)(hour_len * sin(hour_angle));
-  lv_line_set_points(s_clock2_hour_line, s_clock2_hour_points, 2);
+  
+  // Update Hour Layers
+  lv_line_set_points(s_clock2_hour_bg, s_clock2_hour_points, 2);
+  lv_line_set_points(s_clock2_hour_fg, s_clock2_hour_points, 2);
 
-  // Minute Hand (Medium Gold Stick)
+  // Minute Hand Angle
   double minute_angle = (minute * 6 + second * 0.1 - 90) * M_PI / 180.0;
-  int minute_len = radius * 0.8;
+  int minute_len = radius * 0.75;
   s_clock2_minute_points[0].x = center_x;
   s_clock2_minute_points[0].y = center_y;
-  s_clock2_minute_points[1].x =
-      center_x + (int)(minute_len * cos(minute_angle));
-  s_clock2_minute_points[1].y =
-      center_y + (int)(minute_len * sin(minute_angle));
-  lv_line_set_points(s_clock2_minute_line, s_clock2_minute_points, 2);
-
-  // Second Hand (Thin Gold Stick)
-  double second_angle = (second * 6 - 90) * M_PI / 180.0;
-  int second_len = radius * 0.85;
-  // Tail implementation for second hand (Extended to 50px)
-  int second_tail = -50;
-  s_clock2_second_points[0].x =
-      center_x + (int)(second_tail * cos(second_angle));
-  s_clock2_second_points[0].y =
-      center_y + (int)(second_tail * sin(second_angle));
-  s_clock2_second_points[1].x =
-      center_x + (int)(second_len * cos(second_angle));
-  s_clock2_second_points[1].y =
-      center_y + (int)(second_len * sin(second_angle));
-  lv_line_set_points(s_clock2_second_line, s_clock2_second_points, 2);
+  s_clock2_minute_points[1].x = center_x + (int)(minute_len * cos(minute_angle));
+  s_clock2_minute_points[1].y = center_y + (int)(minute_len * sin(minute_angle));
+  
+  // Update Minute Layers
+  lv_line_set_points(s_clock2_minute_bg, s_clock2_minute_points, 2);
+  lv_line_set_points(s_clock2_minute_fg, s_clock2_minute_points, 2);
 }
 
 static void create_clock2_ui(void) {
@@ -9097,28 +9086,37 @@ static void create_clock2_ui(void) {
   lv_obj_center(bg_img);
   lv_obj_clear_flag(bg_img, LV_OBJ_FLAG_CLICKABLE);
 
-  // Hands (Classic Gold Sticks)
-  lv_color_t gold_color = lv_color_make(220, 190, 120); // Soft Gold/Beige
+  // Colors for Pill Style Hands (Samsung Watch Inspired)
+  lv_color_t orange_fill = lv_color_make(255, 100, 0); // Vibrant Orange for Minute
+  lv_color_t dark_fill = lv_color_make(32, 32, 32);     // Deep Grey for Hour
 
-  s_clock2_hour_line = lv_line_create(s_clock2_screen);
-  lv_obj_set_style_line_width(s_clock2_hour_line, 8, 0);
-  lv_obj_set_style_line_color(s_clock2_hour_line, gold_color, 0);
-  lv_obj_set_style_line_rounded(s_clock2_hour_line, true, 0);
-  lv_obj_clear_flag(s_clock2_hour_line, LV_OBJ_FLAG_CLICKABLE);
+  // --- HOUR HAND (BG + FG) ---
+  s_clock2_hour_bg = lv_line_create(s_clock2_screen);
+  lv_obj_set_style_line_width(s_clock2_hour_bg, 26, 0);
+  lv_obj_set_style_line_color(s_clock2_hour_bg, lv_color_white(), 0);
+  lv_obj_set_style_line_rounded(s_clock2_hour_bg, true, 0);
+  lv_obj_clear_flag(s_clock2_hour_bg, LV_OBJ_FLAG_CLICKABLE);
 
-  s_clock2_minute_line = lv_line_create(s_clock2_screen);
-  lv_obj_set_style_line_width(s_clock2_minute_line, 5, 0);
-  lv_obj_set_style_line_color(s_clock2_minute_line, gold_color, 0);
-  lv_obj_set_style_line_rounded(s_clock2_minute_line, true, 0);
-  lv_obj_clear_flag(s_clock2_minute_line, LV_OBJ_FLAG_CLICKABLE);
+  s_clock2_hour_fg = lv_line_create(s_clock2_screen);
+  lv_obj_set_style_line_width(s_clock2_hour_fg, 14, 0);
+  lv_obj_set_style_line_color(s_clock2_hour_fg, dark_fill, 0);
+  lv_obj_set_style_line_rounded(s_clock2_hour_fg, true, 0);
+  lv_obj_clear_flag(s_clock2_hour_fg, LV_OBJ_FLAG_CLICKABLE);
 
-  s_clock2_second_line = lv_line_create(s_clock2_screen);
-  lv_obj_set_style_line_width(s_clock2_second_line, 2, 0);
-  lv_obj_set_style_line_color(s_clock2_second_line, gold_color, 0);
-  lv_obj_set_style_line_rounded(s_clock2_second_line, true, 0);
-  lv_obj_clear_flag(s_clock2_second_line, LV_OBJ_FLAG_CLICKABLE);
+  // --- MINUTE HAND (BG + FG) ---
+  s_clock2_minute_bg = lv_line_create(s_clock2_screen);
+  lv_obj_set_style_line_width(s_clock2_minute_bg, 22, 0);
+  lv_obj_set_style_line_color(s_clock2_minute_bg, lv_color_white(), 0);
+  lv_obj_set_style_line_rounded(s_clock2_minute_bg, true, 0);
+  lv_obj_clear_flag(s_clock2_minute_bg, LV_OBJ_FLAG_CLICKABLE);
 
-  // Center Image (Aesthetic cap from center.png)
+  s_clock2_minute_fg = lv_line_create(s_clock2_screen);
+  lv_obj_set_style_line_width(s_clock2_minute_fg, 10, 0);
+  lv_obj_set_style_line_color(s_clock2_minute_fg, orange_fill, 0);
+  lv_obj_set_style_line_rounded(s_clock2_minute_fg, true, 0);
+  lv_obj_clear_flag(s_clock2_minute_fg, LV_OBJ_FLAG_CLICKABLE);
+
+  // Center Image (Aesthetic cap from center.png) - Put on top to cover the pivot
   lv_obj_t *center_img = lv_img_create(s_clock2_screen);
   lv_img_set_src(center_img, "S:/littlefs/clock_2/center.png");
   lv_obj_center(center_img);
