@@ -8374,6 +8374,24 @@ static esp_err_t init_ble(void) {
   s_read_uuid.uuid.uuid128[12] = 0xf1; // FFF1
   s_read_uuid.uuid.uuid128[13] = 0xff;
 
+// Clock 1 Objects (Pill Style Redesign)
+static lv_obj_t *s_clock1_hour_bg;
+static lv_obj_t *s_clock1_hour_fg;
+static lv_obj_t *s_clock1_minute_bg;
+static lv_obj_t *s_clock1_minute_fg;
+static lv_point_t s_clock1_hour_points[2];
+static lv_point_t s_clock1_minute_points[2];
+static lv_obj_t *s_clock_bg_img = NULL;
+static lv_obj_t *s_clock_center_dot = NULL;
+
+// Clock 2 Objects (Reverted to Gold Stick Style)
+static lv_obj_t *s_clock2_hour_line;
+static lv_obj_t *s_clock2_minute_line;
+static lv_obj_t *s_clock2_second_line;
+static lv_point_t s_clock2_hour_points[2];
+static lv_point_t s_clock2_minute_points[2];
+static lv_point_t s_clock2_second_points[2];
+
   s_write_uuid.len = ESP_UUID_LEN_128;
   memcpy(s_write_uuid.uuid.uuid128, s_hud_svc_uuid128, 16);
   s_write_uuid.uuid.uuid128[12] = 0xf2; // FFF2
@@ -8823,25 +8841,23 @@ void save_packet_to_sdcard(const uint8_t *data, size_t len,
 // Helper declarations
 static void draw_analog_clock(int hour, int minute, int second);
 
-static lv_obj_t *s_hour_line;
-static lv_obj_t *s_minute_line;
-static lv_obj_t *s_second_line;
+// Clock 1 Objects (Pill Style Redesign)
+static lv_obj_t *s_clock1_hour_bg;
+static lv_obj_t *s_clock1_hour_fg;
+static lv_obj_t *s_clock1_minute_bg;
+static lv_obj_t *s_clock1_minute_fg;
+static lv_point_t s_clock1_hour_points[2];
+static lv_point_t s_clock1_minute_points[2];
 static lv_obj_t *s_clock_bg_img = NULL;
 static lv_obj_t *s_clock_center_dot = NULL;
 
-// Polygon points for high-performance sword hands (Refined to 11 points for
-// hollow frame)
-static lv_point_t s_hour_poly_points[11];
-static lv_point_t s_min_poly_points[11];
-static lv_point_t s_second_poly_points[2];
-
-// Clock 2 Objects (Pill Style)
-static lv_obj_t *s_clock2_hour_bg;
-static lv_obj_t *s_clock2_hour_fg;
-static lv_obj_t *s_clock2_minute_bg;
-static lv_obj_t *s_clock2_minute_fg;
+// Clock 2 Objects (Reverted to Gold Stick Style)
+static lv_obj_t *s_clock2_hour_line;
+static lv_obj_t *s_clock2_minute_line;
+static lv_obj_t *s_clock2_second_line;
 static lv_point_t s_clock2_hour_points[2];
 static lv_point_t s_clock2_minute_points[2];
+static lv_point_t s_clock2_second_points[2];
 
 static lv_timer_t *s_clock_timer = NULL;
 static lv_obj_t *s_clock_wday_label = NULL; // Day of Week (SUN, MON...)
@@ -8984,143 +9000,134 @@ static void rotate_point(int px, int py, double angle_rad, int *ox, int *oy) {
 }
 
 static void draw_analog_clock(int hour, int minute, int second) {
+  if (!s_clock1_hour_bg) return;
   const int cx = LCD_H_RES / 2;
   const int cy = LCD_V_RES / 2;
   const int r = (LCD_H_RES < LCD_V_RES ? LCD_H_RES : LCD_V_RES) / 2 - 20;
 
-  // 1. Hour Hand (Hollow Sword Frame)
   double h_rad = ((hour % 12) * 30 + minute * 0.5 - 90) * M_PI / 180.0;
-  int hl = r * 0.45;
-  int hw = 10; // Max width at shoulder
-  struct {
-    int x, y;
-  } h_raw[] = {{0, 0},        {8, 3},  {15, 3},        {20, hw},
-               {hl - 10, hw}, {hl, 0}, {hl - 10, -hw}, {20, -hw},
-               {15, -3},      {8, -3}, {0, 0}};
-  for (int i = 0; i < 11; i++) {
-    int tx, ty;
-    rotate_point(h_raw[i].x, h_raw[i].y, h_rad, &tx, &ty);
-    s_hour_poly_points[i].x = cx + tx;
-    s_hour_poly_points[i].y = cy + ty;
-  }
-  if (s_hour_line)
-    lv_line_set_points(s_hour_line, s_hour_poly_points, 11);
+  int hl = r * 0.5;
+  s_clock1_hour_points[0].x = cx; s_clock1_hour_points[0].y = cy;
+  s_clock1_hour_points[1].x = cx + (int)(hl * cos(h_rad));
+  s_clock1_hour_points[1].y = cy + (int)(hl * sin(h_rad));
+  lv_line_set_points(s_clock1_hour_bg, s_clock1_hour_points, 2);
+  lv_line_set_points(s_clock1_hour_fg, s_clock1_hour_points, 2);
 
-  // 2. Minute Hand (Long Hollow Sword Frame)
   double m_rad = (minute * 6 + second * 0.1 - 90) * M_PI / 180.0;
-  int ml = r * 0.70;
-  int mw = 8; // Max width at shoulder
-  struct {
-    int x, y;
-  } m_raw[] = {{0, 0},        {10, 3},  {18, 3},        {22, mw},
-               {ml - 15, mw}, {ml, 0},  {ml - 15, -mw}, {22, -mw},
-               {18, -3},      {10, -3}, {0, 0}};
-  for (int i = 0; i < 11; i++) {
-    int tx, ty;
-    rotate_point(m_raw[i].x, m_raw[i].y, m_rad, &tx, &ty);
-    s_min_poly_points[i].x = cx + tx;
-    s_min_poly_points[i].y = cy + ty;
-  }
-  if (s_minute_line)
-    lv_line_set_points(s_minute_line, s_min_poly_points, 11);
-
-  // 3. Second Hand (Red Needle with Tail)
-  double s_rad = (second * 6 - 90) * M_PI / 180.0;
-  int sl = r * 0.85;
-  struct {
-    int x, y;
-  } s_raw[] = {{-25, 0}, {sl, 0}}; // Tail to Tip
-  for (int i = 0; i < 2; i++) {
-    int tx, ty;
-    rotate_point(s_raw[i].x, s_raw[i].y, s_rad, &tx, &ty);
-    s_second_poly_points[i].x = cx + tx;
-    s_second_poly_points[i].y = cy + ty;
-  }
-  if (s_second_line)
-    lv_line_set_points(s_second_line, s_second_poly_points, 2);
+  int ml = r * 0.75;
+  s_clock1_minute_points[0].x = cx; s_clock1_minute_points[0].y = cy;
+  s_clock1_minute_points[1].x = cx + (int)(ml * cos(m_rad));
+  s_clock1_minute_points[1].y = cy + (int)(ml * sin(m_rad));
+  lv_line_set_points(s_clock1_minute_bg, s_clock1_minute_points, 2);
+  lv_line_set_points(s_clock1_minute_fg, s_clock1_minute_points, 2);
 }
 
-// Draw function for Clock 2 (Modern Pill Style)
 static void draw_analog_clock2(int hour, int minute, int second) {
-  if (!s_clock2_hour_bg)
-    return;
+  if (!s_clock2_hour_line) return;
+  const int cx = LCD_H_RES / 2;
+  const int cy = LCD_V_RES / 2;
+  const int r = (LCD_H_RES < LCD_V_RES ? LCD_H_RES : LCD_V_RES) / 2 - 20;
 
-  const int center_x = LCD_H_RES / 2;
-  const int center_y = LCD_V_RES / 2;
-  const int radius = (LCD_H_RES < LCD_V_RES ? LCD_H_RES : LCD_V_RES) / 2 - 20;
+  double h_rad = ((hour % 12) * 30 + minute * 0.5 - 90) * M_PI / 180.0;
+  int hl = r * 0.55;
+  s_clock2_hour_points[0].x = cx; s_clock2_hour_points[0].y = cy;
+  s_clock2_hour_points[1].x = cx + (int)(hl * cos(h_rad));
+  s_clock2_hour_points[1].y = cy + (int)(hl * sin(h_rad));
+  lv_line_set_points(s_clock2_hour_line, s_clock2_hour_points, 2);
 
-  // Hour Hand Angle
-  double hour_angle = ((hour % 12) * 30 + minute * 0.5 - 90) * M_PI / 180.0;
-  int hour_len = radius * 0.5; // Slightly shorter for hour
-  s_clock2_hour_points[0].x = center_x;
-  s_clock2_hour_points[0].y = center_y;
-  s_clock2_hour_points[1].x = center_x + (int)(hour_len * cos(hour_angle));
-  s_clock2_hour_points[1].y = center_y + (int)(hour_len * sin(hour_angle));
+  double m_rad = (minute * 6 + second * 0.1 - 90) * M_PI / 180.0;
+  int ml = r * 0.8;
+  s_clock2_minute_points[0].x = cx; s_clock2_minute_points[0].y = cy;
+  s_clock2_minute_points[1].x = cx + (int)(ml * cos(m_rad));
+  s_clock2_minute_points[1].y = cy + (int)(ml * sin(m_rad));
+  lv_line_set_points(s_clock2_minute_line, s_clock2_minute_points, 2);
+
+  double s_rad = (second * 6 - 90) * M_PI / 180.0;
+  int sl = r * 0.85;
+  int s_tail = -50;
+  s_clock2_second_points[0].x = cx + (int)(s_tail * cos(s_rad));
+  s_clock2_second_points[0].y = cy + (int)(s_tail * sin(s_rad));
+  s_clock2_second_points[1].x = cx + (int)(sl * cos(s_rad));
+  s_clock2_second_points[1].y = cy + (int)(sl * sin(s_rad));
+  lv_line_set_points(s_clock2_second_line, s_clock2_second_points, 2);
+}
+
+static void create_clock_ui(void) {
+  if (s_clock_screen == NULL) return;
+  s_clock_bg_img = lv_img_create(s_clock_screen);
+  lv_img_set_src(s_clock_bg_img, "S:/littlefs/clock_1/screen.png");
+  lv_obj_center(s_clock_bg_img);
+
+  lv_color_t orange_fill = lv_color_make(255, 100, 0); 
+  lv_color_t dark_fill = lv_color_make(32, 32, 32);     
+
+  s_clock1_hour_bg = lv_line_create(s_clock_screen);
+  lv_obj_set_style_line_width(s_clock1_hour_bg, 26, 0);
+  lv_obj_set_style_line_color(s_clock1_hour_bg, lv_color_white(), 0);
+  lv_obj_set_style_line_rounded(s_clock1_hour_bg, true, 0);
+
+  s_clock1_hour_fg = lv_line_create(s_clock_screen);
+  lv_obj_set_style_line_width(s_clock1_hour_fg, 14, 0);
+  lv_obj_set_style_line_color(s_clock1_hour_fg, dark_fill, 0);
+  lv_obj_set_style_line_rounded(s_clock1_hour_fg, true, 0);
+
+  s_clock1_minute_bg = lv_line_create(s_clock_screen);
+  lv_obj_set_style_line_width(s_clock1_minute_bg, 22, 0);
+  lv_obj_set_style_line_color(s_clock1_minute_bg, lv_color_white(), 0);
+  lv_obj_set_style_line_rounded(s_clock1_minute_bg, true, 0);
+
+  s_clock1_minute_fg = lv_line_create(s_clock_screen);
+  lv_obj_set_style_line_width(s_clock1_minute_fg, 10, 0);
+  lv_obj_set_style_line_color(s_clock1_minute_fg, orange_fill, 0);
+  lv_obj_set_style_line_rounded(s_clock1_minute_fg, true, 0);
+
+  s_clock_center_dot = lv_obj_create(s_clock_screen);
+  lv_obj_set_size(s_clock_center_dot, 12, 12);
+  lv_obj_set_style_radius(s_clock_center_dot, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_bg_color(s_clock_center_dot, lv_color_white(), 0);
+  lv_obj_set_style_border_width(s_clock_center_dot, 0, 0);
+  lv_obj_center(s_clock_center_dot);
+
+  s_clock_day_label = lv_label_create(s_clock_screen);
+  lv_obj_set_style_text_font(s_clock_day_label, &font_kopub_30, 0);
+  lv_obj_set_style_text_color(s_clock_day_label, lv_color_make(200, 200, 200), 0);
+  lv_obj_align(s_clock_day_label, LV_ALIGN_CENTER, -40, 60);
   
-  // Update Hour Layers
-  lv_line_set_points(s_clock2_hour_bg, s_clock2_hour_points, 2);
-  lv_line_set_points(s_clock2_hour_fg, s_clock2_hour_points, 2);
+  s_clock_wday_label = lv_label_create(s_clock_screen);
+  lv_obj_set_style_text_font(s_clock_wday_label, &font_kopub_30, 0);
+  lv_obj_set_style_text_color(s_clock_wday_label, lv_color_make(200, 200, 200), 0);
+  lv_obj_align(s_clock_wday_label, LV_ALIGN_CENTER, 40, 60);
 
-  // Minute Hand Angle
-  double minute_angle = (minute * 6 + second * 0.1 - 90) * M_PI / 180.0;
-  int minute_len = radius * 0.75;
-  s_clock2_minute_points[0].x = center_x;
-  s_clock2_minute_points[0].y = center_y;
-  s_clock2_minute_points[1].x = center_x + (int)(minute_len * cos(minute_angle));
-  s_clock2_minute_points[1].y = center_y + (int)(minute_len * sin(minute_angle));
-  
-  // Update Minute Layers
-  lv_line_set_points(s_clock2_minute_bg, s_clock2_minute_points, 2);
-  lv_line_set_points(s_clock2_minute_fg, s_clock2_minute_points, 2);
+  if (s_clock_timer == NULL) s_clock_timer = lv_timer_create(clock_timer_cb, 1000, NULL);
 }
 
 static void create_clock2_ui(void) {
-  if (s_clock2_screen != NULL)
-    return;
+  if (s_clock2_screen != NULL) return;
   s_clock2_screen = lv_obj_create(NULL);
   lv_obj_set_style_bg_color(s_clock2_screen, lv_color_black(), 0);
-
-  // Background Image (Rich Dark & Gold aesthetic from clock_2)
   lv_obj_t *bg_img = lv_img_create(s_clock2_screen);
   lv_img_set_src(bg_img, "S:/littlefs/clock_2/screen.png");
   lv_obj_center(bg_img);
-  lv_obj_clear_flag(bg_img, LV_OBJ_FLAG_CLICKABLE);
 
-  // Colors for Pill Style Hands (Samsung Watch Inspired)
-  lv_color_t orange_fill = lv_color_make(255, 100, 0); // Vibrant Orange for Minute
-  lv_color_t dark_fill = lv_color_make(32, 32, 32);     // Deep Grey for Hour
+  lv_color_t gold_color = lv_color_make(220, 190, 120);
+  s_clock2_hour_line = lv_line_create(s_clock2_screen);
+  lv_obj_set_style_line_width(s_clock2_hour_line, 8, 0);
+  lv_obj_set_style_line_color(s_clock2_hour_line, gold_color, 0);
+  lv_obj_set_style_line_rounded(s_clock2_hour_line, true, 0);
 
-  // --- HOUR HAND (BG + FG) ---
-  s_clock2_hour_bg = lv_line_create(s_clock2_screen);
-  lv_obj_set_style_line_width(s_clock2_hour_bg, 26, 0);
-  lv_obj_set_style_line_color(s_clock2_hour_bg, lv_color_white(), 0);
-  lv_obj_set_style_line_rounded(s_clock2_hour_bg, true, 0);
-  lv_obj_clear_flag(s_clock2_hour_bg, LV_OBJ_FLAG_CLICKABLE);
+  s_clock2_minute_line = lv_line_create(s_clock2_screen);
+  lv_obj_set_style_line_width(s_clock2_minute_line, 5, 0);
+  lv_obj_set_style_line_color(s_clock2_minute_line, gold_color, 0);
+  lv_obj_set_style_line_rounded(s_clock2_minute_line, true, 0);
 
-  s_clock2_hour_fg = lv_line_create(s_clock2_screen);
-  lv_obj_set_style_line_width(s_clock2_hour_fg, 14, 0);
-  lv_obj_set_style_line_color(s_clock2_hour_fg, dark_fill, 0);
-  lv_obj_set_style_line_rounded(s_clock2_hour_fg, true, 0);
-  lv_obj_clear_flag(s_clock2_hour_fg, LV_OBJ_FLAG_CLICKABLE);
+  s_clock2_second_line = lv_line_create(s_clock2_screen);
+  lv_obj_set_style_line_width(s_clock2_second_line, 2, 0);
+  lv_obj_set_style_line_color(s_clock2_second_line, gold_color, 0);
+  lv_obj_set_style_line_rounded(s_clock2_second_line, true, 0);
 
-  // --- MINUTE HAND (BG + FG) ---
-  s_clock2_minute_bg = lv_line_create(s_clock2_screen);
-  lv_obj_set_style_line_width(s_clock2_minute_bg, 22, 0);
-  lv_obj_set_style_line_color(s_clock2_minute_bg, lv_color_white(), 0);
-  lv_obj_set_style_line_rounded(s_clock2_minute_bg, true, 0);
-  lv_obj_clear_flag(s_clock2_minute_bg, LV_OBJ_FLAG_CLICKABLE);
-
-  s_clock2_minute_fg = lv_line_create(s_clock2_screen);
-  lv_obj_set_style_line_width(s_clock2_minute_fg, 10, 0);
-  lv_obj_set_style_line_color(s_clock2_minute_fg, orange_fill, 0);
-  lv_obj_set_style_line_rounded(s_clock2_minute_fg, true, 0);
-  lv_obj_clear_flag(s_clock2_minute_fg, LV_OBJ_FLAG_CLICKABLE);
-
-  // Center Image (Aesthetic cap from center.png) - Put on top to cover the pivot
   lv_obj_t *center_img = lv_img_create(s_clock2_screen);
   lv_img_set_src(center_img, "S:/littlefs/clock_2/center.png");
   lv_obj_center(center_img);
-  lv_obj_clear_flag(center_img, LV_OBJ_FLAG_CLICKABLE);
 }
 
 static void scan_intro_images(void);
