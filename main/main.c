@@ -9633,7 +9633,7 @@ static void create_setting_ui(void) {
   lv_obj_add_flag(s_setting_page2_obj, LV_OBJ_FLAG_HIDDEN);
 
   // --- 1. Info Texts Control (Centered Colon Alignment) ---
-  const char *keys[] = {"Model", "S/W Version", "Serial No"};
+  const char *keys[] = {"Model", "S/W Ver.", "Serial No"};
   const char *values[] = {"MOVISION HUD1", "V260322", "OA2B1-00001"};
   int start_y = 5;
   int row_h = 34; // font_addr_30 height (~30) + 4px gap
@@ -9661,14 +9661,14 @@ static void create_setting_ui(void) {
     lv_obj_align_to(val_label, colon_label, LV_ALIGN_OUT_RIGHT_MID, 15, 0);
   }
 
-  // --- 2. QR Code (White theme, Center @ Y=+150) ---
+  // --- 2. QR Code (White theme, Center @ Y=+120) ---
   lv_obj_t *qr = lv_qrcode_create(s_setting_page2_obj, 120, lv_color_black(), lv_color_white());
   if (qr) {
     const char *qr_data = "Model:MOVISION HUD1,SW:V260322,SN:OA2B1-00001";
     lv_qrcode_update(qr, qr_data, strlen(qr_data));
-    // Based on center (240, 240): Target Y center = 390. Container top = 99. 390-99= 291 (Relative Y center).
-    // Target Y top = 291 - 60 = 231.
-    lv_obj_align(qr, LV_ALIGN_TOP_MID, 0, 231); 
+    // Based on center (240, 240): Target Y center = 360 (+120). Container top = 99. 360-99= 261 (Relative Y center).
+    // Target Y top = 261 - 60 = 201.
+    lv_obj_align(qr, LV_ALIGN_TOP_MID, 0, 201); 
     
     // Clean white border for the QR
     lv_obj_set_style_border_color(qr, lv_color_white(), 0);
