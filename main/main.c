@@ -8996,29 +8996,29 @@ static void create_clock_ui(void) {
   lv_color_t dark_fill = lv_color_make(32, 32, 32);     
 
   s_clock1_hour_bg = lv_line_create(s_clock_screen);
-  lv_obj_set_style_line_width(s_clock1_hour_bg, 22, 0); // Matched to minute
+  lv_obj_set_style_line_width(s_clock1_hour_bg, 18, 0); // Reduced to 18px
   lv_obj_set_style_line_color(s_clock1_hour_bg, lv_color_white(), 0);
   lv_obj_set_style_line_rounded(s_clock1_hour_bg, true, 0);
 
   s_clock1_hour_fg = lv_line_create(s_clock_screen);
-  lv_obj_set_style_line_width(s_clock1_hour_fg, 10, 0); // Matched to minute
+  lv_obj_set_style_line_width(s_clock1_hour_fg, 8, 0); // Adjusted to 8px
   lv_obj_set_style_line_color(s_clock1_hour_fg, dark_fill, 0);
   lv_obj_set_style_line_rounded(s_clock1_hour_fg, true, 0);
 
   s_clock1_minute_bg = lv_line_create(s_clock_screen);
-  lv_obj_set_style_line_width(s_clock1_minute_bg, 22, 0);
+  lv_obj_set_style_line_width(s_clock1_minute_bg, 18, 0); // Reduced to 18px
   lv_obj_set_style_line_color(s_clock1_minute_bg, lv_color_white(), 0);
   lv_obj_set_style_line_rounded(s_clock1_minute_bg, true, 0);
 
   s_clock1_minute_fg = lv_line_create(s_clock_screen);
-  lv_obj_set_style_line_width(s_clock1_minute_fg, 10, 0);
+  lv_obj_set_style_line_width(s_clock1_minute_fg, 8, 0); // Adjusted to 8px
   lv_obj_set_style_line_color(s_clock1_minute_fg, orange_fill, 0);
   lv_obj_set_style_line_rounded(s_clock1_minute_fg, true, 0);
 
   s_clock_center_dot = lv_obj_create(s_clock_screen);
-  lv_obj_set_size(s_clock_center_dot, 12, 12);
+  lv_obj_set_size(s_clock_center_dot, 10, 10); // Diameter 10px
   lv_obj_set_style_radius(s_clock_center_dot, LV_RADIUS_CIRCLE, 0);
-  lv_obj_set_style_bg_color(s_clock_center_dot, lv_color_white(), 0);
+  lv_obj_set_style_bg_color(s_clock_center_dot, dark_fill, 0); // Dark Grey
   lv_obj_set_style_border_width(s_clock_center_dot, 0, 0);
   lv_obj_center(s_clock_center_dot);
 
