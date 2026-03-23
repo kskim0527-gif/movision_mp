@@ -105,6 +105,8 @@ static void handle_img_info(const uint8_t *data, size_t len) {
     if (s_ctx.file) {
         s_ctx.state = IMG_STATE_RECEIVING;
         ESP_LOGI(TAG, "Starting download: %s, size: %lu", s_ctx.file_path, (unsigned long)s_ctx.total_size);
+        // Add ACK response for Image Info metadata (Sequence 00 00 indicates metadata ACK)
+        send_response(CMD_IMG_RES_SEQ, 0, 0);
     } else {
         s_ctx.state = IMG_STATE_ERROR;
         ESP_LOGE(TAG, "Fail to open: %s (errno=%d)", s_ctx.file_path, errno);

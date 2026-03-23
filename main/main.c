@@ -1141,12 +1141,8 @@ static void process_app_command(const uint8_t *data, size_t len) {
   // Cmd: 19 4D 07 02 data1 data2 2F
   if (commend == 0x07 && len >= 7 && data_length == 0x02) {
     uint8_t data1 = data[4];
-    if (data1 == 2) {
-      set_lcd_brightness(0); // Level_Auto
-    } else if (data1 == 1) {
-      set_lcd_brightness(2); // Level_2
-    } else if (data1 == 0) {
-      set_lcd_brightness(4); // Level_4
+    if (data1 <= 5) {
+      set_lcd_brightness(data1); // Level 0-5 mapping (data1 matches level)
     }
   }
   // 10. Mode Change via 0x0C Command
@@ -5148,16 +5144,22 @@ static lv_font_t *load_font_from_fs(const char *font_name) {
 
 // Load all required fonts
 static void load_all_fonts(void) {
-  s_font_kopub_20 = load_font_from_fs("font_kopub_20");
-  s_font_kopub_25 = load_font_from_fs("font_kopub_25");
-  s_font_kopub_30 = load_font_from_fs("font_kopub_30");
-  s_font_kopub_35 = load_font_from_fs("font_kopub_35");
-  s_font_kopub_40 = load_font_from_fs("font_kopub_40");
-  s_font_vip_100 = load_font_from_fs("font_vip_100");
-  s_font_vip_155 = load_font_from_fs("font_vip_155");
-  s_font_gman_188 = load_font_from_fs("font_gman_188");
-  s_font_addr_30 = load_font_from_fs("font_addr_30");
+  ESP_LOGI(TAG, "Font: Starting bulk font loading...");
+  s_font_kopub_20 = load_font_from_fs("font_kopub_20"); vTaskDelay(pdMS_TO_TICKS(20));
+  s_font_kopub_25 = load_font_from_fs("font_kopub_25"); vTaskDelay(pdMS_TO_TICKS(20));
+  s_font_kopub_30 = load_font_from_fs("font_kopub_30"); vTaskDelay(pdMS_TO_TICKS(20));
+  s_font_kopub_35 = load_font_from_fs("font_kopub_35"); vTaskDelay(pdMS_TO_TICKS(20));
+  s_font_kopub_40 = load_font_from_fs("font_kopub_40"); vTaskDelay(pdMS_TO_TICKS(20));
+  s_font_vip_100 = load_font_from_fs("font_vip_100");  vTaskDelay(pdMS_TO_TICKS(20));
+  s_font_vip_155 = load_font_from_fs("font_vip_155");  vTaskDelay(pdMS_TO_TICKS(20));
+  
+  /* ESP_LOGI(TAG, "Font: Attempting to load gman_188...");
+  s_font_gman_188 = load_font_from_fs("font_gman_188"); vTaskDelay(pdMS_TO_TICKS(20)); */
+  
+  ESP_LOGI(TAG, "Font: Attempting to load addr_30...");
+  s_font_addr_30 = load_font_from_fs("font_addr_30");   vTaskDelay(pdMS_TO_TICKS(20));
 
+  ESP_LOGI(TAG, "Font: Starting font link/fallback process...");
   // Multi-font fallback chain for Road Name (addr -> kopub)
   if (s_font_addr_30 && s_font_kopub_30) {
     s_font_addr_30->fallback = s_font_kopub_30;
@@ -5168,10 +5170,11 @@ static void load_all_fonts(void) {
   }
 
   // Link font_gman_188 as fallback for font_vip_155 if both are available
-  if (s_font_vip_155 && s_font_gman_188) {
+  /* if (s_font_vip_155 && s_font_gman_188) {
     s_font_vip_155->fallback = s_font_gman_188;
     ESP_LOGI(TAG, "Font: Linked font_gman_188 as fallback for font_vip_155");
-  }
+  } */
+  ESP_LOGI(TAG, "Font: All fonts processed.");
 }
 
 // LVGL tick callback (AI_DRV reference: ESP
@@ -8870,10 +8873,10 @@ static void clock_timer_cb(lv_timer_t *timer) {
   const char *week_days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
 
   if (s_current_mode == DISPLAY_MODE_STANDBY) {
-    if (s_boot_time_label) {
+    if (s_boot_time_label && s_font_vip_100) {
       lv_label_set_text_fmt(s_boot_time_label, "%02d:%02d", hour, minute);
     }
-    if (s_boot_date_label) {
+    if (s_boot_date_label && s_font_kopub_30) {
       const char *months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN",
                               "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
       lv_label_set_text_fmt(s_boot_date_label, "%s %02d %s",
@@ -9560,7 +9563,7 @@ static void create_setting_ui(void) {
 
   // --- 1. Info Texts Control (4 Rows, Centered Colon Alignment) ---
   const char *keys[] = {"Model", "S/W Ver", "Serial no", "Website"};
-  const char *values[] = {"MOVISION HUD1", "v260322", "1A2B1-00001", "www.naver.com"};
+  const char *values[] = {"MOVISION HUD1", "v260323", "1A2B1-00001", "www.naver.com"};
   int start_y = 5;
   int row_h = 32; // Slightly reduced gap to fit 4 rows nicely
 
@@ -9590,7 +9593,7 @@ static void create_setting_ui(void) {
   // --- 2. QR Code (White theme, Combined Data) ---
   lv_obj_t *qr = lv_qrcode_create(s_setting_page2_obj, 120, lv_color_black(), lv_color_white());
   if (qr) {
-    const char *qr_data = "Model:MOVISION HUD1,SW:v260322,SN:1A2B1-00001,URL:www.naver.com";
+    const char *qr_data = "Model:MOVISION HUD1,SW:v260323,SN:1A2B1-00001,URL:www.naver.com";
     lv_qrcode_update(qr, qr_data, strlen(qr_data));
     // Positioned below the 4 rows
     lv_obj_align(qr, LV_ALIGN_TOP_MID, 0, 145); 
@@ -10003,10 +10006,9 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
         int dx = x - start_x;
         int dy = y - start_y;
 
-        // Horizontal Swipe (Mode Change)
-        ESP_LOGI("TOUCH", "SWIPE dx=%d dy=%d (build:" __DATE__ " " __TIME__ ")",
-                 dx, dy);
+        // Horizontal Swipe (Mode Change) detection
         if (abs(dx) > abs(dy) && abs(dx) > 40) {
+          ESP_LOGI("TOUCH", "HORIZONTAL SWIPE: dx=%d dy=%d", dx, dy);
           // OTA 모드에서는 가로 스와이프 무시 (실수 방지)
           if (s_current_mode == DISPLAY_MODE_OTA) {
             swiped = true; // 다산, 메세지만 더이상 발생 안 함
