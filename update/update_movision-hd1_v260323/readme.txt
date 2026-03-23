@@ -1,6 +1,6 @@
 Model: MOVISION-HD1  
-Version: 260322  
-Build Time: 260322  
+Version: 260323  
+Build Time: 260323  
   
 [How to update]  
 1. USB Update: Open update_tool.html in Chrome/Edge browser  
