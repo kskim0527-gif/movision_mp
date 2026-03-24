@@ -109,6 +109,8 @@ static SemaphoreHandle_t s_lcd_flush_sem =
       xSemaphoreGiveRecursive(s_lvgl_mutex);                                   \
   } while (0)
 
+#include "lv_psram_mem.h"
+
 // Custom memory allocators for LVGL (use PSRAM)
 // These functions will be used by LVGL and PNG decoder
 // Must be non-static for LVGL custom allocator
@@ -894,10 +896,30 @@ static void *lv_fs_open_sd(lv_fs_drv_t *drv, const char *path,
   }
 
   if (!prioritized) {
-    if (path[0] == '/') {
-      snprintf(full_path, sizeof(full_path), "%s", path);
-    } else {
-      snprintf(full_path, sizeof(full_path), "/%s", path);
+    const char *prefixes[] = {"/littlefs/", "/littlefs/flash_data/", "/littlefs/Flash_Data/"};
+    bool found = false;
+
+    // If path already starts with /littlefs/, try the variations
+    if (strncmp(path, "/littlefs/", 10) == 0) {
+        const char *remainder = path + 10;
+        for (int i = 0; i < 3; i++) {
+            snprintf(full_path, sizeof(full_path), "%s%s", prefixes[i], remainder);
+            struct stat st;
+            if (stat(full_path, &st) == 0) {
+                found = true;
+                ESP_LOGI(TAG, "LVGL FS: Found file at: %s (requested: %s)", full_path, path);
+                break;
+            }
+        }
+    }
+
+    if (!found) {
+        if (path[0] == '/') {
+            snprintf(full_path, sizeof(full_path), "%s", path);
+        } else {
+            snprintf(full_path, sizeof(full_path), "/%s", path);
+        }
+        ESP_LOGD(TAG, "LVGL FS: Trying default path: %s", full_path);
     }
   }
 
@@ -995,7 +1017,6 @@ static void process_app_command(const uint8_t *data, size_t len) {
     return;
 
   if (id == 0x50) {
-    save_packet_to_sdcard(data, len, "RX");
     process_img_command(data, len);
     return;
   }
@@ -1205,12 +1226,34 @@ static void virtual_drive_task(void *arg) {
     // 가상 운행 모드는 활성화 상태이고, BLE 연결이 없을 때만 동작
     if (s_virtual_drive_active && !s_connected) {
       if (f == NULL) {
-        f = fopen("/littlefs/flash_data/merged_log.txt", "r");
-        if (f == NULL) {
-          f = fopen("/littlefs/merged_log.txt", "r"); // Fallback
+        const char *opened_path = NULL;
+        const char *log_search_paths[] = {
+            "/sdcard/merged_log.txt",
+            "/sdcard/Merged_Log.txt",
+            "/sdcard/flash_data/merged_log.txt",
+            "/sdcard/Flash_Data/merged_log.txt",
+            "/sdcard/flash_data/Merged_Log.txt",
+            "/sdcard/Flash_Data/Merged_Log.txt",
+            "/littlefs/merged_log.txt",
+            "/littlefs/Merged_Log.txt",
+            "/littlefs/flash_data/merged_log.txt",
+            "/littlefs/Flash_Data/merged_log.txt",
+            "/littlefs/flash_data/Merged_Log.txt",
+            "/littlefs/Flash_Data/Merged_Log.txt"
+        };
+        
+        for (int i = 0; i < 10; i++) {
+            if (strncmp(log_search_paths[i], "/sdcard/", 8) == 0 && !s_sdcard_mounted) continue;
+            
+            f = fopen(log_search_paths[i], "r");
+            if (f) {
+                opened_path = log_search_paths[i];
+                break;
+            }
         }
+
         if (f) {
-          ESP_LOGI(TAG, "Virtual Drive: Log file opened");
+          ESP_LOGI(TAG, "Virtual Drive: Log file opened: %s", opened_path);
         } else {
           ESP_LOGW(TAG, "Virtual Drive: Log file not found");
           // 파일 없으면 비활성화
@@ -5037,6 +5080,9 @@ static esp_err_t lcd_init_panel(void) {
   // Wait for LCD power to stabilize
   vTaskDelay(pdMS_TO_TICKS(100));
 
+  // Increase image cache size to 4 to utilize PSRAM effectively.
+  // Each 466x466 RGB565 image takes ~434KB. 4 images = ~1.7MB.
+  lv_img_cache_set_size(4);
   // QSPI-only init (mirrors AI_DRV). No
   // fallback to avoid masking wiring/board
   // issues. DMA는 SPI_DMA_CH_AUTO로
@@ -5301,9 +5347,9 @@ static esp_err_t lvgl_init(void) {
   s_disp = lv_disp_drv_register(&s_disp_drv);
 
   // Set image cache size for better JPG/PNG decoding performance
-  // Cache up to 10 decoded images in memory (PSRAM)
-  lv_img_cache_set_size(10);
-  ESP_LOGI(TAG, "LVGL: Image cache set to 10 entries");
+  // Cache up to 4 decoded images in memory. Each 466x466 RGB565 image takes ~434KB. 4 images = ~1.7MB.
+  lv_img_cache_set_size(4);
+  ESP_LOGI(TAG, "LVGL: Image cache set to 4 entries (aggressive PSRAM usage)");
 
   // Create screens for different modes
   s_boot_screen = lv_obj_create(NULL);
@@ -6159,8 +6205,8 @@ static void switch_display_mode(display_mode_t new_mode) {
 
   LVGL_UNLOCK();
 
-  const char *mode_names[] = {"BOOT",    "STANDBY", "SPEED", "HUD",
-                              "CLOCK",   "CLOCK2",  "ALBUM", "SETTING",
+  const char *mode_names[] = {"BOOT",    "STANDBY", "SPEEDOMETER", "HUD",
+                              "CLOCK1",  "CLOCK2",  "ALBUM",       "SETTING",
                               "VIRTUAL", "OTA"};
   if (new_mode < DISPLAY_MODE_MAX) {
     ESP_LOGI(TAG, "Display mode switched to: %s (%d)", mode_names[new_mode],
@@ -8745,15 +8791,14 @@ void save_packet_to_sdcard(const uint8_t *data, size_t len,
   struct tm timeinfo;
   localtime_r(&tv.tv_sec, &timeinfo);
 
-  char hex_str[128] = {0};
+  char hex_str[800] = {0};
   int pos = 0;
   // 시작 바이트(0x19)와 종료 바이트(0x2F)를 제외하고 데이터 영역만 추출
   for (size_t i = 1; i < (len - 1) && pos < (sizeof(hex_str) - 4); i++) {
     pos += snprintf(hex_str + pos, sizeof(hex_str) - pos, "%02X ", data[i]);
   }
 
-  // 터미널 출력: SD 카드와 동일하게 [HH:MM:SS] 포함 (노랑색 출력을 위해
-  // ESP_LOGW 사용)
+  // 기존 방식: 타임스탬프와 설명(desc)을 포함한 상세 로그 형식 유지
   ESP_LOGW(TAG, "PKT_LOG [%02d:%02d:%02d] [%s] %s// %s", timeinfo.tm_hour,
            timeinfo.tm_min, timeinfo.tm_sec, (prefix ? prefix : "??"), hex_str,
            desc);
@@ -8991,6 +9036,7 @@ static void draw_analog_clock2(int hour, int minute, int second) {
 
 static void create_clock_ui(void) {
   if (s_clock_screen == NULL) return;
+  ESP_LOGI(TAG, "[CLOCK UI] Loading background: S:/littlefs/clock_1/screen.png");
   s_clock_bg_img = lv_img_create(s_clock_screen);
   lv_img_set_src(s_clock_bg_img, "S:/littlefs/clock_1/screen.png");
   lv_obj_center(s_clock_bg_img);
@@ -9032,6 +9078,8 @@ static void create_clock2_ui(void) {
   if (s_clock2_screen != NULL) return;
   s_clock2_screen = lv_obj_create(NULL);
   lv_obj_set_style_bg_color(s_clock2_screen, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(s_clock2_screen, LV_OPA_COVER, 0); // Ensure background is opaque black
+  ESP_LOGI(TAG, "[CLOCK UI] Loading background: S:/littlefs/clock_2/screen.png");
   lv_obj_t *bg_img = lv_img_create(s_clock2_screen);
   lv_img_set_src(bg_img, "S:/littlefs/clock_2/screen.png");
   lv_obj_center(bg_img);
@@ -9698,23 +9746,48 @@ static void scan_intro_images(void) {
       struct stat st;
       if (stat(sd_paths[i], &st) == 0 && S_ISDIR(st.st_mode)) {
         base_path = sd_paths[i];
-        ESP_LOGI(TAG, "Album: Found SD card folder (Priority Match): %s",
-                 base_path);
-        break;
+        // Don't break: merge images from all case-variant folders if multiple exist
+        // break;
       }
     }
   }
 
   // --- STEP 2: LittleFS Fallback ---
   if (base_path == NULL) {
-    const char *lfs_paths[] = {"/littlefs/photo", "/littlefs/Photo",
-                               "/littlefs/flash_data/Photo"};
-    for (int i = 0; i < 3; i++) {
+    const char *lfs_paths[] = {"/littlefs/Photo", "/littlefs/photo",
+                               "/littlefs/flash_data/Photo", "/littlefs/flash_data/photo",
+                               "/littlefs/Flash_Data/Photo", "/littlefs/Flash_Data/photo"};
+    for (int i = 0; i < 6; i++) {
       struct stat st;
       if (stat(lfs_paths[i], &st) == 0 && S_ISDIR(st.st_mode)) {
-        base_path = lfs_paths[i];
-        ESP_LOGI(TAG, "Album: Folder found on LittleFS: %s", base_path);
-        break;
+        // base_path = lfs_paths[i]; // No single base_path: scan each directory!
+        ESP_LOGD(TAG, "Album: Scanning folder on LittleFS: %s", lfs_paths[i]);
+        
+        d = opendir(lfs_paths[i]);
+        if (d) {
+          while ((dir = readdir(d)) != NULL) {
+            if (dir->d_type == DT_REG || dir->d_type == DT_UNKNOWN) {
+              const char *ext = strrchr(dir->d_name, '.');
+              if (ext && (strcasecmp(ext, ".jpg") == 0 || strcasecmp(ext, ".jpeg") == 0 ||
+                          strcasecmp(ext, ".png") == 0 || strcasecmp(ext, ".gif") == 0 ||
+                          strcasecmp(ext, ".bmp") == 0)) {
+                if (s_image_count < MAX_IMAGE_FILES) {
+                  // Check for duplicates before adding
+                  bool duplicate = false;
+                  for(int k=0; k<s_image_count; k++) {
+                      if(strstr(s_image_files[k], dir->d_name)) { duplicate = true; break; }
+                  }
+                  if(!duplicate) {
+                    snprintf(s_image_files[s_image_count], sizeof(s_image_files[0]), 
+                             "S:%s/%s", lfs_paths[i], dir->d_name);
+                    s_image_count++;
+                  }
+                }
+              }
+            }
+          }
+          closedir(d);
+        }
       }
     }
   }
@@ -9737,7 +9810,7 @@ static void scan_intro_images(void) {
 
   // Final fallback
   if (base_path == NULL) {
-    base_path = "/littlefs/photo";
+    base_path = "/littlefs/Photo";
     ESP_LOGW(TAG, "Album: No image folder found anywhere, defaulting to %s",
              base_path);
   }
@@ -9810,16 +9883,30 @@ static void reset_album_to_default_image(void) {
     ESP_LOGI(TAG, "Checking image [%d]: %s (extracted: %s)", i,
              s_image_files[i], fname);
 
-    if (strcasecmp(fname, "toy_car.jpg") == 0) {
+    if (strcasecmp(fname, "album_1.png") == 0) {
       s_current_image_index = i;
       found = true;
-      ESP_LOGI(TAG, "Found default image: toy_car.jpg at index %d", i);
+      ESP_LOGI(TAG, "Default image found: album_1.png at index %d", i);
       break;
     }
   }
 
+  // Fallback to toy_car.jpg if album_1.png not found
   if (!found) {
-    ESP_LOGW(TAG, "Default image toy_car.jpg not found, keeping index 0 (%s)",
+    for (int i = 0; i < s_image_count; i++) {
+        const char *fname = strrchr(s_image_files[i], '/');
+        if (fname) fname++; else fname = s_image_files[i];
+        if (strcasecmp(fname, "toy_car.jpg") == 0) {
+            s_current_image_index = i;
+            found = true;
+            ESP_LOGI(TAG, "Default image found: toy_car.jpg at index %d", i);
+            break;
+        }
+    }
+  }
+
+  if (!found) {
+    ESP_LOGI(TAG, "Selected first available image as default: %s",
              s_image_files[0]);
   }
 

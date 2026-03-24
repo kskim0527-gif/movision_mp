@@ -12,6 +12,15 @@ set(PROJECT_VER ${BUILD_VERSION})
 # Define the project
 project(movision)
 
+# Globally define LVGL custom memory allocator functions
+# (Using add_compile_definitions to ensure they are available to all components)
+add_compile_definitions(CONFIG_LV_MEM_CUSTOM_ALLOC=lvgl_psram_malloc)
+add_compile_definitions(CONFIG_LV_MEM_CUSTOM_FREE=lvgl_psram_free)
+add_compile_definitions(CONFIG_LV_MEM_CUSTOM_REALLOC=lvgl_psram_realloc)
+
+# Ensure the header lv_psram_mem.h is reachable from all components (including managed ones)
+idf_build_set_property(COMPILE_OPTIONS "-I${CMAKE_CURRENT_SOURCE_DIR}/main" APPEND)
+
 # Create littlefs image from main/flash_data directory
 # Note: partition name must match the partition table (partitions.csv)
 littlefs_create_partition_image(storage main/flash_data FLASH_IN_PROJECT)

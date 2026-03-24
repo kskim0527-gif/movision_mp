@@ -41,6 +41,7 @@ typedef struct {
 } img_transfer_ctx_t;
 
 static img_transfer_ctx_t s_ctx;
+static char s_img_base_dir[64] = "/littlefs/Photo"; // Default base dir
 
 // Extern from main.c
 extern void hud_send_notify_bytes(const uint8_t *data, uint16_t len);
@@ -50,9 +51,16 @@ void img_transfer_init(void) {
     memset(&s_ctx, 0, sizeof(s_ctx));
     s_ctx.state = IMG_STATE_IDLE;
     
-    // Root of LittleFS seems to contain Photo folder based on logs
-    mkdir("/littlefs/Photo", 0755);
-    ESP_LOGI(TAG, "Initialization: /littlefs/Photo checked");
+    // Check if lowercase /littlefs/photo exists, otherwise use /littlefs/Photo
+    struct stat st;
+    if (stat("/littlefs/photo", &st) == 0 && S_ISDIR(st.st_mode)) {
+        strncpy(s_img_base_dir, "/littlefs/photo", sizeof(s_img_base_dir));
+        ESP_LOGD(TAG, "Initialization: using existing /littlefs/photo");
+    } else {
+        strncpy(s_img_base_dir, "/littlefs/Photo", sizeof(s_img_base_dir));
+        mkdir(s_img_base_dir, 0755);
+        ESP_LOGI(TAG, "Initialization: /littlefs/Photo checked/created");
+    }
 }
 
 static void send_response(uint8_t cmd, uint16_t seq, uint8_t error_code) {
@@ -95,8 +103,8 @@ static void handle_img_info(const uint8_t *data, size_t len) {
     if (s_ctx.image_type == 0) {
         snprintf(s_ctx.file_path, sizeof(s_ctx.file_path), "/littlefs/intro_new.gif");
     } else {
-        // Correct path as seen in logs: /littlefs/Photo
-        snprintf(s_ctx.file_path, sizeof(s_ctx.file_path), "/littlefs/Photo/bg_%d.png", s_ctx.image_seq);
+        // Save background images as album_X.png in the discovered base dir
+        snprintf(s_ctx.file_path, sizeof(s_ctx.file_path), "%s/album_%d.png", s_img_base_dir, s_ctx.image_seq);
     }
     
     if (s_ctx.file) fclose(s_ctx.file);
@@ -105,8 +113,7 @@ static void handle_img_info(const uint8_t *data, size_t len) {
     if (s_ctx.file) {
         s_ctx.state = IMG_STATE_RECEIVING;
         ESP_LOGI(TAG, "Starting download: %s, size: %lu", s_ctx.file_path, (unsigned long)s_ctx.total_size);
-        // Add ACK response for Image Info metadata (Sequence 00 00 indicates metadata ACK)
-        send_response(CMD_IMG_RES_SEQ, 0, 0);
+        // Removed ACK response for Image Info metadata as per v1.6 protocol update
     } else {
         s_ctx.state = IMG_STATE_ERROR;
         ESP_LOGE(TAG, "Fail to open: %s (errno=%d)", s_ctx.file_path, errno);
@@ -114,10 +121,16 @@ static void handle_img_info(const uint8_t *data, size_t len) {
 }
 
 static void handle_img_data(const uint8_t *data, size_t len) {
-    if (s_ctx.state != IMG_STATE_RECEIVING || !s_ctx.file) return;
+    if (len < 7) return;
+    uint16_t seq = (data[5] << 8) | data[6];
+
+    if (s_ctx.state != IMG_STATE_RECEIVING || !s_ctx.file) {
+        // App may send data before info, must ACK for the app to continue
+        send_response(CMD_IMG_RES_SEQ, seq, 0);
+        return;
+    }
     
     uint16_t dlen = (data[3] << 8) | data[4];
-    uint16_t seq = (data[5] << 8) | data[6];
     uint32_t payload_len = dlen - 2;
     
     if (len < payload_len + 8) return;
@@ -152,7 +165,7 @@ void process_img_command(const uint8_t *data, size_t len) {
     else if (cmd == CMD_IMG_DATA) handle_img_data(data, len);
     else if (cmd == CMD_IMG_DELETE) {
         char path[128];
-        snprintf(path, sizeof(path), "/littlefs/Photo/bg_%d.png", data[5]);
+        snprintf(path, sizeof(path), "%s/album_%d.png", s_img_base_dir, data[5]);
         unlink(path);
         ESP_LOGI(TAG, "Deleted: %s", path);
     }
