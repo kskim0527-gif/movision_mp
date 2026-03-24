@@ -143,6 +143,11 @@ static void handle_img_data(const uint8_t *data, size_t len) {
         
         if (s_ctx.current_size >= s_ctx.total_size) {
             ESP_LOGI(TAG, "Transfer complete: %lu bytes", (unsigned long)s_ctx.current_size);
+            
+            // Ensure data is flushed to physical storage to prevent corruption
+            fflush(s_ctx.file);
+            fsync(fileno(s_ctx.file));
+            
             fclose(s_ctx.file); s_ctx.file = NULL;
             s_ctx.state = IMG_STATE_IDLE;
             if (s_ctx.image_type == 0) {

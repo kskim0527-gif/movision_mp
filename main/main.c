@@ -907,7 +907,8 @@ static void *lv_fs_open_sd(lv_fs_drv_t *drv, const char *path,
             struct stat st;
             if (stat(full_path, &st) == 0) {
                 found = true;
-                ESP_LOGI(TAG, "LVGL FS: Found file at: %s (requested: %s)", full_path, path);
+                // Downgrade to DEBUG to avoid log spam
+                ESP_LOGD(TAG, "LVGL FS: Found file at: %s (requested: %s)", full_path, path);
                 break;
             }
         }
@@ -6178,6 +6179,10 @@ static void switch_display_mode(display_mode_t new_mode) {
     s_last_base_mode = new_mode;
   }
 
+  // Invalidate image cache on mode switch to prevent rendering issues
+  // (e.g. black screen after image transfer or corrupted cache)
+  lv_img_cache_invalidate_src(NULL);
+
   update_display_mode_ui(new_mode);
 
   // 새로운 모드가 가상 운행 모드라면 부팅 로그 파일(log_boot.txt) 닫기
@@ -6260,6 +6265,15 @@ static void update_auto_brightness(bool force) {
   }
 
   static uint8_t s_last_applied_auto = 0;
+  ESP_LOGI(SYS_MON_TAG,
+             "Internal Free: %u KB, Min Free: %u KB | PSRAM Free: %u KB, Min "
+             "Free: %u KB",
+             (unsigned int)(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+             (unsigned int)
+                 (heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL) / 1024),
+             (unsigned int)(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+             (unsigned int)(heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM) /
+                            1024));
   if (force || target_level != s_last_applied_auto) {
     apply_hw_brightness(target_level);
     s_last_applied_auto = target_level;
