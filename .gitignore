@@ -1,6 +1,7 @@
 # ESP-IDF Build output
 build/
 sdkconfig.old
+main/version.h
 
 # VS Code
 .vscode/

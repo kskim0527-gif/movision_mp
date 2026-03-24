@@ -5,12 +5,34 @@ cmake_minimum_required(VERSION 3.16)
 # Include ESP-IDF build system
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
-# Define firmware version based on build timestamp (YYMMDD)
-string(TIMESTAMP BUILD_VERSION "%y%m%d")
-set(PROJECT_VER ${BUILD_VERSION})
+# Read version from version.txt (Auto-updated by gen_version.cmake)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/version.txt")
+    file(READ "${CMAKE_CURRENT_SOURCE_DIR}/version.txt" PROJECT_VER)
+    string(STRIP "${PROJECT_VER}" PROJECT_VER)
+    # Ensure CMake re-configures if version.txt changes
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/version.txt")
+else()
+    # Fallback if file doesn't exist yet
+    string(TIMESTAMP BUILD_VERSION "%y%m%d")
+    set(PROJECT_VER ${BUILD_VERSION})
+endif()
 
 # Define the project
 project(movision)
+
+# --- Automatic Version Generation ---
+# This script runs every time 'idf.py build' is called.
+# It generates main/version.h with the current timestamp.
+set(VERSION_H "${CMAKE_CURRENT_SOURCE_DIR}/main/version.h")
+add_custom_target(generate_version_header ALL
+    COMMAND ${CMAKE_COMMAND} -E echo "Generating ${VERSION_H}..."
+    COMMAND ${CMAKE_COMMAND} -DVERSION_H=${VERSION_H} -P "${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_version.cmake"
+    BYPRODUCTS ${VERSION_H}
+    COMMENT "Updating build timestamp..."
+)
+
+# Ensure main.c (or the whole main component) rebuilds when version.h changes
+# Move this after project()
 
 # Globally define LVGL custom memory allocator functions
 # (Using add_compile_definitions to ensure they are available to all components)

@@ -76,6 +76,8 @@ extern void lv_fs_posix_init(void);
 // LittleFS
 #include "esp_littlefs.h"
 #include "img_transfer.h"
+#include "fw_update.h"
+#include "version.h"
 
 // SDMMC (SD Card)
 #include "driver/sdmmc_host.h"
@@ -466,7 +468,7 @@ static lv_obj_t *s_clock_canvas = NULL;
 // Helper declarations
 // Helper declarations
 static void draw_analog_clock(int hour, int minute, int second);
-static void set_lcd_brightness(uint8_t level); // Forward declaration
+static void set_lcd_brightness(uint8_t level, bool notify); // Forward declaration
 static void load_image_from_sd(int direction);
 static void reset_album_to_default_image(void);
 
@@ -1022,6 +1024,11 @@ static void process_app_command(const uint8_t *data, size_t len) {
     return;
   }
 
+  if (id == 0x4F) {
+    process_fw_update_command(data, len);
+    return;
+  }
+
   if (id != 0x4D)
     return;
 
@@ -1164,7 +1171,7 @@ static void process_app_command(const uint8_t *data, size_t len) {
   if (commend == 0x07 && len >= 7 && data_length == 0x02) {
     uint8_t data1 = data[4];
     if (data1 <= 5) {
-      set_lcd_brightness(data1); // Level 0-5 mapping (data1 matches level)
+      set_lcd_brightness(data1, true); // Level 0-5 mapping (data1 matches level)
     }
   }
   // 10. Mode Change via 0x0C Command
@@ -5382,7 +5389,7 @@ static esp_err_t lvgl_init(void) {
   // Now that a black frame is ready, turn ON display and set brightness
   esp_lcd_panel_disp_on_off(s_lcd_panel, true);
   vTaskDelay(pdMS_TO_TICKS(100));
-  set_lcd_brightness(0); // Set initial auto brightness
+  set_lcd_brightness(0, true); // Set initial auto brightness
 
   ESP_LOGI(TAG, "LVGL: Black screen rendered and panel active");
 
@@ -6225,7 +6232,8 @@ static void switch_display_mode(display_mode_t new_mode) {
 static void apply_hw_brightness(uint8_t level) {
   if (s_lcd_io_handle == NULL || level < 1 || level > 5)
     return;
-  uint8_t brightness_values[] = {0x00, 0xFF, 0xB6, 0x92, 0x6D, 0x49};
+  // 5 is brightest, 1 is darkest
+  uint8_t brightness_values[] = {0x00, 0x49, 0x6D, 0x92, 0xB6, 0xFF};
   uint8_t brightness = brightness_values[level];
   uint32_t brightness_cmd = (0x02 << 24) | (0x51 << 8);
 
@@ -6249,19 +6257,19 @@ static void update_auto_brightness(bool force) {
   uint16_t sunrise = s_monthly_sun_times[month].sunrise_min;
   uint16_t sunset = s_monthly_sun_times[month].sunset_min;
 
-  uint8_t target_level = 1;
+  uint8_t target_level = 5; // Default: Brightest (Day)
   if (current_min < sunrise) {
-    target_level = 5;
+    target_level = 1; // Night: Darkest
   } else if (current_min < sunrise + 30) {
     target_level = 3;
   } else if (current_min < sunset - 30) {
-    target_level = 1;
+    target_level = 5; // Day
   } else if (current_min < sunset) { // Between Sunset-30m and Sunset -> Level 3
     target_level = 3;
   } else if (current_min < sunset + 30) {
     target_level = 3;
   } else {
-    target_level = 5;
+    target_level = 1; // Night
   }
 
   static uint8_t s_last_applied_auto = 0;
@@ -6284,7 +6292,7 @@ static void update_auto_brightness(bool force) {
 }
 
 // LCD 밝기 제어 함수 (0=Auto, 1=최대, 5=최소)
-static void set_lcd_brightness(uint8_t level) {
+static void set_lcd_brightness(uint8_t level, bool notify) {
   if (level > 5)
     return;
   s_brightness_level = level;
@@ -6295,8 +6303,8 @@ static void set_lcd_brightness(uint8_t level) {
     apply_hw_brightness(level);
   }
 
-  // Send brightness update to app for synchronization
-  if (s_connected && s_hud_notify_enabled) {
+  // Send brightness update to app for synchronization only if notify is true
+  if (notify && s_connected && s_hud_notify_enabled) {
     uint8_t resp[7] = {0x19, 0x4E, 0x0B, 0x02, level, level, 0x2F};
     hud_send_notify_bytes(resp, sizeof(resp));
     save_packet_to_sdcard(resp, sizeof(resp), "TX");
@@ -6308,29 +6316,32 @@ static void set_lcd_brightness(uint8_t level) {
   ESP_LOGI(TAG, "Brightness level set to: %s",
            level == 0
                ? "Auto"
-               : (level == 1 ? "1 (Max)" : (level == 5 ? "5 (Min)" : "N/A")));
+               : (level == 5 ? "5 (Max)" : (level == 1 ? "1 (Min)" : "N/A")));
 }
 
 // 밝기 레벨을 다음 단계로 순환 (A->1->2->3->4->5->A)
 static void switch_to_next_brightness(void) {
-  // Cycle 0(A)->1->2->3->4->5->0(A)
-  s_brightness_level = (s_brightness_level + 1) % 6;
-  set_lcd_brightness(s_brightness_level);
+  // Ordered sequence: A(0) -> 5 -> 4 -> 3 -> 2 -> 1 -> A(0)
+  if (s_brightness_level == 0) s_brightness_level = 5;
+  else if (s_brightness_level == 1) s_brightness_level = 0;
+  else s_brightness_level--;
+  
+  set_lcd_brightness(s_brightness_level, true);
 }
 
 // Settings UI Click Handlers
 static void brightness_down_event_cb(lv_event_t *e) {
   (void)e;
-  if (s_brightness_level < 5) {
-    set_lcd_brightness(s_brightness_level + 1);
-  }
+  // Sequence: A(0)->5->4->3->2->1 (Stops at 1)
+  if (s_brightness_level == 0) set_lcd_brightness(5, true);
+  else if (s_brightness_level > 1) set_lcd_brightness(s_brightness_level - 1, true);
 }
 
 static void brightness_up_event_cb(lv_event_t *e) {
   (void)e;
-  if (s_brightness_level > 0) {
-    set_lcd_brightness(s_brightness_level - 1);
-  }
+  // Sequence: 1->2->3->4->5->A(0) (Stops at A)
+  if (s_brightness_level == 5) set_lcd_brightness(0, true);
+  else if (s_brightness_level != 0) set_lcd_brightness(s_brightness_level + 1, true);
 }
 
 // Helper to update all setting labels and button states
@@ -6346,9 +6357,8 @@ static void update_setting_ui_labels(void) {
       lv_label_set_text(s_setting_bright_val_label, buf);
     }
 
-    // UP 버튼: level==0이면 클릭 비활성 + 원 표시
+    // UP 버튼: A(0)에 도달하면 비활성화 + 화살표 숨김 + 원형 표시
     if (s_brightness_level == 0) {
-      lv_obj_add_flag(s_setting_btn_up, LV_OBJ_FLAG_CLICKABLE);
       lv_obj_clear_flag(s_setting_btn_up, LV_OBJ_FLAG_CLICKABLE);
       if (s_setting_line_bright_up)
         lv_obj_add_flag(s_setting_line_bright_up, LV_OBJ_FLAG_HIDDEN);
@@ -6362,9 +6372,8 @@ static void update_setting_ui_labels(void) {
         lv_obj_add_flag(s_setting_circ_bright_up, LV_OBJ_FLAG_HIDDEN);
     }
 
-    // DOWN 버튼: level==5이면 클릭 비활성 + 원 표시
-    if (s_brightness_level == 5) {
-      lv_obj_add_flag(s_setting_btn_down, LV_OBJ_FLAG_CLICKABLE);
+    // DOWN 버튼: 1단계에 도달하면 비활성화 + 화살표 숨김 + 원형 표시
+    if (s_brightness_level == 1) {
       lv_obj_clear_flag(s_setting_btn_down, LV_OBJ_FLAG_CLICKABLE);
       if (s_setting_line_bright_dn)
         lv_obj_add_flag(s_setting_line_bright_dn, LV_OBJ_FLAG_HIDDEN);
@@ -8221,7 +8230,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
       // now) echo the command via notify as
       // an ACK.
       if (param->write.len >= 5 && param->write.value[0] == 0x19 &&
-          (param->write.value[1] == 0x4D || param->write.value[1] == 0x50) &&
+          (param->write.value[1] == 0x4D || param->write.value[1] == 0x50 || param->write.value[1] == 0x4F) &&
           param->write.value[param->write.len - 1] == 0x2F) {
 
         // Minimal ack: echo the received
@@ -8762,35 +8771,28 @@ void save_packet_to_sdcard(const uint8_t *data, size_t len,
       desc = "도로명 정보(Road Name)";
       break;
     }
-  } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x50) {
-    uint8_t cmd = data[2];
-    switch (cmd) {
-    case 0x01:
-      desc = "이미지 정보 전달(RX)";
-      break;
-    case 0x02:
-      desc = "이미지 데이터 블록(RX)";
-      break;
-    case 0x03:
-      desc = "이미지 전송 결과(Seq)(TX)";
-      break;
-    case 0x04:
-      desc = "이미지 업로드 완료(TX)";
-      break;
-    case 0x05:
-      desc = "이미지 삭제 명령(RX)";
-      break;
-    case 0x06:
-      desc = "이미지 자동 모드 설정(RX)";
-      break;
-    case 0x07:
-      desc = "이미지 상태 요청(TX)";
-      break;
-    case 0x08:
-      desc = "이미지 상태 전달(RX)";
-      break;
-    }
-  } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x4E) {
+    } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x50) {
+      uint8_t cmd = data[2];
+      switch (cmd) {
+      case 0x01: desc = "이미지 정보 전달(RX)"; break;
+      case 0x02: desc = "이미지 데이터 블록(RX)"; break;
+      case 0x03: desc = "이미지 전송 결과(Seq)(TX)"; break;
+      case 0x04: desc = "이미지 업로드 완료(TX)"; break;
+      case 0x05: desc = "이미지 삭제 명령(RX)"; break;
+      case 0x06: desc = "이미지 자동 모드 설정(RX)"; break;
+      case 0x07: desc = "이미지 상태 요청(TX)"; break;
+      case 0x08: desc = "이미지 상태 전달(RX)"; break;
+      }
+    } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x4F) {
+      uint8_t cmd = data[2];
+      switch (cmd) {
+      case 0x01: desc = "업데이트정보 수신"; break;
+      case 0x02: desc = "업데이트 요청(REQ)(TX)"; break;
+      case 0x03: desc = "펌웨어 데이터(Data)(RX)"; break;
+      case 0x04: desc = "데이터 수신 응답(ACK)(TX)"; break;
+      case 0x05: desc = "업데이트 완료 통보(TX)"; break;
+      }
+    } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x4E) {
     if (data[2] == 0x0B)
       desc = "밝기 설정값 통보(TX)";
     else if (data[2] == 0x0C)
@@ -9625,7 +9627,7 @@ static void create_setting_ui(void) {
 
   // --- 1. Info Texts Control (4 Rows, Centered Colon Alignment) ---
   const char *keys[] = {"Model", "S/W Ver", "Serial no", "Website"};
-  const char *values[] = {"MOVISION HUD1", "v260323", "1A2B1-00001", "www.naver.com"};
+  const char *values[] = {"MOVISION HD1", FIRMWARE_VERSION, "1A2B1-00001", "www.naver.com"};
   int start_y = 5;
   int row_h = 32; // Slightly reduced gap to fit 4 rows nicely
 
@@ -9667,7 +9669,7 @@ static void create_setting_ui(void) {
   }
 
   // Initial state update
-  set_lcd_brightness(s_brightness_level);
+  set_lcd_brightness(s_brightness_level, true);
   update_setting_ui_labels();
 }
 
@@ -10187,6 +10189,9 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
             if (dy < 0) { // Swipe Up -> Next Image
               load_image_from_sd(1);
             } else { // Swipe Down -> Prev Image
+              LVGL_UNLOCK();
+              // Show screen
+              set_lcd_brightness(0, true);
               load_image_from_sd(-1);
             }
             swiped = true;
@@ -10284,7 +10289,7 @@ void update_ui_progress(int percent, const char *status) {
     lv_obj_set_style_text_font(s_update_percent_label, &font_kopub_40, 0);
     lv_label_set_text(s_update_percent_label, "Preparing...");
 
-    set_lcd_brightness(1); // Force Max Brightness
+    set_lcd_brightness(1, false); // Force Max Brightness (Internal, No Notify)
   }
 
   if (s_update_percent_label) {
@@ -10384,7 +10389,8 @@ void app_main(void) {
   ESP_LOGI(TAG, "Reset reason: %s (%d)", reset_reason_str, reset_reason);
 
   const esp_app_desc_t *app_desc = esp_app_get_description();
-  ESP_LOGI(TAG, "Firmware Version: %s", app_desc->version);
+  ESP_LOGI(TAG, "Firmware Version (Base): %s", app_desc->version);
+  ESP_LOGI(TAG, "Build Version (Dynamic): %s", FIRMWARE_VERSION);
   ESP_LOGI(TAG, "Project Name: %s", app_desc->project_name);
   ESP_LOGI(TAG, "Compile Time: %s %s", app_desc->date, app_desc->time);
 
@@ -10423,7 +10429,7 @@ void app_main(void) {
 
   // 2. Initialize LCD & LVGL (Moved before SD for Update UI)
   esp_err_t ret = lcd_init_panel();
-  set_lcd_brightness(0);
+  set_lcd_brightness(0, true);
 
   if (ret != ESP_OK) {
     ESP_LOGE(TAG, "LCD: Failed to initialize panel");
@@ -10508,6 +10514,7 @@ void app_main(void) {
 
   ESP_ERROR_CHECK(init_ble());
   img_transfer_init();
+  fw_update_init();
 
   // 앱이 정상 부팅되었음을 마킹 (Rollback 방지)
   esp_ota_mark_app_valid_cancel_rollback();
@@ -10627,7 +10634,7 @@ void app_main(void) {
           LVGL_UNLOCK();
 
           // Show screen
-          set_lcd_brightness(0);
+          set_lcd_brightness(0, true);
 
           // Play for initial duration. Since loop count is 1, it will stop on
           // the last frame.
@@ -10686,7 +10693,7 @@ void app_main(void) {
       ESP_LOGI(TAG, "HUD Entry: Displaying logo.png for 1 second...");
       vTaskDelay(pdMS_TO_TICKS(1000));
       ESP_LOGI(TAG, "HUD Entry: Logo displayed. Waiting for App
-  Connection..."); } else { set_lcd_brightness(0); LVGL_LOCK();
+  Connection..."); } else { set_lcd_brightness(0, true); LVGL_LOCK();
       lv_obj_del(s_intro_image); // Cleanup if unused
       s_intro_image = NULL;
       LVGL_UNLOCK();
