@@ -98,9 +98,9 @@ static void handle_fw_info(const uint8_t *data, size_t len) {
         return;
     }
     
-    // Size: big-endian 4 bytes starting at index 11 (after ID(1), CMD(1), LEN(2), VER(6))
-    // Index: 0:19, 1:4F, 2:01, 3:LH, 4:LL, 5~10:VER, 11~14:SIZE
-    s_fw_ctx.total_size = (uint32_t)((data[11] << 24) | (data[12] << 16) | (data[13] << 8) | data[14]);
+    // Size: big-endian 4 bytes starting at index 15 (after ID(1), CMD(1), LEN(2), VER(10))
+    // Index: 0:19, 1:4F, 2:01, 3:LH, 4:LL, 5~14:VER, 15~18:SIZE
+    s_fw_ctx.total_size = (uint32_t)((data[15] << 24) | (data[16] << 16) | (data[17] << 8) | data[18]);
     s_fw_ctx.current_size = 0;
     s_fw_ctx.last_seq = 0xFFFF;
     

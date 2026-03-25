@@ -1,6 +1,6 @@
 모델명 : MOVISION-MOVISION
 F/W : 260325
-날짜 : 2026-03-25 08:00:27
+날짜 : 2026-03-25 17:59:01
 
 [Flash Addresses]
 bootloader.bin	0x0
