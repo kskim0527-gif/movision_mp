@@ -541,6 +541,7 @@ static lv_obj_t *s_speedometer_avr_speed_value_label =
 static lv_obj_t *s_speedometer_avr_speed_unit_label =
     NULL; // Speedometer Average Speed Unit
 static uint8_t s_speedometer_safety_tt_val = 0;
+static lv_obj_t *s_speedometer_road_name_label = NULL; // Speedometer Road Name Label
 
 static lv_obj_t *s_hyd_msg_label =
     NULL; // HYD TX 메시지 표시용 label (앱->ESP32)
@@ -2465,11 +2466,24 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
           }
         }
 
-        // Hide speed labels in speedometer mode when safety image is active
+        // Hide speed and road name labels in speedometer mode when safety image
+        // is active
         if (s_speedometer_speed_label)
           lv_obj_add_flag(s_speedometer_speed_label, LV_OBJ_FLAG_HIDDEN);
         if (s_speedometer_unit_label)
           lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_speedometer_road_name_label)
+          lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+
+        // Also hide primary HUD road name
+        if (s_road_name_label)
+          lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+      }
+      
+      // HUD 모드일 때도 도로명 숨기기
+      if (s_current_mode == DISPLAY_MODE_HUD) {
+          if (s_road_name_label) lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+          if (s_speed_mark_unit_label) lv_obj_add_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
       }
 
       // 하트비트 업데이트 (이미지 표시 후)
@@ -3141,9 +3155,29 @@ static void update_clear_display(uint8_t data1) {
       if (s_speedometer_speed_label != NULL) {
         lv_obj_clear_flag(s_speedometer_speed_label, LV_OBJ_FLAG_HIDDEN);
       }
-      if (s_speedometer_unit_label != NULL) {
-        lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
+      
+      // 도로명이 있으면 도로명 표시, 없으면 km/h 표시
+      bool road_name_active = (s_speedometer_road_name_label != NULL && 
+                               lv_label_get_text(s_speedometer_road_name_label)[0] != '\0');
+      
+      if (road_name_active) {
+        if (s_speedometer_road_name_label) lv_obj_clear_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_speedometer_unit_label) lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
+      } else {
+        if (s_speedometer_road_name_label) lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_speedometer_unit_label) lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
       }
+    } else if (s_current_mode == DISPLAY_MODE_HUD) {
+        // HUD 모드에서도 도로명이 있으면 복구
+        bool road_name_active = (s_road_name_label != NULL && 
+                                 lv_label_get_text(s_road_name_label)[0] != '\0');
+        if (road_name_active) {
+            bool avr_visible = s_avr_speed_value_label && !lv_obj_has_flag(s_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN);
+            if (!avr_visible) {
+                lv_obj_clear_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+                if (s_speed_mark_unit_label) lv_obj_add_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
+            }
+        }
     }
     s_last_safety_request_valid = false;
   }
@@ -3156,6 +3190,18 @@ static void update_clear_display(uint8_t data1) {
     if (s_normal_speed_unit_label != NULL) {
       lv_obj_add_flag(s_normal_speed_unit_label, LV_OBJ_FLAG_HIDDEN);
       lv_obj_invalidate(s_normal_speed_unit_label);
+    }
+
+    // 도로명도 같이 지우기 (유저 요청)
+    if (s_road_name_label != NULL) {
+      lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (s_speedometer_road_name_label != NULL) {
+      lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+    }
+    // 도로명이 지워졌으므로 속도계 단위(km/h) 다시 표시
+    if (s_speedometer_unit_label != NULL) {
+      lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
     }
   }
 
@@ -3611,7 +3657,16 @@ static void update_speed_label(uint8_t data1, uint8_t speed) {
             s_speedometer_unit_label) {
           lv_label_set_text(s_speedometer_speed_label, speed_str);
           lv_obj_clear_flag(s_speedometer_speed_label, LV_OBJ_FLAG_HIDDEN);
-          lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
+
+          // 도로명이 표시 중이면 속도 단위(km/h)를 숨김 유지
+          bool road_name_visible =
+              (s_speedometer_road_name_label != NULL &&
+               !lv_obj_has_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN));
+          if (road_name_visible) {
+            lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
+          } else {
+            lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
+          }
         } else if (safety_visible && s_speedometer_speed_label) {
           // Keep the label text updated even if hidden, so it's correct when
           // restored
@@ -4059,9 +4114,13 @@ static void update_road_name_label(const char *road_name) {
   LVGL_LOCK(); // Ensure thread safety
 
   if (road_name == NULL || strlen(road_name) == 0) {
-    ESP_LOGI(TAG, "Road Name: Received empty string, hiding label");
+    ESP_LOGI(TAG, "Road Name: Received empty string, hiding labels");
     lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
-    // 도로명이 사라지면 km/h 단위 다시 표시 (평균속도 활성화 시엔 무시)
+    if (s_speedometer_road_name_label) {
+      lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    // 도로명이 사라지면 km/h 단위 다시 표시 (HUD 모드)
     if (s_speed_mark_unit_label) {
       bool avr_speed_visible =
           (s_avr_speed_value_label != NULL &&
@@ -4071,6 +4130,12 @@ static void update_road_name_label(const char *road_name) {
         lv_obj_invalidate(s_speed_mark_unit_label);
       }
     }
+
+    // 도로명이 사라지면 속도계 모드 단위(km/h) 다시 표시
+    if (s_speedometer_unit_label) {
+      lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
+    }
+    
     LVGL_UNLOCK();
     return;
   }
@@ -4078,13 +4143,11 @@ static void update_road_name_label(const char *road_name) {
   ESP_LOGI(TAG, "Road Name: Updating label to '%s'", road_name);
 
   // Road Name Line Break Logic: "로" + "숫자" + "길" -> Insert \n
-  // "로" (UTF-8: EB A1 9C), "길" (UTF-8: EA B8 B8)
   char processed_name[256];
   strncpy(processed_name, road_name, sizeof(processed_name) - 1);
   processed_name[sizeof(processed_name) - 1] = '\0';
 
   bool updated = false;
-  // 문자열 전체에서 "로"를 찾아서 그 뒤에 "숫자+길" 패턴이 오는지 확인
   const char *ro_search_start = processed_name;
   while (1) {
     char *ro_ptr = strstr((char *)ro_search_start, "\xEB\xA1\x9C"); // "로"
@@ -4092,91 +4155,82 @@ static void update_road_name_label(const char *road_name) {
       break;
 
     char *pattern_ptr = ro_ptr + 3; // "로" 이후
-    // 공백 건너뛰기
     while (*pattern_ptr == ' ')
       pattern_ptr++;
 
-    // 숫자가 나오는지 확인
     if (*pattern_ptr >= '0' && *pattern_ptr <= '9') {
       char *digit_start = pattern_ptr;
-      // 숫자 부분 건너뛰기
       while (*pattern_ptr >= '0' && *pattern_ptr <= '9')
         pattern_ptr++;
 
-      // "길"이 나오는지 확인
-      if (strncmp(pattern_ptr, "\xEA\xB8\xB8", 3) == 0) {
+      if (strncmp(pattern_ptr, "\xEA\xB8\xB8", 3) == 0) { // "길"
         char final_name[512];
         size_t head_len = digit_start - processed_name;
-        // 숫자 앞의 공백 제거
         while (head_len > 0 && processed_name[head_len - 1] == ' ')
           head_len--;
 
         snprintf(final_name, sizeof(final_name), "%.*s\n%s", (int)head_len,
                  processed_name, digit_start);
-        ESP_LOGI(TAG, "Road Name (Processed): '%s' -> '%s'", road_name,
-                 final_name);
         lv_label_set_text(s_road_name_label, final_name);
+        if (s_speedometer_road_name_label) {
+          lv_label_set_text(s_speedometer_road_name_label, final_name);
+        }
         updated = true;
-        break; // 패턴을 찾았으므로 루프 종료
+        break;
       }
     }
-    // 이번 "로" 다음 위치부터 다시 검색
     ro_search_start = ro_ptr + 3;
   }
 
   if (!updated) {
     lv_label_set_text(s_road_name_label, road_name);
+    if (s_speedometer_road_name_label) {
+      lv_label_set_text(s_speedometer_road_name_label, road_name);
+    }
   }
 
-  // HUD 모드일 때만 가시성 제어
+  // 가시성 및 위치 제어
   if (s_current_mode == DISPLAY_MODE_HUD) {
-    // 1. Ensure parenting and Z-order
     lv_obj_set_parent(s_road_name_label, s_hud_screen);
-    lv_obj_move_foreground(s_road_name_label); // Bring to front
-
-    // 2. Remove Debug Background (Reset to transparent)
-    lv_obj_set_style_bg_opa(s_road_name_label, 0, 0);
-
-    // 3. Force re-alignment (화면 중앙에서 아래로 170pt)
+    lv_obj_move_foreground(s_road_name_label);
     lv_obj_align(s_road_name_label, LV_ALIGN_CENTER, 0, 170);
+    lv_obj_set_style_text_color(s_road_name_label, lv_palette_main(LV_PALETTE_YELLOW), 0);
 
-    // 색상을 노란색으로 적용
-    lv_obj_set_style_text_color(s_road_name_label,
-                                lv_palette_main(LV_PALETTE_YELLOW), 0);
+    bool avr_visible = s_avr_speed_value_label && !lv_obj_has_flag(s_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN);
+    bool safety_active = (s_safety_image != NULL && !lv_obj_has_flag(s_safety_image, LV_OBJ_FLAG_HIDDEN));
 
-    // 4. Reveal (구간속도가 보이지 않을 때만)
-    bool avr_visible =
-        s_avr_speed_value_label &&
-        !lv_obj_has_flag(s_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN);
-    if (!avr_visible) {
+    if (!avr_visible && !safety_active) {
       lv_obj_clear_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_invalidate(s_road_name_label);
+      if (s_speed_mark_unit_label) {
+        lv_obj_add_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
+      }
+    } else {
+      lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
     }
+    // Disable speedometer label
+    if (s_speedometer_road_name_label) lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
 
-    ESP_LOGI(
-        TAG,
-        "Road Name: Label unhidden at 0, 170 with Yellow color (HUD Mode)");
+  } else if (s_current_mode == DISPLAY_MODE_SPEEDOMETER) {
+    // 속도계 모드: s_speedometer_road_name_label 표시
+    bool safety_active = (s_speedometer_safety_image != NULL && !lv_obj_has_flag(s_speedometer_safety_image, LV_OBJ_FLAG_HIDDEN));
 
-    // 도로명이 나타나면 km/h 단위 숨김
-    if (s_speed_mark_unit_label) {
-      lv_obj_add_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_invalidate(s_speed_mark_unit_label);
-    }
-  } else {
-    lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
-    // HUD 모드가 아닐 때도 도로명이 숨겨지면 km/h 단위 표시 상태 복구 (평균속도
-    // 활성화 시엔 무시)
-    if (s_speed_mark_unit_label) {
-      bool avr_speed_visible =
-          (s_avr_speed_value_label != NULL &&
-           !lv_obj_has_flag(s_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN));
-      if (!avr_speed_visible) {
-        lv_obj_clear_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_invalidate(s_speed_mark_unit_label);
+    if (s_speedometer_road_name_label != NULL) {
+      if (!safety_active) {
+        lv_obj_clear_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_speedometer_unit_label != NULL) {
+          lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
+        }
+      } else {
+        lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
       }
     }
-    ESP_LOGI(TAG, "Road Name: Label hidden (Not in HUD Mode: %d)",
-             s_current_mode);
+    // Disable primary HUD label
+    lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+  } else {
+    lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_speedometer_road_name_label) {
+      lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+    }
   }
 
   LVGL_UNLOCK();
@@ -5995,16 +6049,20 @@ static void update_display_mode_ui(display_mode_t mode) {
     if (s_avr_speed_unit_label)
       lv_obj_set_parent(s_avr_speed_unit_label, s_hud_screen);
 
-    // Ensure road name label is parented and shown if it has text
+    // Ensure road name label is parented and shown if it has text (and no safety image)
     if (s_road_name_label) {
       lv_obj_set_parent(s_road_name_label, s_hud_screen);
       lv_obj_move_foreground(s_road_name_label); // Bring to front
       const char *current_road = lv_label_get_text(s_road_name_label);
       if (current_road && strlen(current_road) > 0) {
-        lv_obj_clear_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+        bool safety_active = (s_safety_image != NULL && !lv_obj_has_flag(s_safety_image, LV_OBJ_FLAG_HIDDEN));
+        if (!safety_active) {
+          lv_obj_clear_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+          if (s_speed_mark_unit_label) lv_obj_add_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
+        } else {
+          lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+        }
         lv_obj_invalidate(s_road_name_label);
-        ESP_LOGI(TAG, "HUD: Road name label restored on HUD screen: '%s'",
-                 current_road);
       }
     }
 
@@ -6022,6 +6080,27 @@ static void update_display_mode_ui(display_mode_t mode) {
         lv_obj_add_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
       }
     }
+
+    // Restore consistency for road name / unit / safety
+    bool speedometer_safety_active = (s_speedometer_safety_image != NULL && !lv_obj_has_flag(s_speedometer_safety_image, LV_OBJ_FLAG_HIDDEN));
+    if (speedometer_safety_active) {
+      if (s_speedometer_road_name_label) lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_speedometer_unit_label) lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_speedometer_speed_label) lv_obj_add_flag(s_speedometer_speed_label, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      if (s_speedometer_speed_label) lv_obj_clear_flag(s_speedometer_speed_label, LV_OBJ_FLAG_HIDDEN);
+      
+      bool road_name_active = (s_speedometer_road_name_label != NULL && 
+                               lv_label_get_text(s_speedometer_road_name_label)[0] != '\0');
+      if (road_name_active) {
+        if (s_speedometer_road_name_label) lv_obj_clear_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_speedometer_unit_label) lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
+      } else {
+        if (s_speedometer_road_name_label) lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_speedometer_unit_label) lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
+      }
+    }
+
     lv_scr_load_anim(s_speedometer_screen, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0,
                      false);
     break;
@@ -6734,13 +6813,21 @@ static void monitor_system_health(void) {
   ESP_LOGI(SYS_MON_TAG, "=== 시스템 상태 모니터 ===");
 
   // 1. 주요 태스크의 스택 사용량 체크
-  const char *task_names[] = {"lvgl_handler", "button_task",
-                              "buf_queue_monitor"};
-  TaskHandle_t task_handles[] = {s_lvgl_task_handle, s_button_task_handle,
-                                 s_monitor_task_handle};
-  const UBaseType_t stack_sizes[] = {8192, 4096, 4096}; // 각 태스크의 스택 크기
+  // BTC_TASK: BLE stack task. Size from Kconfig.
+  TaskHandle_t btc_task_handle = xTaskGetHandle("BTC_TASK");
 
-  for (int i = 0; i < 3; i++) {
+  const char *task_names[] = {
+      "lvgl_handler", "button_task", "monitor_task", "ble_tx",
+      "virt_drive",   "lcd_task",    "BTC_TASK"};
+  TaskHandle_t task_handles[] = {
+      s_lvgl_task_handle, s_button_task_handle, s_monitor_task_handle,
+      s_ble_tx_task_handle, s_virt_drive_task_handle, s_lcd_task_handle,
+      btc_task_handle};
+  // stack_sizes should match the values used in xTaskCreate
+  const UBaseType_t stack_sizes[] = {
+      9216, 4096, 4096, 6144, 8192, 4096, CONFIG_BT_BTC_TASK_STACK_SIZE};
+
+  for (int i = 0; i < 7; i++) {
     if (task_handles[i] != NULL) {
       UBaseType_t stack_high_water =
           uxTaskGetStackHighWaterMark(task_handles[i]);
@@ -6772,45 +6859,32 @@ static void monitor_system_health(void) {
       }
 
       float stack_usage = 0.0f;
-      if (stack_sizes[i] > 0 && stack_high_water < stack_sizes[i]) {
+      if (stack_sizes[i] > 0) {
+        // High water mark is the minimum free stack EVER observed.
+        // So usage = (Total - MinFree) / Total
         stack_usage = ((float)(stack_sizes[i] - stack_high_water) /
                        (float)stack_sizes[i]) *
                       100.0f;
       }
 
-      ESP_LOGI(SYS_MON_TAG,
-               "태스크: %s | 상태: %s | 스택: "
-               "%.1f%% (여유: %d/%d bytes)",
-               task_names[i], state_str, stack_usage, stack_high_water,
-               stack_sizes[i]);
+      ESP_LOGI(SYS_MON_TAG, "태스크: %-16s | 상태: %-10s | 스택: %.1f%% (여유: %lu/%lu)",
+               task_names[i], state_str, stack_usage,
+               (unsigned long)stack_high_water, (unsigned long)stack_sizes[i]);
 
       // 스택 사용률이 90% 이상이면 경고
       if (stack_usage >= 90.0f) {
         ESP_LOGW(SYS_MON_TAG,
-                 "[시스템 모니터] 경고: 태스크 "
-                 "'%s' 스택 사용률 %.1f%% - 스택 "
-                 "오버플로우 위험!",
+                 "[경고] 태스크 '%s' 스택 사용률 %.1f%% - 오버플로우 위험!",
                  task_names[i], stack_usage);
-      }
-
-      // 태스크가 Blocked 상태로 오래 머물러
-      // 있으면 경고 (데드락 가능성)
-      if (state == eBlocked) {
-        ESP_LOGD(TAG,
-                 "[시스템 모니터] 태스크 "
-                 "'%s'가 Blocked 상태입니다",
-                 task_names[i]);
       }
     }
   }
 
   // 총 태스크 수 확인
   UBaseType_t num_tasks = uxTaskGetNumberOfTasks();
-  ESP_LOGI(SYS_MON_TAG, "총 태스크 수: %d", num_tasks);
+  ESP_LOGI(SYS_MON_TAG, "총 태스크 수: %d", (int)num_tasks);
 
-  // 2. 메모리 상태 체크
-  // esp_get_free_heap_size() returns (Internal + PSRAM) if SPIRAM_USE_MALLOC is
-  // set. We need to check Internal RAM specifically for DMA/Wi-Fi buffers.
+  // 2. INTERNAL RAM 상태 체크
   size_t free_internal = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
   size_t min_free_internal =
       heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL);
@@ -6819,28 +6893,23 @@ static void monitor_system_health(void) {
 
   ESP_LOGI(
       SYS_MON_TAG,
-      "INTERNAL RAM: 여유=%zu bytes, 최소여유=%zu bytes, 최대블록=%zu bytes",
+      "INTERNAL RAM: 여유=%zu, 최소여유=%zu, 최대블록=%zu",
       free_internal, min_free_internal, largest_internal_block);
 
-  if (free_internal < 30000) { // Warn if Internal RAM < 30KB
-    ESP_LOGW(SYS_MON_TAG, "[Warning] Internal RAM Low! Free: %zu bytes",
+  if (free_internal < 30720) { // 30KB
+    ESP_LOGW(SYS_MON_TAG, "[Warning] Internal RAM Low! Free: %zu",
              free_internal);
   }
 
   // 3. PSRAM 상태
   size_t free_psram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
-  size_t min_free_psram = heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM);
+  size_t min_psram = heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM);
 
-  ESP_LOGI(SYS_MON_TAG,
-           "PSRAM 상태: 여유=%zu bytes, "
-           "최소여유=%zu bytes",
-           free_psram, min_free_psram);
+  ESP_LOGI(SYS_MON_TAG, "PSRAM RAM:    여유=%zu, 최소여유=%zu", free_psram,
+           min_psram);
 
-  if (free_psram < 100000) { // 100KB 미만이면 경고
-    ESP_LOGW(SYS_MON_TAG,
-             "[시스템 모니터] 경고: PSRAM "
-             "부족! 여유 PSRAM: %zu bytes",
-             free_psram);
+  if (free_psram < 524288) { // 512KB (Intro GIF decoding headroom)
+    ESP_LOGW(SYS_MON_TAG, "[Warning] PSRAM RAM Low! Free: %zu", free_psram);
   }
 }
 
@@ -8540,7 +8609,7 @@ static esp_err_t init_littlefs(void) {
 // ---------------------------------------------------------------------------
 
 static void mkdir_recursive(const char *path) {
-  char temp[512];
+  static char temp[512]; // Use static to save stack space
   char *p = NULL;
   size_t len;
 
@@ -8807,7 +8876,14 @@ void save_packet_to_sdcard(const uint8_t *data, size_t len,
   struct tm timeinfo;
   localtime_r(&tv.tv_sec, &timeinfo);
 
-  char hex_str[800] = {0};
+  // 3. SD 카드 기록 및 문자열 생성을 위한 뮤텍스 획득 (static 버퍼 보호)
+  if (s_log_buffer_mutex == NULL ||
+      xSemaphoreTake(s_log_buffer_mutex, pdMS_TO_TICKS(50)) != pdTRUE) {
+    return;
+  }
+
+  static char hex_str[800]; // Use static to save stack space
+  memset(hex_str, 0, sizeof(hex_str));
   int pos = 0;
   // 시작 바이트(0x19)와 종료 바이트(0x2F)를 제외하고 데이터 영역만 추출
   for (size_t i = 1; i < (len - 1) && pos < (sizeof(hex_str) - 4); i++) {
@@ -8818,12 +8894,6 @@ void save_packet_to_sdcard(const uint8_t *data, size_t len,
   ESP_LOGW(TAG, "PKT_LOG [%02d:%02d:%02d] [%s] %s// %s", timeinfo.tm_hour,
            timeinfo.tm_min, timeinfo.tm_sec, (prefix ? prefix : "??"), hex_str,
            desc);
-
-  // 3. SD 카드 기록 로직 (이후부터는 뮤텍스와 마운트 상태 필요)
-  if (s_log_buffer_mutex == NULL ||
-      xSemaphoreTake(s_log_buffer_mutex, pdMS_TO_TICKS(50)) != pdTRUE) {
-    return;
-  }
 
   if (!s_sdcard_mounted) {
     xSemaphoreGive(s_log_buffer_mutex);
@@ -9247,6 +9317,15 @@ static void create_speedometer_ui(void) {
   lv_obj_set_style_text_color(s_speedometer_safety_unit_label, lv_color_white(),
                               0);
   lv_obj_align(s_speedometer_safety_unit_label, LV_ALIGN_CENTER, 60, 180);
+
+  // Road Name Label for Speedometer Mode
+  s_speedometer_road_name_label = lv_label_create(s_speedometer_screen);
+  lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_set_style_text_font(s_speedometer_road_name_label, &font_addr_30, 0); // Use address font
+  lv_obj_set_style_text_color(s_speedometer_road_name_label, lv_palette_main(LV_PALETTE_YELLOW), 0);
+  lv_obj_set_style_text_align(s_speedometer_road_name_label, LV_TEXT_ALIGN_CENTER, 0);
+  // 위치를 속도 단위(km/h) 위치로 설정
+  lv_obj_align(s_speedometer_road_name_label, LV_ALIGN_CENTER, 0, 180);
 
   // 4. Average Speed Labels (Initially Hidden)
   // [구간속도 문구] 10pt [구간속도 숫자] 5pt [구간속도 단위]
