@@ -2274,13 +2274,16 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
     strncpy(img_filename, entry->image_filename, sizeof(img_filename) - 1);
     img_filename[sizeof(img_filename) - 1] = '\0';
 
-    // Find "tt" and replace with data2
-    // (formatted as 2-digit decimal, e.g., "05"
-    // for 5)
+    // Find "tt" and replace with data2 (decimal)
+    // Constraint: 30 <= data2 <= 120
     char *tt_pos = strstr(img_filename, "tt");
     if (tt_pos != NULL) {
+      uint8_t effective_data2 = data2;
+      if (effective_data2 < 30) effective_data2 = 30;
+      else if (effective_data2 > 120) effective_data2 = 120;
+
       char data2_str[4];
-      snprintf(data2_str, sizeof(data2_str), "%02d", data2);
+      snprintf(data2_str, sizeof(data2_str), "%02d", effective_data2);
       // Replace "tt" with data2_str
       size_t tt_len = strlen("tt");
       size_t data2_len = strlen(data2_str);
@@ -8866,6 +8869,8 @@ void save_packet_to_sdcard(const uint8_t *data, size_t len,
       desc = "밝기 설정값 통보(TX)";
     else if (data[2] == 0x0C)
       desc = "(모델명과 펌웨어 버전 송신)";
+    else if (data[2] == 0x0D)
+      desc = "시간 업데이트 요청(TX)";
     else
       desc = "기기 응답 메시지";
   }
