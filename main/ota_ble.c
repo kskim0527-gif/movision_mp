@@ -51,7 +51,7 @@ static void restart_timer_callback(void *arg) {
 }
 
 typedef struct {
-  uint8_t data[244];
+  uint8_t data[512]; // Increased to support 509B blocks
   uint16_t len;
 } ota_data_msg_t;
 
@@ -312,8 +312,8 @@ void ota_ble_gatts_event_handler(esp_gatts_cb_event_t event,
     } else if (param->write.handle == s_char_data_handle) {
       ota_data_msg_t msg;
       msg.len = param->write.len;
-      if (msg.len > 244)
-        msg.len = 244;
+      if (msg.len > 509)
+        msg.len = 509;
       memcpy(msg.data, param->write.value, msg.len);
       if (xQueueSend(s_ota_queue, &msg, pdMS_TO_TICKS(1000)) != pdPASS) {
         ESP_LOGE(TAG, "OTA Queue Full! Data lost.");

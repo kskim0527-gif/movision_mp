@@ -52,25 +52,22 @@ static void send_fw_response(uint8_t cmd, uint16_t seq, uint8_t error_code) {
     resp[2] = cmd;
     
     if (cmd == CMD_FW_REQ) {
-        resp[3] = 0x00;  // D-Len Hi
-        resp[4] = 0x01;  // D-Len Lo
-        resp[5] = error_code;
-        resp[6] = PROTOCOL_TAIL;
-        len = 7;
+        resp[3] = 0x01;  // D-Len
+        resp[4] = error_code;
+        resp[5] = PROTOCOL_TAIL;
+        len = 6;
     } else if (cmd == CMD_FW_ACK) {
-        resp[3] = 0x00;  // D-Len Hi
-        resp[4] = 0x03;  // D-Len Lo: [SEQ:2][ERR:1]
-        resp[5] = (uint8_t)(seq >> 8);
-        resp[6] = (uint8_t)(seq & 0xFF);
-        resp[7] = error_code;
-        resp[8] = PROTOCOL_TAIL;
-        len = 9;
+        resp[3] = 0x03;  // D-Len: [SEQ:2][ERR:1]
+        resp[4] = (uint8_t)(seq >> 8);
+        resp[5] = (uint8_t)(seq & 0xFF);
+        resp[6] = error_code;
+        resp[7] = PROTOCOL_TAIL;
+        len = 8;
     } else if (cmd == CMD_FW_COMPLETE) {
-        resp[3] = 0x00;  // D-Len Hi
-        resp[4] = 0x01;  // D-Len Lo
-        resp[5] = error_code;
-        resp[6] = PROTOCOL_TAIL;
-        len = 7;
+        resp[3] = 0x01;  // D-Len
+        resp[4] = error_code;
+        resp[5] = PROTOCOL_TAIL;
+        len = 6;
     }
     
     if (len > 0) {
@@ -86,21 +83,28 @@ void fw_update_init(void) {
 }
 
 static void handle_fw_info(const uint8_t *data, size_t len) {
-    // [19] [4F] [01] [DLEN:2] [VER:6] [SIZE:4] [EXTRA:3] [2F]
-    if (len < 16) {
+    // data structure in log: [19][4F][01][DLEN:2][VER:DLEN][SIZE:4][EXTRA:X][2F]
+    // Based on user log: total 25 bytes, dlen 13, tail at 24, size at 15-18.
+    // 24 - 15 = 9. So size starts 9 bytes before tail.
+    if (len < 12) {
         ESP_LOGE(TAG, "FW Info too short: %u", (unsigned)len);
         return;
     }
     
-    uint16_t dlen = (data[3] << 8) | data[4];
-    if (dlen < 10) {
-        ESP_LOGE(TAG, "FW Info D-Len too short: %u", dlen);
-        return;
+    // Safety check: ensure we have a valid tail
+    if (data[len-1] != 0x2F) {
+        ESP_LOGW(TAG, "FW Info parsing without valid tail! (0x%02X)", data[len-1]);
+    }
+
+    // Extract size based on tail position (more robust for variable version lengths)
+    size_t tail_idx = len - 1;
+    if (len >= 20) { // New protocol with extra fields
+        s_fw_ctx.total_size = (uint32_t)((data[tail_idx-9] << 24) | (data[tail_idx-8] << 16) | 
+                                         (data[tail_idx-7] << 8) | data[tail_idx-6]);
+    } else { // Old/Original protocol
+        s_fw_ctx.total_size = (uint32_t)((data[11] << 24) | (data[12] << 16) | (data[13] << 8) | data[14]);
     }
     
-    // Data structure: [VER:6] [SIZE:4] [EXTRA:3]
-    // Indices: 0:19, 1:4F, 2:01, 3~4:DLEN, 5~10:VER, 11~14:SIZE, 15~17:EXTRA, 18:2F
-    s_fw_ctx.total_size = (uint32_t)((data[11] << 24) | (data[12] << 16) | (data[13] << 8) | data[14]);
     s_fw_ctx.current_size = 0;
     s_fw_ctx.last_seq = 0xFFFF;
     
@@ -111,8 +115,8 @@ static void handle_fw_info(const uint8_t *data, size_t len) {
         return;
     }
     
-    ESP_LOGI(TAG, "Starting FW update: size %lu (0x%08lX), partition %s", 
-             (unsigned long)s_fw_ctx.total_size, (unsigned long)s_fw_ctx.total_size, s_fw_ctx.update_partition->label);
+    ESP_LOGI(TAG, "Starting FW update: size %lu (0x%08lX) from packet len %u", 
+             (unsigned long)s_fw_ctx.total_size, (unsigned long)s_fw_ctx.total_size, (unsigned)len);
     
     update_ui_progress(0, "F/W Update...");
     s_fw_ctx.state = FW_STATE_PREPARING;

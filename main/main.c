@@ -8301,7 +8301,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
             
             // New packet starts with 0x19 (only if idle OR at very start of a fragment)
             // This prevents resetting when 0x19 appears inside binary data
-            if (byte == 0x19 && (s_rx_expected_len == 0 || i == 0)) {
+            if (byte == 0x19 && s_rx_expected_len == 0) {
                 s_rx_pos = 0;
                 s_rx_expected_len = 0;
             }
@@ -8319,10 +8319,15 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
                         }
                     } else if (s_rx_pos == 5 && s_rx_buffer[0] == 0x19) {
                         uint8_t id = s_rx_buffer[1];
+                        uint8_t cmd = s_rx_buffer[2];
                         if (id == 0x4F || id == 0x50) {
                             // 0x4F/0x50 format: [19][ID][CMD][LEN:2][DATA...][2F]
                             uint16_t dlen = (s_rx_buffer[3] << 8) | s_rx_buffer[4];
-                            s_rx_expected_len = dlen + 6;
+                            if (id == 0x4F && cmd == 0x01) {
+                                s_rx_expected_len = dlen + 12; // App protocol uses dlen for version string only
+                            } else {
+                                s_rx_expected_len = dlen + 6;
+                            }
                         }
                     }
                 }
@@ -8545,7 +8550,7 @@ static esp_err_t init_ble(void) {
   ESP_ERROR_CHECK(esp_bluedroid_enable());
 
   // MTU + basic SMP (bonding)
-  esp_ble_gatt_set_local_mtu(247);
+  esp_ble_gatt_set_local_mtu(512);
 
   // init UUIDs / CCCD attr (HUD uses 128-bit
   // to match working device expectation)
