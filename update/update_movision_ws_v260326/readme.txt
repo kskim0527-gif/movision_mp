@@ -1,6 +1,6 @@
 모델명 : MOVISION-WS
 F/W : 260326
-날짜 : 2026-03-26 09:03:52
+날짜 : 2026-03-26 12:27:48
 
 [Flash Addresses]
 bootloader.bin	0x0

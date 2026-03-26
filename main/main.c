@@ -305,6 +305,11 @@ static uint8_t s_hid_vendor_in_report[10] = {0};
 static uint8_t s_last_write[64] = {0};
 static uint16_t s_last_write_len = 0;
 
+// BLE RX Reassembly Buffer (for packets split by MTU)
+static uint8_t s_rx_buffer[2048] = {0};
+static uint16_t s_rx_pos = 0;
+static uint16_t s_rx_expected_len = 0;
+
 // ---------------------------------------------------------------------------
 // Packet logging to SD card
 // ---------------------------------------------------------------------------
@@ -4923,12 +4928,13 @@ void note_ble_activity(void) {
 
 void hud_send_notify_bytes(const uint8_t *data, uint16_t len) {
   if (!s_connected || s_gatts_if == ESP_GATT_IF_NONE || s_read_handle == 0) {
-    // ESP_LOGW(TAG, "HUD notify skipped:
-    // connected=%d gatts_if=%d handle=%u",
-    //          s_connected ? 1 : 0,
-    //          s_gatts_if, s_read_handle);
     return;
   }
+
+  // Debug: Log all outgoing packets to terminal
+  ESP_LOGI(TAG, "[TX] HUD -> App (%u bytes)", (unsigned)len);
+  ESP_LOG_BUFFER_HEX(TAG, data, len);
+
   if (!s_hud_notify_enabled && !s_force_hud_notify) {
     // ESP_LOGW(TAG, "HUD notify skipped:
     // notify_enabled=%d force=%d",
@@ -8284,34 +8290,64 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
       s_waiting_cccd_logged = false;
       s_hud_notify_enabled = ((s_cccd & 0x0001) != 0);
     }
-    if (param->write.handle == s_write_handle) {
-      // Save last write for debugging /
-      // status reads
-      s_last_write_len = (param->write.len > sizeof(s_last_write))
-                             ? (uint16_t)sizeof(s_last_write)
-                             : (uint16_t)param->write.len;
-      if (s_last_write_len > 0) {
-        memcpy(s_last_write, param->write.value, s_last_write_len);
-      }
+      if (param->write.handle == s_write_handle) {
+        // Debug: Log all incoming raw fragments
+        ESP_LOGI(TAG, "[RX Fragment] App -> HUD (%u bytes)", (unsigned)param->write.len);
+        ESP_LOG_BUFFER_HEX(TAG, param->write.value, param->write.len);
 
-      // Working device shows phone writes
-      // commands like: [19 4D 06 01 03 2F]
-      // (cmd=0x06 dev info req) [19 4D 04 01
-      // 00 2F] (cmd=0x04 GPS) We'll mark that
-      // we saw app-level traffic and (for
-      // now) echo the command via notify as
-      // an ACK.
-      if (param->write.len >= 5 && param->write.value[0] == 0x19 &&
-          (param->write.value[1] == 0x4D || param->write.value[1] == 0x50 || param->write.value[1] == 0x4F) &&
-          param->write.value[param->write.len - 1] == 0x2F) {
-
-        // Minimal ack: echo the received
-        // frame back on FFF1 notification.
-        save_packet_to_sdcard(param->write.value, param->write.len, "RX");
-        hud_send_notify_bytes(param->write.value, (uint16_t)param->write.len);
-        process_app_command(param->write.value, param->write.len);
+        // Packet Reassembly Logic
+        for (uint16_t i = 0; i < param->write.len; i++) {
+            uint8_t byte = param->write.value[i];
+            
+            // New packet starts with 0x19 (only if idle OR at very start of a fragment)
+            // This prevents resetting when 0x19 appears inside binary data
+            if (byte == 0x19 && (s_rx_expected_len == 0 || i == 0)) {
+                s_rx_pos = 0;
+                s_rx_expected_len = 0;
+            }
+            
+            if (s_rx_pos < sizeof(s_rx_buffer)) {
+                s_rx_buffer[s_rx_pos++] = byte;
+                
+                // Try to determine expected length
+                if (s_rx_expected_len == 0) {
+                    if (s_rx_pos == 4 && s_rx_buffer[0] == 0x19) {
+                        uint8_t id = s_rx_buffer[1];
+                        if (id == 0x4D) {
+                            // 0x4D format: [19][ID][CMD][LEN:1][DATA...][2F]
+                            s_rx_expected_len = s_rx_buffer[3] + 5;
+                        }
+                    } else if (s_rx_pos == 5 && s_rx_buffer[0] == 0x19) {
+                        uint8_t id = s_rx_buffer[1];
+                        if (id == 0x4F || id == 0x50) {
+                            // 0x4F/0x50 format: [19][ID][CMD][LEN:2][DATA...][2F]
+                            uint16_t dlen = (s_rx_buffer[3] << 8) | s_rx_buffer[4];
+                            s_rx_expected_len = dlen + 6;
+                        }
+                    }
+                }
+                
+                // If we have a full packet, process it
+                if (s_rx_expected_len > 0 && s_rx_pos == s_rx_expected_len) {
+                    if (s_rx_buffer[s_rx_pos - 1] == 0x2F) {
+                        ESP_LOGI(TAG, "[RX Full Packet] ID=0x%02X CMD=0x%02X (len=%u)", 
+                                 s_rx_buffer[1], s_rx_buffer[2], s_rx_pos);
+                        save_packet_to_sdcard(s_rx_buffer, s_rx_pos, "RX");
+                        process_app_command(s_rx_buffer, s_rx_pos);
+                    } else {
+                        ESP_LOGW(TAG, "Full packet received but tail is not 0x2F (0x%02X)", s_rx_buffer[s_rx_pos-1]);
+                    }
+                    s_rx_pos = 0;
+                    s_rx_expected_len = 0; // State back to IDLE
+                }
+            } else {
+                // Buffer overflow
+                ESP_LOGE(TAG, "RX buffer overflow!");
+                s_rx_pos = 0;
+                s_rx_expected_len = 0;
+            }
+        }
       }
-    }
     if (param->write.handle != s_cccd_handle &&
         param->write.handle != s_write_handle &&
         param->write.handle != s_hid_report_in_cccd_handle &&

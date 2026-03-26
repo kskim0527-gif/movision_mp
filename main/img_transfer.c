@@ -71,14 +71,14 @@ static void send_response(uint8_t cmd, uint16_t seq, uint8_t error_code) {
     resp[2] = cmd;
     
     if (cmd == CMD_IMG_RES_SEQ) {
-        resp[3] = 0x03; 
+        resp[3] = 0x03; // D-Len: [SEQ:2][ERR:1] (1-byte per protocol doc)
         resp[4] = (seq >> 8) & 0xFF;
         resp[5] = seq & 0xFF;
         resp[6] = error_code;
         resp[7] = PROTOCOL_TAIL;
         len = 8;
     } else if (cmd == CMD_IMG_RES_CMP) {
-        resp[3] = 0x01;
+        resp[3] = 0x01; // D-Len: [ERR:1] (1-byte)
         resp[4] = error_code;
         resp[5] = PROTOCOL_TAIL;
         len = 6;
