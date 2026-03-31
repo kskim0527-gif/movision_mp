@@ -44,7 +44,7 @@ static lv_font_t *s_font_kopub_35 = NULL;
 static lv_font_t *s_font_kopub_40 = NULL;
 static lv_font_t *s_font_vip_100 = NULL;
 static lv_font_t *s_font_vip_155 = NULL;
-static lv_font_t *s_font_gman_188 = NULL;
+// static lv_font_t *s_font_gman_188 = NULL;
 static lv_font_t *s_font_addr_30 = NULL; // 도로명 표시용 폰트 (font_addr_30)
 
 #define SAFE_FONT(f)                                                           \
@@ -302,7 +302,7 @@ static uint8_t s_hid_vendor_in_report[10] = {0};
 
 // Track last command the phone wrote (if any). Some apps "probe" by reading the
 // write-char and may fail if it is not readable.
-static uint8_t s_last_write[64] = {0};
+// static uint8_t s_last_write[64] = {0};
 static uint16_t s_last_write_len = 0;
 
 // BLE RX Reassembly Buffer (for packets split by MTU)
@@ -415,7 +415,7 @@ void update_heartbeat_lvgl(void);
 void update_heartbeat_ble(void);
 void update_heartbeat_button(void);
 // Reduced chunk height from 40 to 10 to save Internal RAM for Wi-Fi OTA
-#define LCD_FLUSH_CHUNK_HEIGHT 10
+#define LCD_FLUSH_CHUNK_HEIGHT 40
 
 static lv_disp_draw_buf_t s_disp_draw_buf;
 static lv_color_t *s_disp_buf1 = NULL;
@@ -643,6 +643,7 @@ static bool s_rssi_read_once = false; // RSSI 값이 한 번이라도 읽혔는�
 static char s_image_files[MAX_IMAGE_FILES][280] EXT_RAM_BSS_ATTR; // Image paths
 static int s_image_count = 0;
 static int s_current_image_index = 0;
+static uint32_t s_album_auto_timer = 0;
 
 static lv_obj_t *s_intro_image = NULL; // 부팅 인트로 이미지 객체
 
@@ -1376,8 +1377,8 @@ static esp_err_t load_image_data_csv(void) {
     return ESP_ERR_INVALID_STATE;
   }
 
-  // Debug: List files in /littlefs to see
-  // what's actually there
+  // Debug: List files in /littlefs to see what's actually there
+  /*
   ESP_LOGI(TAG, "Listing files in /littlefs:");
   DIR *dir = opendir("/littlefs");
   if (dir != NULL) {
@@ -1396,11 +1397,13 @@ static esp_err_t load_image_data_csv(void) {
   } else {
     ESP_LOGW(TAG, "Failed to open /littlefs directory");
   }
+  */
 
   // Try to list /littlefs/image if it exists
   // (might contain CSV)
   DIR *image_dir = opendir("/littlefs/image");
   if (image_dir != NULL) {
+    /*
     ESP_LOGI(TAG, "Listing files in /littlefs/image:");
     struct dirent *entry;
     int file_count = 0;
@@ -1410,22 +1413,24 @@ static esp_err_t load_image_data_csv(void) {
         file_count++;
       }
     }
+    */
     closedir(image_dir);
+    /*
     if (file_count == 0) {
       ESP_LOGW(TAG, "  /littlefs/image "
                     "directory is empty");
     }
+    */
   } else {
     ESP_LOGD(TAG, "/littlefs/image directory "
                   "does not exist");
   }
 
-  // Try to list /littlefs/flash_data if it
-  // exists
+  // Try to list /littlefs/flash_data if it exists
+  /*
   DIR *flash_data_dir = opendir("/littlefs/flash_data");
   if (flash_data_dir != NULL) {
-    ESP_LOGI(TAG, "Listing files in "
-                  "/littlefs/flash_data:");
+    ESP_LOGI(TAG, "Listing files in /littlefs/flash_data:");
     struct dirent *entry;
     int file_count = 0;
     while ((entry = readdir(flash_data_dir)) != NULL) {
@@ -1436,13 +1441,12 @@ static esp_err_t load_image_data_csv(void) {
     }
     closedir(flash_data_dir);
     if (file_count == 0) {
-      ESP_LOGW(TAG, "  /littlefs/flash_data "
-                    "directory is empty");
+      ESP_LOGW(TAG, "  /littlefs/flash_data directory is empty");
     }
   } else {
-    ESP_LOGD(TAG, "/littlefs/flash_data "
-                  "directory does not exist");
+    ESP_LOGD(TAG, "/littlefs/flash_data directory does not exist");
   }
+  */
 
   // Try multiple possible paths for CSV file
   const char *csv_paths[] = {
@@ -1487,6 +1491,7 @@ static esp_err_t load_image_data_csv(void) {
   fseek(fp, 0,
         SEEK_SET); // Reset to beginning
 
+/*
   ESP_LOGI(TAG,
            "CSV file opened, first %zu bytes "
            "(hex):",
@@ -1503,6 +1508,7 @@ static esp_err_t load_image_data_csv(void) {
   ESP_LOGI(TAG, "");
   ESP_LOGI(TAG, "CSV file first %zu bytes (text): %.*s", bytes_read,
            (int)bytes_read, first_bytes);
+*/
 
   // Count lines first (skip header line)
   size_t line_count = 0;
@@ -1636,12 +1642,15 @@ static esp_err_t load_image_data_csv(void) {
 
     // Debug: log all fields to see what we're
     // parsing
+    // Debug: log all fields only if needed (disabled for boot speed)
+    /*
     if (idx < 3) {
       ESP_LOGI(TAG, "CSV line %zu: field_idx=%d", idx, field_idx);
       for (int i = 0; i < 14 && i < field_idx; i++) {
         ESP_LOGI(TAG, "  field[%d]='%s'", i, fields[i] ? fields[i] : "(empty)");
       }
     }
+    */
 
     // Extract: start(0), id(1), commend(2),
     // data_length(3), data1(4), data2(5),
@@ -1667,6 +1676,8 @@ static esp_err_t load_image_data_csv(void) {
 
     // Debug: log field values for first few
     // entries
+    // Debug: log field values only if needed (disabled for boot speed)
+    /*
     if (idx < 3) {
       ESP_LOGI(TAG,
                "CSV line %zu fields: start='%s' "
@@ -1682,6 +1693,7 @@ static esp_err_t load_image_data_csv(void) {
                idx, filename_str ? filename_str : "NULL",
                sector_str ? sector_str : "NULL");
     }
+    */
 
     if (!start_str || !id_str || !commend_str || !data_length_str ||
         !data1_str || !data2_str || !filename_str || !sector_str) {
@@ -8288,10 +8300,19 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
       s_cccd = (uint16_t)(param->write.value[0] | (param->write.value[1] << 8));
       ESP_LOGI(TAG, "CCCD=0x%04x", s_cccd);
       s_waiting_cccd_logged = false;
+      bool was_enabled = s_hud_notify_enabled;
       s_hud_notify_enabled = ((s_cccd & 0x0001) != 0);
+
+      // Send initial time sync request immediately when notifications are enabled
+      if (s_hud_notify_enabled && !was_enabled && !s_time_sync_requested) {
+          static const uint8_t time_req[] = {0x19, 0x4E, 0x0D, 0x01, 0x00, 0x2F}; 
+          hud_send_notify_bytes(time_req, sizeof(time_req));
+          s_time_sync_requested = true;
+          ESP_LOGI(TAG, "Sent initial time sync request immediately on CCCD enable");
+      }
     }
       if (param->write.handle == s_write_handle) {
-        // Debug: Log all incoming raw fragments
+        // Always log raw fragments to terminal as requested (may slow down data transfer)
         ESP_LOGI(TAG, "[RX Fragment] App -> HUD (%u bytes)", (unsigned)param->write.len);
         ESP_LOG_BUFFER_HEX(TAG, param->write.value, param->write.len);
 
@@ -8319,15 +8340,11 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
                         }
                     } else if (s_rx_pos == 5 && s_rx_buffer[0] == 0x19) {
                         uint8_t id = s_rx_buffer[1];
-                        uint8_t cmd = s_rx_buffer[2];
+                        // uint8_t cmd = s_rx_buffer[2]; // Unused variable warning fix
                         if (id == 0x4F || id == 0x50) {
                             // 0x4F/0x50 format: [19][ID][CMD][LEN:2][DATA...][2F]
                             uint16_t dlen = (s_rx_buffer[3] << 8) | s_rx_buffer[4];
-                            if (id == 0x4F && cmd == 0x01) {
-                                s_rx_expected_len = dlen + 12; // App protocol uses dlen for version string only
-                            } else {
-                                s_rx_expected_len = dlen + 6;
-                            }
+                            s_rx_expected_len = dlen + 6;
                         }
                     }
                 }
@@ -8335,8 +8352,10 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
                 // If we have a full packet, process it
                 if (s_rx_expected_len > 0 && s_rx_pos == s_rx_expected_len) {
                     if (s_rx_buffer[s_rx_pos - 1] == 0x2F) {
-                        ESP_LOGI(TAG, "[RX Full Packet] ID=0x%02X CMD=0x%02X (len=%u)", 
-                                 s_rx_buffer[1], s_rx_buffer[2], s_rx_pos);
+                        uint8_t mid = s_rx_buffer[1];
+                        uint8_t mcmd = s_rx_buffer[2];
+                        // Log all reassembled packets to terminal
+                        ESP_LOGI(TAG, "[RX Full Packet] ID=0x%02X CMD=0x%02X (len=%u)", mid, mcmd, s_rx_pos);
                         save_packet_to_sdcard(s_rx_buffer, s_rx_pos, "RX");
                         process_app_command(s_rx_buffer, s_rx_pos);
                     } else {
@@ -8467,16 +8486,8 @@ static void ble_tx_task(void *arg) {
       }
     }
 
-    // Time request: ask phone for current
-    // time after connect. Send via HUD notify
-    // channel.
-    if (s_connected && s_hud_notify_enabled && !s_time_sync_requested) {
-      static const uint8_t time_req[] = {0x19, 0x4E, 0x0D, 0x01,
-                                         0x00, 0x2F}; // ID switched to 0x4E
-      hud_send_notify_bytes(time_req, sizeof(time_req));
-      s_time_sync_requested = true;
-      ESP_LOGI(TAG, "Sent time sync request to app (0x0D with ID 0x4E)");
-    }
+    // Time request moved to ESP_GATTS_WRITE_EVT (CCCD enable) for immediate 
+    // execution and better timing control during updates.
 
     // HID TX: send HID report notifications
     // periodically when CCCD is enabled.
@@ -8649,8 +8660,59 @@ static esp_err_t init_littlefs(void) {
 }
 
 // ---------------------------------------------------------------------------
+// LittleFS Debug Info (부팅 시 자동 출력)
+// ---------------------------------------------------------------------------
+#define LFS_BASE      "/littlefs"
+
+// ESP_LOGI 기반 재귀 파일트리 출력
+static void lfs_log_tree(const char *path, int depth) {
+    if (depth > 5) return; // 너무 깊은 재귀 방지
+    DIR *dir = opendir(path);
+    if (!dir) return;
+
+    struct dirent *e;
+    while ((e = readdir(dir)) != NULL) {
+        if (strcmp(e->d_name, ".") == 0 || strcmp(e->d_name, "..") == 0) continue;
+
+        char child[512];
+        snprintf(child, sizeof(child), "%s/%s", path, e->d_name);
+        
+        struct stat st = {0};
+        stat(child, &st);
+
+        if (e->d_type == DT_DIR) {
+            ESP_LOGI(TAG, "[LFS] %*s[DIR ] %s/", depth * 2, "", e->d_name);
+            lfs_log_tree(child, depth + 1);
+        } else {
+            ESP_LOGI(TAG, "[LFS] %*s[FILE] %-32s (%ld B)",
+                     depth * 2, "", e->d_name, (long)st.st_size);
+        }
+    }
+    closedir(dir);
+}
+
+// 메인 진입점: 부팅 시 자동으로 LittleFS 상태 요약 출력
+static void start_lfs_console(void) {
+    if (!s_littlefs_mounted) {
+        ESP_LOGW(TAG, "LFS: not mounted.");
+        return;
+    }
+
+    size_t total = 0, used = 0;
+    esp_littlefs_info("storage", &total, &used);
+    
+    ESP_LOGI(TAG, "================ LittleFS Storage Info ================");
+    ESP_LOGI(TAG, " Usage: %zu / %zu bytes (%.1f%% used)", 
+             used, total, total > 0 ? ((float)used*100.0f/total) : 0.0f);
+    ESP_LOGI(TAG, "-------------------------------------------------------");
+    // lfs_log_tree(LFS_BASE, 0); // 수백 개 파일 스캔 지연 제거
+    ESP_LOGI(TAG, "=======================================================");
+}
+
+// ---------------------------------------------------------------------------
 // SD Card and Packet Logging
 // ---------------------------------------------------------------------------
+
 
 static void mkdir_recursive(const char *path) {
   static char temp[512]; // Use static to save stack space
@@ -8904,6 +8966,7 @@ void save_packet_to_sdcard(const uint8_t *data, size_t len,
       case 0x03: desc = "펌웨어 데이터(Data)(RX)"; break;
       case 0x04: desc = "데이터 수신 응답(ACK)(TX)"; break;
       case 0x05: desc = "업데이트 완료 통보(TX)"; break;
+      case 0x11: desc = "이미지 정보 응답"; break;
       }
     } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x4E) {
     if (data[2] == 0x0B)
@@ -8928,6 +8991,9 @@ void save_packet_to_sdcard(const uint8_t *data, size_t len,
     return;
   }
 
+  // Note: All packets are now logged as requested by the user
+  bool is_bulk_data = false; 
+
   static char hex_str[800]; // Use static to save stack space
   memset(hex_str, 0, sizeof(hex_str));
   int pos = 0;
@@ -8937,9 +9003,11 @@ void save_packet_to_sdcard(const uint8_t *data, size_t len,
   }
 
   // 기존 방식: 타임스탬프와 설명(desc)을 포함한 상세 로그 형식 유지
-  ESP_LOGW(TAG, "PKT_LOG [%02d:%02d:%02d] [%s] %s// %s", timeinfo.tm_hour,
-           timeinfo.tm_min, timeinfo.tm_sec, (prefix ? prefix : "??"), hex_str,
-           desc);
+  if (!is_bulk_data) {
+    ESP_LOGW(TAG, "PKT_LOG [%02d:%02d:%02d] [%s] %s// %s", timeinfo.tm_hour,
+             timeinfo.tm_min, timeinfo.tm_sec, (prefix ? prefix : "??"), hex_str,
+             desc);
+  }
 
   if (!s_sdcard_mounted) {
     xSemaphoreGive(s_log_buffer_mutex);
@@ -8947,7 +9015,7 @@ void save_packet_to_sdcard(const uint8_t *data, size_t len,
   }
 
   // [부팅 로그 파일 기록]
-  if (s_boot_log_file != NULL) {
+  if (s_boot_log_file != NULL && !is_bulk_data) {
     fprintf(s_boot_log_file, "[%02d:%02d:%02d] [%s] %s// %s\n",
             timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec,
             (prefix ? prefix : "??"), hex_str, desc);
@@ -8956,7 +9024,7 @@ void save_packet_to_sdcard(const uint8_t *data, size_t len,
   }
 
   // 4. 일반 패킷 로그 저장 (시간 설정 완료 후 분 단위 파일 저장)
-  if (s_logging_enabled) {
+  if (s_logging_enabled && !is_bulk_data) {
     // 날짜별 폴더 구조: /sdcard/YYYY-MM-DD/
     char dir_path[64];
     snprintf(dir_path, sizeof(dir_path), "/sdcard/%04d-%02d-%02d",
@@ -9007,12 +9075,16 @@ static void draw_analog_clock(int hour, int minute, int second);
 // Clock 1 Objects (Pill Style Redesign)
 static lv_obj_t *s_clock1_hour_bg;
 static lv_obj_t *s_clock1_hour_fg;
+static lv_obj_t *s_clock1_hour_shadow;
 static lv_obj_t *s_clock1_minute_bg;
 static lv_obj_t *s_clock1_minute_fg;
+static lv_obj_t *s_clock1_minute_shadow;
 static lv_point_t s_clock1_hour_points[2];
 static lv_point_t s_clock1_hour_fg_points[2];
+static lv_point_t s_clock1_hour_shadow_points[2];
 static lv_point_t s_clock1_minute_points[2];
 static lv_point_t s_clock1_minute_fg_points[2];
+static lv_point_t s_clock1_minute_shadow_points[2];
 static lv_obj_t *s_clock_bg_img = NULL;
 static lv_obj_t *s_clock_center_dot = NULL;
 
@@ -9025,8 +9097,8 @@ static lv_point_t s_clock2_minute_points[2];
 static lv_point_t s_clock2_second_points[2];
 
 static lv_timer_t *s_clock_timer = NULL;
-static lv_obj_t *s_clock_wday_label = NULL; // Day of Week (SUN, MON...)
-static lv_obj_t *s_clock_day_label = NULL;  // Day of Month (01, 11...)
+// static lv_obj_t *s_clock_wday_label = NULL; // Day of Week (SUN, MON...)
+// static lv_obj_t *s_clock_day_label = NULL;  // Day of Month (01, 11...)
 
 // Boot Mode 전용 디지털 시계 - Moved to global section at top
 
@@ -9088,10 +9160,10 @@ static void create_boot_ui(void) {
   lv_label_set_text(s_boot_date_label, "JAN 01 MON");
 }
 
-static void rotate_point(int px, int py, double angle_rad, int *ox, int *oy) {
+/* static void rotate_point(int px, int py, double angle_rad, int *ox, int *oy) {
   *ox = (int)(px * cos(angle_rad) - py * sin(angle_rad));
   *oy = (int)(px * sin(angle_rad) + py * cos(angle_rad));
-}
+} */
 
 static void draw_analog_clock(int hour, int minute, int second) {
   if (!s_clock1_hour_bg) return;
@@ -9101,14 +9173,20 @@ static void draw_analog_clock(int hour, int minute, int second) {
 
   // Hour Hand (Proportional increase and match thickness)
   double h_rad = ((hour % 12) * 30 + minute * 0.5 - 90) * M_PI / 180.0;
-  int hl = r * 0.62; 
-  int h_off = 50; 
+  int hl = r * 0.65; // Slightly lengthened for larger M-logo
+  int h_off = 40;    // Increased from 30px to 40px (Matches new center cap size)
 
   // BG (Full length)
   s_clock1_hour_points[0].x = cx; s_clock1_hour_points[0].y = cy;
   s_clock1_hour_points[1].x = cx + (int)(hl * cos(h_rad));
   s_clock1_hour_points[1].y = cy + (int)(hl * sin(h_rad));
   lv_line_set_points(s_clock1_hour_bg, s_clock1_hour_points, 2);
+
+  // Hour Hand Shadow
+  s_clock1_hour_shadow_points[0].x = cx + 3; s_clock1_hour_shadow_points[0].y = cy + 3;
+  s_clock1_hour_shadow_points[1].x = cx + (int)(hl * cos(h_rad)) + 3;
+  s_clock1_hour_shadow_points[1].y = cy + (int)(hl * sin(h_rad)) + 3;
+  lv_line_set_points(s_clock1_hour_shadow, s_clock1_hour_shadow_points, 2);
 
   // FG (Offset Start)
   s_clock1_hour_fg_points[0].x = cx + (int)(h_off * cos(h_rad));
@@ -9119,14 +9197,20 @@ static void draw_analog_clock(int hour, int minute, int second) {
 
   // Minute Hand (Maximize length)
   double m_rad = (minute * 6 + second * 0.1 - 90) * M_PI / 180.0;
-  int ml = r * 0.92; 
-  int m_off = 50; 
+  int ml = r * 0.95; // Maximum length to match larger aesthetic
+  int m_off = 40;    // Increased from 30px to 40px
 
   // BG (Full length)
   s_clock1_minute_points[0].x = cx; s_clock1_minute_points[0].y = cy;
   s_clock1_minute_points[1].x = cx + (int)(ml * cos(m_rad));
   s_clock1_minute_points[1].y = cy + (int)(ml * sin(m_rad));
   lv_line_set_points(s_clock1_minute_bg, s_clock1_minute_points, 2);
+
+  // Minute Hand Shadow
+  s_clock1_minute_shadow_points[0].x = cx + 3; s_clock1_minute_shadow_points[0].y = cy + 3;
+  s_clock1_minute_shadow_points[1].x = cx + (int)(ml * cos(m_rad)) + 3;
+  s_clock1_minute_shadow_points[1].y = cy + (int)(ml * sin(m_rad)) + 3;
+  lv_line_set_points(s_clock1_minute_shadow, s_clock1_minute_shadow_points, 2);
 
   // FG (Offset Start)
   s_clock1_minute_fg_points[0].x = cx + (int)(m_off * cos(m_rad));
@@ -9171,36 +9255,58 @@ static void create_clock_ui(void) {
   ESP_LOGI(TAG, "[CLOCK UI] Loading background: S:/littlefs/clock_1/screen.png");
   s_clock_bg_img = lv_img_create(s_clock_screen);
   lv_img_set_src(s_clock_bg_img, "S:/littlefs/clock_1/screen.png");
+  lv_img_set_zoom(s_clock_bg_img, 200); // Further reduced to avoid any edge overflow
   lv_obj_center(s_clock_bg_img);
+  // Disable scrolling to remove white horizontal scrollbar at bottom
+  lv_obj_clear_flag(s_clock_screen, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_scrollbar_mode(s_clock_screen, LV_SCROLLBAR_MODE_OFF);
 
   lv_color_t orange_fill = lv_color_make(255, 100, 0); 
   lv_color_t dark_fill = lv_color_make(32, 32, 32);     
 
+  // Shadow lines (Draw first to be at bottom)
+  s_clock1_hour_shadow = lv_line_create(s_clock_screen);
+  lv_obj_set_style_line_width(s_clock1_hour_shadow, 32, 0);
+  lv_obj_set_style_line_color(s_clock1_hour_shadow, lv_color_black(), 0);
+  lv_obj_set_style_line_opa(s_clock1_hour_shadow, LV_OPA_30, 0);
+  lv_obj_set_style_line_rounded(s_clock1_hour_shadow, true, 0);
+
+  s_clock1_minute_shadow = lv_line_create(s_clock_screen);
+  lv_obj_set_style_line_width(s_clock1_minute_shadow, 32, 0);
+  lv_obj_set_style_line_color(s_clock1_minute_shadow, lv_color_black(), 0);
+  lv_obj_set_style_line_opa(s_clock1_minute_shadow, LV_OPA_30, 0);
+  lv_obj_set_style_line_rounded(s_clock1_minute_shadow, true, 0);
+
   s_clock1_hour_bg = lv_line_create(s_clock_screen);
-  lv_obj_set_style_line_width(s_clock1_hour_bg, 18, 0); // Reduced to 18px
+  lv_obj_set_style_line_width(s_clock1_hour_bg, 32, 0); // Thicker (was 26px)
   lv_obj_set_style_line_color(s_clock1_hour_bg, lv_color_white(), 0);
   lv_obj_set_style_line_rounded(s_clock1_hour_bg, true, 0);
 
   s_clock1_hour_fg = lv_line_create(s_clock_screen);
-  lv_obj_set_style_line_width(s_clock1_hour_fg, 8, 0); // Adjusted to 8px
+  lv_obj_set_style_line_width(s_clock1_hour_fg, 22, 0); // Thicker (was 26px)
   lv_obj_set_style_line_color(s_clock1_hour_fg, dark_fill, 0);
   lv_obj_set_style_line_rounded(s_clock1_hour_fg, true, 0);
 
   s_clock1_minute_bg = lv_line_create(s_clock_screen);
-  lv_obj_set_style_line_width(s_clock1_minute_bg, 18, 0); // Reduced to 18px
+  lv_obj_set_style_line_width(s_clock1_minute_bg, 32, 0); // Thicker (was 26px)
   lv_obj_set_style_line_color(s_clock1_minute_bg, lv_color_white(), 0);
   lv_obj_set_style_line_rounded(s_clock1_minute_bg, true, 0);
 
   s_clock1_minute_fg = lv_line_create(s_clock_screen);
-  lv_obj_set_style_line_width(s_clock1_minute_fg, 8, 0); // Adjusted to 8px
+  lv_obj_set_style_line_width(s_clock1_minute_fg, 22, 0); // Thicker (was 26px)
   lv_obj_set_style_line_color(s_clock1_minute_fg, orange_fill, 0);
   lv_obj_set_style_line_rounded(s_clock1_minute_fg, true, 0);
 
   s_clock_center_dot = lv_obj_create(s_clock_screen);
-  lv_obj_set_size(s_clock_center_dot, 10, 10); // Diameter 10px
+  lv_obj_set_size(s_clock_center_dot, 40, 40); // Enlarged to 40px (was 30px)
   lv_obj_set_style_radius(s_clock_center_dot, LV_RADIUS_CIRCLE, 0);
-  lv_obj_set_style_bg_color(s_clock_center_dot, dark_fill, 0); // Dark Grey
-  lv_obj_set_style_border_width(s_clock_center_dot, 0, 0);
+  lv_obj_set_style_bg_color(s_clock_center_dot, lv_color_hex(0x202020), 0); // Dark Grey
+  lv_obj_set_style_border_width(s_clock_center_dot, 0, 0); // Removed white border
+  // Center dot shadow for 3D depth
+  lv_obj_set_style_shadow_width(s_clock_center_dot, 15, 0);
+  lv_obj_set_style_shadow_color(s_clock_center_dot, lv_color_black(), 0);
+  lv_obj_set_style_shadow_opa(s_clock_center_dot, LV_OPA_80, 0);
+  lv_obj_set_style_shadow_ofs_y(s_clock_center_dot, 3, 0);
   lv_obj_center(s_clock_center_dot);
 
   if (s_clock_timer == NULL) s_clock_timer = lv_timer_create(clock_timer_cb, 1000, NULL);
@@ -10055,11 +10161,17 @@ static void reset_album_to_default_image(void) {
 }
 
 static void load_image_from_sd(int direction) {
+  LVGL_LOCK();
+  // Reset auto timer whenever an image is loaded (either auto or manual)
+  s_album_auto_timer = 0;
+
   // If no images scannned yet (or count 0), try scanning
   if (s_image_count == 0) {
     scan_intro_images();
-    if (s_image_count == 0)
+    if (s_image_count == 0) {
+      LVGL_UNLOCK();
       return; // Still empty
+    }
     s_current_image_index = 0;
   }
 
@@ -10081,6 +10193,10 @@ static void load_image_from_sd(int direction) {
   const char *filename = s_image_files[s_current_image_index];
   ESP_LOGI(TAG, "Album: Loading (%d/%d) %s", s_current_image_index + 1,
            s_image_count, filename);
+
+  // Invalidate image cache for this specific source to avoid stale/corrupted rendering
+  // (Using NULL invalidates everything, which is safer when files might have been updated)
+  lv_img_cache_invalidate_src(NULL);
 
   // Check file extension
   const char *ext = strrchr(filename, '.');
@@ -10104,7 +10220,7 @@ static void load_image_from_sd(int direction) {
       lv_gif_set_src(s_album_gif, filename);
       lv_obj_center(s_album_gif);
     } else {
-      ESP_LOGE(TAG, "Album: Failed to create GIF object");
+      ESP_LOGE(TAG, "Album: Failed to create GIF object for %s", filename);
     }
 #endif
   } else {
@@ -10112,8 +10228,14 @@ static void load_image_from_sd(int direction) {
     if (s_album_img) {
       lv_img_set_src(s_album_img, filename);
       lv_obj_clear_flag(s_album_img, LV_OBJ_FLAG_HIDDEN);
+      
+      // Optimization: if it's a big image, we might want to suggest a refresh
+      // but lv_timer_handler will pick it up on next cycle.
+    } else {
+      ESP_LOGE(TAG, "Album: s_album_img is NULL!");
     }
   }
+  LVGL_UNLOCK();
 }
 
 // ---------------------------------------------------------------------------
@@ -10314,8 +10436,7 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
             if (dy < 0) { // Swipe Up -> Next Image
               load_image_from_sd(1);
             } else { // Swipe Down -> Prev Image
-              LVGL_UNLOCK();
-              // Show screen
+              // Show screen (just in case it was dimmed)
               set_lcd_brightness(0, true);
               load_image_from_sd(-1);
             }
@@ -10380,8 +10501,12 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
 // Update UI Callback
 static lv_obj_t *s_update_percent_label = NULL;
 static lv_obj_t *s_update_label = NULL;
-
 static lv_obj_t *s_update_bg = NULL;
+static lv_obj_t *s_update_bar = NULL;
+
+static lv_obj_t *s_img_update_bg = NULL;
+static lv_obj_t *s_img_update_label = NULL;
+static lv_obj_t *s_img_progress_bar = NULL;
 
 void update_ui_progress(int percent, const char *status) {
   static int last_percent = -1;
@@ -10400,41 +10525,73 @@ void update_ui_progress(int percent, const char *status) {
     lv_obj_set_style_border_width(s_update_bg, 0, 0);
     lv_obj_set_style_pad_all(s_update_bg, 0, 0);
 
-    // Title: "OTA Update"
+    // [노란색 타이틀] 위쪽으로 배치
     s_update_label = lv_label_create(s_update_bg);
-    lv_obj_align(s_update_label, LV_ALIGN_CENTER, 0, -40);
-    lv_obj_set_style_text_color(s_update_label, lv_color_white(), 0);
-    lv_obj_set_style_text_font(s_update_label, &font_kopub_40, 0);
-    lv_label_set_text(s_update_label, "OTA Update");
+    lv_obj_align(s_update_label, LV_ALIGN_CENTER, 0, -30); // 중앙보다 위
+    lv_obj_set_style_text_color(s_update_label, lv_color_hex(0xFFFF00), 0); // 노란색
+    lv_obj_set_style_text_font(s_update_label, &font_addr_30, 0);
+    lv_label_set_text(s_update_label, "OTA 업데이트 진행중..");
 
-    // Progress Status
-    s_update_percent_label = lv_label_create(s_update_bg);
-    lv_obj_align(s_update_percent_label, LV_ALIGN_CENTER, 0, 20);
-    lv_obj_set_style_text_color(s_update_percent_label, lv_color_white(), 0);
-    lv_obj_set_style_text_font(s_update_percent_label, &font_kopub_40, 0);
-    lv_label_set_text(s_update_percent_label, "Preparing...");
-
-    set_lcd_brightness(1, false); // Force Max Brightness (Internal, No Notify)
+    // [노란색 진행바] 타이틀 아래에 배치
+    s_update_bar = lv_bar_create(s_update_bg);
+    lv_obj_set_size(s_update_bar, 300, 18);
+    lv_obj_align(s_update_bar, LV_ALIGN_CENTER, 0, 20); // 타이틀 아래
+    lv_obj_set_style_bg_color(s_update_bar, lv_color_make(64, 64, 64), 0);            // 배경 회색
+    lv_obj_set_style_bg_color(s_update_bar, lv_color_hex(0xFFFF00), LV_PART_INDICATOR); // 진행 노란색
+    lv_bar_set_range(s_update_bar, 0, 100);
+    lv_bar_set_value(s_update_bar, 0, LV_ANIM_OFF);
   }
 
-  if (s_update_percent_label) {
-    if (status) {
-      lv_label_set_text(s_update_percent_label, status);
-    } else {
-      char buf[32];
-      snprintf(buf, sizeof(buf), "%d%%", percent);
-      lv_label_set_text(s_update_percent_label, buf);
-    }
+  // 진행바 실시간 업데이트
+  if (s_update_bar) {
+    lv_bar_set_value(s_update_bar, percent, LV_ANIM_OFF);
   }
 
   if (percent >= 100) {
-    if (s_update_bg) {
-      lv_obj_del(s_update_bg);
-      s_update_bg = NULL;
-      s_update_percent_label = NULL;
-      s_update_label = NULL;
-      ESP_LOGI("UPDATE", "Update UI background deleted to restore touch.");
+    ESP_LOGI("UPDATE", "Update 100% reached. UI kept for delay visibility.");
+  }
+  LVGL_UNLOCK();
+}
+
+void update_img_transfer_ui(int percent, bool finished) {
+  if (finished) {
+    if (s_img_update_bg) {
+      LVGL_LOCK();
+      lv_obj_del(s_img_update_bg);
+      s_img_update_bg = NULL;
+      LVGL_UNLOCK();
     }
+    return;
+  }
+
+  LVGL_LOCK();
+  if (!s_img_update_bg) {
+    s_img_update_bg = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(s_img_update_bg, LCD_H_RES, LCD_V_RES);
+    lv_obj_set_style_bg_color(s_img_update_bg, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(s_img_update_bg, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(s_img_update_bg, 0, 0);
+    lv_obj_set_style_pad_all(s_img_update_bg, 0, 0);
+
+    s_img_update_label = lv_label_create(s_img_update_bg);
+    lv_obj_align(s_img_update_label, LV_ALIGN_CENTER, 0, -30);
+    lv_obj_set_style_text_color(s_img_update_label, lv_color_hex(0xFFFF00), 0); // Yellow
+    lv_obj_set_style_text_font(s_img_update_label, &font_addr_30, 0);
+    lv_obj_set_style_text_align(s_img_update_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_line_space(s_img_update_label, 15, 0); // 1.5 line spacing effect
+    lv_label_set_text(s_img_update_label, "사진 전송 중...\n잠시만 기다려 주세요.");
+
+    s_img_progress_bar = lv_bar_create(s_img_update_bg);
+    lv_obj_set_size(s_img_progress_bar, 300, 20);
+    lv_obj_align(s_img_progress_bar, LV_ALIGN_CENTER, 0, 60);
+    lv_obj_set_style_bg_color(s_img_progress_bar, lv_color_make(64, 64, 64), 0); // Dark track
+    lv_obj_set_style_bg_color(s_img_progress_bar, lv_color_hex(0xFFFF00), LV_PART_INDICATOR); // Yellow bar
+    lv_bar_set_range(s_img_progress_bar, 0, 100);
+    lv_bar_set_value(s_img_progress_bar, 0, LV_ANIM_OFF);
+  }
+
+  if (percent >= 0 && s_img_progress_bar) {
+    lv_bar_set_value(s_img_progress_bar, percent, LV_ANIM_OFF);
   }
   LVGL_UNLOCK();
 }
@@ -10468,6 +10625,7 @@ void app_main(void) {
   esp_log_level_set("WIFI_OTA", ESP_LOG_INFO);
   esp_log_level_set("OTA_SD", ESP_LOG_INFO); // Enable OTA logs
   esp_log_level_set("TOUCH", ESP_LOG_INFO);
+  esp_log_level_set("IMG_TRANSFER", ESP_LOG_INFO); // 이미지 전송 디버그 로그 활성화
   esp_log_level_set(
       "i2c.master",
       ESP_LOG_NONE); // Suppress I2C driver error logs (touch polling nack)
@@ -10551,6 +10709,9 @@ void app_main(void) {
                (unsigned int)(total - used));
     }
   }
+
+  // Start LittleFS UART console (ls / cat / stat / df commands in monitor)
+  // start_lfs_console(); // 부팅 시 대기/스캔 지연 제거 (필요 시에만 활성화)
 
   // 2. Initialize LCD & LVGL (Moved before SD for Update UI)
   esp_err_t ret = lcd_init_panel();
@@ -10871,7 +11032,6 @@ void app_main(void) {
   // keep app_main alive (so monitor doesn't
   // show "Returned from app_main()")
   while (1) {
-    static uint32_t s_album_auto_timer = 0;
     static uint32_t s_clock_auto_timer = 0;
 
     // 부팅 시 시계 화면 전환 트리거 처리 (BTC_TASK 스택 보호를 위해 메인
@@ -10882,10 +11042,10 @@ void app_main(void) {
       switch_display_mode(DISPLAY_MODE_STANDBY);
     }
 
-    // 1. 앨범 자동 갱신 (5초)
+    // 1. 앨범 자동 갱신 (10초)
     if (s_album_option == 0 && s_current_mode == DISPLAY_MODE_ALBUM) {
-      if (++s_album_auto_timer >= 5) {
-        s_album_auto_timer = 0;
+      if (++s_album_auto_timer >= 10) {
+        // s_album_auto_timer = 0; // load_image_from_sd internally resets this
         load_image_from_sd(1); // Next
       }
     } else {

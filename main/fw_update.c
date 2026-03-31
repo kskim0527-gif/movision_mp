@@ -17,7 +17,6 @@ static const char *TAG = "FW_UPDATE";
 #define CMD_FW_INFO     0x01 // Update Info (App -> HUD)
 #define CMD_FW_REQ      0x02 // Update Request (HUD -> App)
 #define CMD_FW_DATA     0x03 // Update Data (App -> HUD)
-#define CMD_FW_ACK      0x04 // Update ACK (HUD -> App)
 #define CMD_FW_COMPLETE 0x05 // Update Complete (HUD -> App)
 
 typedef enum {
@@ -35,6 +34,7 @@ static struct {
     uint16_t last_seq;
     esp_ota_handle_t update_handle;
     const esp_partition_t *update_partition;
+    uint8_t last_percent;
 } s_fw_ctx;
 
 // Extern functions defined in main.c
@@ -52,15 +52,10 @@ static void send_fw_response(uint8_t cmd, uint16_t seq, uint8_t error_code) {
     resp[2] = cmd;
     
     if (cmd == CMD_FW_REQ) {
-        resp[3] = 0x01;  // D-Len
-        resp[4] = error_code;
-        resp[5] = PROTOCOL_TAIL;
-        len = 6;
-    } else if (cmd == CMD_FW_ACK) {
-        resp[3] = 0x03;  // D-Len: [SEQ:2][ERR:1]
-        resp[4] = (uint8_t)(seq >> 8);
-        resp[5] = (uint8_t)(seq & 0xFF);
-        resp[6] = error_code;
+        resp[3] = 0x03;  // D-Len: [RESULT:1][SBS:2]
+        resp[4] = (error_code == 0) ? 1 : 0; // 1: OK, 0: Not OK
+        resp[5] = (uint8_t)(FW_UPDATE_BLOCK_SIZE >> 8);
+        resp[6] = (uint8_t)(FW_UPDATE_BLOCK_SIZE & 0xFF);
         resp[7] = PROTOCOL_TAIL;
         len = 8;
     } else if (cmd == CMD_FW_COMPLETE) {
@@ -72,7 +67,10 @@ static void send_fw_response(uint8_t cmd, uint16_t seq, uint8_t error_code) {
     
     if (len > 0) {
         hud_send_notify_bytes(resp, (uint16_t)len);
-        save_packet_to_sdcard(resp, (size_t)len, "TX");
+        // Only log REQ and COMPLETE to SD to save time during data transfer
+        if (cmd == CMD_FW_REQ || cmd == CMD_FW_COMPLETE) {
+            save_packet_to_sdcard(resp, (size_t)len, "TX");
+        }
     }
 }
 
@@ -107,6 +105,7 @@ static void handle_fw_info(const uint8_t *data, size_t len) {
     
     s_fw_ctx.current_size = 0;
     s_fw_ctx.last_seq = 0xFFFF;
+    s_fw_ctx.last_percent = 0;
     
     s_fw_ctx.update_partition = esp_ota_get_next_update_partition(NULL);
     if (!s_fw_ctx.update_partition) {
@@ -118,7 +117,7 @@ static void handle_fw_info(const uint8_t *data, size_t len) {
     ESP_LOGI(TAG, "Starting FW update: size %lu (0x%08lX) from packet len %u", 
              (unsigned long)s_fw_ctx.total_size, (unsigned long)s_fw_ctx.total_size, (unsigned)len);
     
-    update_ui_progress(0, "F/W Update...");
+    update_ui_progress(0, "업데이트 준비 중 (플래시 삭제)...");
     s_fw_ctx.state = FW_STATE_PREPARING;
     
     // Begin OTA (will erase if size is known)
@@ -151,7 +150,6 @@ static void handle_fw_data(const uint8_t *data, size_t len) {
     
     if (s_fw_ctx.state != FW_STATE_UPDATING || s_fw_ctx.update_handle == 0) {
         ESP_LOGW(TAG, "FW Data received but not in updating state");
-        send_fw_response(CMD_FW_ACK, seq, 1); // Not ready
         return;
     }
     
@@ -159,10 +157,12 @@ static void handle_fw_data(const uint8_t *data, size_t len) {
     if (err == ESP_OK) {
         s_fw_ctx.current_size += payload_len;
         s_fw_ctx.last_seq = seq;
-        send_fw_response(CMD_FW_ACK, seq, 0); // OK
         
         int percent = (s_fw_ctx.current_size * 100) / s_fw_ctx.total_size;
-        update_ui_progress(percent, NULL);
+        if (percent > s_fw_ctx.last_percent || percent == 100) {
+            update_ui_progress(percent, "업데이트 진행 중..."); // 메시지를 한글로 유지
+            s_fw_ctx.last_percent = (uint8_t)percent;
+        }
         
         if (s_fw_ctx.current_size >= s_fw_ctx.total_size) {
             ESP_LOGI(TAG, "FW Download complete: %lu bytes. Finishing...", (unsigned long)s_fw_ctx.current_size);
@@ -173,7 +173,7 @@ static void handle_fw_data(const uint8_t *data, size_t len) {
                 if (err == ESP_OK) {
                     s_fw_ctx.state = FW_STATE_FINISHED;
                     send_fw_response(CMD_FW_COMPLETE, 0, 0); // Success
-                    update_ui_progress(100, "Update Success! Rebooting...");
+                    update_ui_progress(100, "업데이트 완료! 3초 후 재부팅합니다.");
                     
                     // Delay reboot to allow ACK to be sent
                     vTaskDelay(pdMS_TO_TICKS(3000));
@@ -191,7 +191,6 @@ static void handle_fw_data(const uint8_t *data, size_t len) {
         }
     } else {
         ESP_LOGE(TAG, "esp_ota_write failed at offset %lu: %s", (unsigned long)s_fw_ctx.current_size, esp_err_to_name(err));
-        send_fw_response(CMD_FW_ACK, seq, 2); // Error
     }
 }
 

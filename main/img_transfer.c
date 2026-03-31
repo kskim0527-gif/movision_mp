@@ -1,4 +1,5 @@
 #include "img_transfer.h"
+#include "fw_update.h"
 #include "esp_log.h"
 #include <stdio.h>
 #include <string.h>
@@ -20,8 +21,9 @@ static const char *TAG = "IMG_TRANSFER";
 #define CMD_IMG_DELETE  0x05
 
 // Commands from Device
-#define CMD_IMG_RES_SEQ 0x03
-#define CMD_IMG_RES_CMP 0x04
+#define CMD_IMG_INFO_RES 0x11
+#define CMD_IMG_RES_SEQ  0x03
+#define CMD_IMG_RES_CMP  0x04
 
 typedef enum {
     IMG_STATE_IDLE = 0,
@@ -38,6 +40,7 @@ typedef struct {
     uint16_t last_block_seq;
     FILE *file;
     char file_path[128];
+    uint8_t last_percent;
 } img_transfer_ctx_t;
 
 static img_transfer_ctx_t s_ctx;
@@ -46,6 +49,7 @@ static char s_img_base_dir[64] = "/littlefs/Photo"; // Default base dir
 // Extern from main.c
 extern void hud_send_notify_bytes(const uint8_t *data, uint16_t len);
 extern void save_packet_to_sdcard(const uint8_t *data, size_t len, const char *prefix);
+extern void update_img_transfer_ui(int percent, bool finished);
 
 void img_transfer_init(void) {
     memset(&s_ctx, 0, sizeof(s_ctx));
@@ -82,6 +86,13 @@ static void send_response(uint8_t cmd, uint16_t seq, uint8_t error_code) {
         resp[4] = error_code;
         resp[5] = PROTOCOL_TAIL;
         len = 6;
+    } else if (cmd == CMD_IMG_INFO_RES) {
+        resp[1] = 0x4F; // ID override for Image Info Response per protocol v1.8
+        resp[3] = 0x02; // D-Len: [SBS:2]
+        resp[4] = (uint8_t)(FW_UPDATE_BLOCK_SIZE >> 8); 
+        resp[5] = (uint8_t)(FW_UPDATE_BLOCK_SIZE & 0xFF);
+        resp[6] = PROTOCOL_TAIL;
+        len = 7;
     }
     
     if (len > 0) {
@@ -99,6 +110,7 @@ static void handle_img_info(const uint8_t *data, size_t len) {
     s_ctx.image_type = data[10];
     s_ctx.current_size = 0;
     s_ctx.last_block_seq = 0xFFFF;
+    s_ctx.last_percent = 0;
     
     if (s_ctx.image_type == 0) {
         snprintf(s_ctx.file_path, sizeof(s_ctx.file_path), "/littlefs/intro_new.gif");
@@ -113,7 +125,8 @@ static void handle_img_info(const uint8_t *data, size_t len) {
     if (s_ctx.file) {
         s_ctx.state = IMG_STATE_RECEIVING;
         ESP_LOGI(TAG, "Starting download: %s, size: %lu", s_ctx.file_path, (unsigned long)s_ctx.total_size);
-        // Removed ACK response for Image Info metadata as per v1.6 protocol update
+        update_img_transfer_ui(0, false);
+        send_response(CMD_IMG_INFO_RES, 0, 0); 
     } else {
         s_ctx.state = IMG_STATE_ERROR;
         ESP_LOGE(TAG, "Fail to open: %s (errno=%d)", s_ctx.file_path, errno);
@@ -141,6 +154,12 @@ static void handle_img_data(const uint8_t *data, size_t len) {
         s_ctx.last_block_seq = seq;
         send_response(CMD_IMG_RES_SEQ, seq, 0); 
         
+        int percent = (int)(s_ctx.current_size * 100 / s_ctx.total_size);
+        if (percent > s_ctx.last_percent || percent == 100) {
+            update_img_transfer_ui(percent, false);
+            s_ctx.last_percent = (uint8_t)percent;
+        }
+        
         if (s_ctx.current_size >= s_ctx.total_size) {
             ESP_LOGI(TAG, "Transfer complete: %lu bytes", (unsigned long)s_ctx.current_size);
             
@@ -154,6 +173,7 @@ static void handle_img_data(const uint8_t *data, size_t len) {
                 unlink("/littlefs/intro.gif");
                 rename("/littlefs/intro_new.gif", "/littlefs/intro.gif");
             }
+            update_img_transfer_ui(100, true);
             send_response(CMD_IMG_RES_CMP, 0, 0);
         }
     } else {
