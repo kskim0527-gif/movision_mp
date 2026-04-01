@@ -2492,8 +2492,7 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
           lv_obj_add_flag(s_speedometer_speed_label, LV_OBJ_FLAG_HIDDEN);
         if (s_speedometer_unit_label)
           lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
-        if (s_speedometer_road_name_label)
-          lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+        // Do not hide speedometer road name (requested always show)
 
         // Also hide primary HUD road name
         if (s_road_name_label)
@@ -2740,20 +2739,21 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
     if (s_speedometer_safety_value_label != NULL) {
       lv_label_set_text(s_speedometer_safety_value_label, value_text);
 
-      // Calculate width for last digit center alignment (using kopub_40)
+      // Calculate width for last digit center alignment (using kopub_35 to match HUD)
       lv_coord_t v_width = lv_txt_get_width(
-          value_text, strlen(value_text), &font_kopub_40, 0, LV_TEXT_FLAG_NONE);
+          value_text, strlen(value_text), &font_kopub_35, 0, LV_TEXT_FLAG_NONE);
       size_t v_len = strlen(value_text);
       lv_coord_t v_last_char_w = 0;
       if (v_len > 0) {
         char last_char_str[2] = {value_text[v_len - 1], '\0'};
-        v_last_char_w = lv_txt_get_width(last_char_str, 1, &font_kopub_40, 0,
+        v_last_char_w = lv_txt_get_width(last_char_str, 1, &font_kopub_35, 0,
                                          LV_TEXT_FLAG_NONE);
       }
 
-      // Align: center of last digit at X=0, 아래로 180pt (Y=180)
+      // Align: center of last digit at X=110, 아래로 130pt (Y=130) - Safety 이미지 우측 하단 정렬
       lv_obj_align(s_speedometer_safety_value_label, LV_ALIGN_CENTER,
-                   0 + (v_last_char_w / 2) - (v_width / 2), 180);
+                   110 + (v_last_char_w / 2) - (v_width / 2), 130);
+      lv_obj_set_style_text_color(s_speedometer_safety_value_label, lv_color_hex(0x00FF00), 0); // 초록색
 
       lv_obj_clear_flag(s_speedometer_safety_value_label, LV_OBJ_FLAG_HIDDEN);
     }
@@ -3568,8 +3568,8 @@ static void align_avr_speed_labels(void) {
         if (current_road && strlen(current_road) > 0) {
           lv_obj_clear_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
         }
-        lv_obj_align(s_road_name_label, LV_ALIGN_CENTER, 0,
-                     170); // Same Y as avg speed
+        lv_obj_align(s_road_name_label, LV_ALIGN_TOP_MID, 0,
+                     388); // Same Y as avg speed, first line center at 403pt
       }
     }
   } else if (s_current_mode == DISPLAY_MODE_CLOCK2) {
@@ -4213,7 +4213,7 @@ static void update_road_name_label(const char *road_name) {
   if (s_current_mode == DISPLAY_MODE_HUD) {
     lv_obj_set_parent(s_road_name_label, s_hud_screen);
     lv_obj_move_foreground(s_road_name_label);
-    lv_obj_align(s_road_name_label, LV_ALIGN_CENTER, 0, 170);
+    lv_obj_align(s_road_name_label, LV_ALIGN_TOP_MID, 0, 388);
     lv_obj_set_style_text_color(s_road_name_label, lv_palette_main(LV_PALETTE_YELLOW), 0);
 
     bool avr_visible = s_avr_speed_value_label && !lv_obj_has_flag(s_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN);
@@ -4235,13 +4235,10 @@ static void update_road_name_label(const char *road_name) {
     bool safety_active = (s_speedometer_safety_image != NULL && !lv_obj_has_flag(s_speedometer_safety_image, LV_OBJ_FLAG_HIDDEN));
 
     if (s_speedometer_road_name_label != NULL) {
-      if (!safety_active) {
-        lv_obj_clear_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
-        if (s_speedometer_unit_label != NULL) {
-          lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
-        }
-      } else {
-        lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+      // Always clear HIDDEN flag if road name is available, regardless of safety_active
+      lv_obj_clear_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_speedometer_unit_label != NULL) {
+        lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
       }
     }
     // Disable primary HUD label
@@ -5823,7 +5820,7 @@ static esp_err_t lvgl_init(void) {
                               lv_palette_main(LV_PALETTE_YELLOW), 0);
   lv_obj_set_style_text_font(s_road_name_label, &font_addr_30, 0);
   lv_obj_set_style_text_align(s_road_name_label, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_align(s_road_name_label, LV_ALIGN_CENTER, 0, 170);
+  lv_obj_align(s_road_name_label, LV_ALIGN_TOP_MID, 0, 388);
   lv_label_set_text(s_road_name_label, "");
   lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
 
@@ -9427,7 +9424,7 @@ static void create_speedometer_ui(void) {
   lv_obj_set_style_text_font(s_speedometer_speed_label, &font_vip_100, 0);
   lv_obj_set_style_text_color(s_speedometer_speed_label, lv_color_white(), 0);
   lv_label_set_text(s_speedometer_speed_label, "0");
-  lv_obj_align(s_speedometer_speed_label, LV_ALIGN_CENTER, 0, 120);
+  lv_obj_align(s_speedometer_speed_label, LV_ALIGN_CENTER, 0, 110);
 
   s_speedometer_unit_label = lv_label_create(s_speedometer_screen);
   lv_obj_set_style_text_font(s_speedometer_unit_label, &font_kopub_35, 0);
@@ -9475,19 +9472,19 @@ static void create_speedometer_ui(void) {
 
   s_speedometer_safety_value_label = lv_label_create(s_speedometer_screen);
   lv_obj_add_flag(s_speedometer_safety_value_label, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_set_style_text_font(s_speedometer_safety_value_label, &font_kopub_40,
+  lv_obj_set_style_text_font(s_speedometer_safety_value_label, &font_kopub_35,
                              0);
   lv_obj_set_style_text_color(s_speedometer_safety_value_label,
-                              lv_color_hex(0xFF8800), 0); // Orange
-  lv_obj_align(s_speedometer_safety_value_label, LV_ALIGN_CENTER, 0, 180);
+                              lv_color_hex(0x00FF00), 0); // Green
+  lv_obj_align(s_speedometer_safety_value_label, LV_ALIGN_CENTER, 110, 130);
 
   s_speedometer_safety_unit_label = lv_label_create(s_speedometer_screen);
   lv_obj_add_flag(s_speedometer_safety_unit_label, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_set_style_text_font(s_speedometer_safety_unit_label, &font_kopub_40,
+  lv_obj_set_style_text_font(s_speedometer_safety_unit_label, &font_kopub_25,
                              0);
   lv_obj_set_style_text_color(s_speedometer_safety_unit_label, lv_color_white(),
                               0);
-  lv_obj_align(s_speedometer_safety_unit_label, LV_ALIGN_CENTER, 60, 180);
+  lv_obj_align(s_speedometer_safety_unit_label, LV_ALIGN_CENTER, 170, 130);
 
   // Road Name Label for Speedometer Mode
   s_speedometer_road_name_label = lv_label_create(s_speedometer_screen);
@@ -9495,8 +9492,9 @@ static void create_speedometer_ui(void) {
   lv_obj_set_style_text_font(s_speedometer_road_name_label, &font_addr_30, 0); // Use address font
   lv_obj_set_style_text_color(s_speedometer_road_name_label, lv_palette_main(LV_PALETTE_YELLOW), 0);
   lv_obj_set_style_text_align(s_speedometer_road_name_label, LV_TEXT_ALIGN_CENTER, 0);
-  // 위치를 속도 단위(km/h) 위치로 설정
-  lv_obj_align(s_speedometer_road_name_label, LV_ALIGN_CENTER, 0, 180);
+  // 위치를 HUD 모드와 동일하게 설정 (1행 중심 403pt 위치)
+  lv_obj_align(s_speedometer_road_name_label, LV_ALIGN_TOP_MID, 0, 388);
+  lv_label_set_text(s_speedometer_road_name_label, "");
 
   // 4. Average Speed Labels (Initially Hidden)
   // [구간속도 문구] 10pt [구간속도 숫자] 5pt [구간속도 단위]
