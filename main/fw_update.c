@@ -138,9 +138,14 @@ static void handle_fw_info(const uint8_t *data, size_t len) {
 static void handle_fw_data(const uint8_t *data, size_t len) {
     // 19 4F 03 [DLEN:2] [SEQ:2] [Payload...] 2F
     if (len < 8) return;
-    
     uint16_t dlen = (data[3] << 8) | data[4];
     uint16_t seq = (data[5] << 8) | data[6];
+    
+    // Print periodically or for the first few to avoid console spam
+    if (seq % 100 == 0 || seq < 5) {
+        ESP_LOGW("BLE_ONLY", "펌웨어 시퀀스 번호 = %02X %02X", data[5], data[6]);
+    }
+    
     uint32_t payload_len = dlen - 2;
     
     if (len < payload_len + 8) {

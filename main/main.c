@@ -4943,9 +4943,18 @@ void hud_send_notify_bytes(const uint8_t *data, uint16_t len) {
     return;
   }
 
-  // Debug: Log all outgoing packets to terminal
-  ESP_LOGI(TAG, "[TX] HUD -> App (%u bytes)", (unsigned)len);
-  ESP_LOG_BUFFER_HEX(TAG, data, len);
+  // 50 03, 4F 03 패킷은 개별 로그에서 제외 (노이즈가 매우 많음)
+  bool is_bulk_res = false;
+  if (len >= 3 && data[0] == 0x19) {
+      if ((data[1] == 0x50 || data[1] == 0x4F) && data[2] == 0x03) {
+          is_bulk_res = true;
+      }
+  }
+
+  if (!is_bulk_res) {
+    ESP_LOGI(TAG, "[TX] HUD -> App (%u bytes)", (unsigned)len);
+    ESP_LOG_BUFFER_HEX(TAG, data, len);
+  }
 
   if (!s_hud_notify_enabled && !s_force_hud_notify) {
     // ESP_LOGW(TAG, "HUD notify skipped:
@@ -6413,10 +6422,9 @@ static void set_lcd_brightness(uint8_t level, bool notify) {
   // Update Settings UI if it exists
   update_setting_ui_labels();
 
-  ESP_LOGI(TAG, "Brightness level set to: %s",
-           level == 0
-               ? "Auto"
-               : (level == 5 ? "5 (Max)" : (level == 1 ? "1 (Min)" : "N/A")));
+  ESP_LOGI(TAG, "Brightness level set to: %d (%s)", 
+           level, 
+           level == 0 ? "Auto" : (level == 5 ? "Max" : (level == 1 ? "Min" : "Manual")));
 }
 
 // 밝기 레벨을 다음 단계로 순환 (A->1->2->3->4->5->A)
@@ -6576,6 +6584,10 @@ static void update_setting_ui_labels(void) {
 static void save_btn_event_cb(lv_event_t *e) {
   (void)e;
   save_nvs_settings();
+  
+  // 밝기 설정을 앱에 통보 (저장 시 동기화)
+  set_lcd_brightness(s_brightness_level, true);
+
   if (s_setting_save_label) {
     lv_label_set_text(s_setting_save_label, "저장됨");
   }
@@ -8313,8 +8325,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
     }
       if (param->write.handle == s_write_handle) {
         // Always log raw fragments to terminal as requested (may slow down data transfer)
-        ESP_LOGI(TAG, "[RX Fragment] App -> HUD (%u bytes)", (unsigned)param->write.len);
-        ESP_LOG_BUFFER_HEX(TAG, param->write.value, param->write.len);
+        // ESP_LOGI(TAG, "[RX Fragment] App -> HUD (%u bytes)", (unsigned)param->write.len);
+        // ESP_LOG_BUFFER_HEX(TAG, param->write.value, param->write.len);
 
         // Packet Reassembly Logic
         for (uint16_t i = 0; i < param->write.len; i++) {
@@ -8355,7 +8367,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
                         uint8_t mid = s_rx_buffer[1];
                         uint8_t mcmd = s_rx_buffer[2];
                         // Log all reassembled packets to terminal
-                        ESP_LOGI(TAG, "[RX Full Packet] ID=0x%02X CMD=0x%02X (len=%u)", mid, mcmd, s_rx_pos);
+                        // ESP_LOGI(TAG, "[RX Full Packet] ID=0x%02X CMD=0x%02X (len=%u)", mid, mcmd, s_rx_pos);
                         save_packet_to_sdcard(s_rx_buffer, s_rx_pos, "RX");
                         process_app_command(s_rx_buffer, s_rx_pos);
                     } else {
@@ -8991,8 +9003,15 @@ void save_packet_to_sdcard(const uint8_t *data, size_t len,
     return;
   }
 
-  // Note: All packets are now logged as requested by the user
+  // 4F 03 (FW), 50 02 (IMG DATA), 50 03 (IMG RES) 로그 제외
   bool is_bulk_data = false; 
+  if (len >= 3 && data[0] == 0x19) {
+      if ((data[1] == 0x4F && data[2] == 0x03) || 
+          (data[1] == 0x50 && data[2] == 0x02) || 
+          (data[1] == 0x50 && data[2] == 0x03)) {
+          is_bulk_data = true;
+      }
+  }
 
   static char hex_str[800]; // Use static to save stack space
   memset(hex_str, 0, sizeof(hex_str));
