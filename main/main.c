@@ -9268,10 +9268,14 @@ static void draw_analog_clock2(int hour, int minute, int second) {
 
 static void create_clock_ui(void) {
   if (s_clock_screen == NULL) return;
-  ESP_LOGI(TAG, "[CLOCK UI] Loading background: S:/littlefs/clock_1/screen.png");
+  ESP_LOGI(TAG, "[CLOCK UI] Loading background: S:/littlefs/clock_1/screen.jpg");
+  
+  // Clean up image cache to ensure fresh loading from PSRAM
+  lv_img_cache_invalidate_src(NULL);
+
   s_clock_bg_img = lv_img_create(s_clock_screen);
-  lv_img_set_src(s_clock_bg_img, "S:/littlefs/clock_1/screen.png");
-  lv_img_set_zoom(s_clock_bg_img, 200); // Further reduced to avoid any edge overflow
+  lv_img_set_src(s_clock_bg_img, "S:/littlefs/clock_1/screen.jpg");
+  lv_img_set_zoom(s_clock_bg_img, 256); // 100% scale (Original)
   lv_obj_center(s_clock_bg_img);
   // Disable scrolling to remove white horizontal scrollbar at bottom
   lv_obj_clear_flag(s_clock_screen, LV_OBJ_FLAG_SCROLLABLE);
