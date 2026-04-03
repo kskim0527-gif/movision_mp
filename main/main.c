@@ -547,6 +547,7 @@ static lv_obj_t *s_speedometer_avr_speed_unit_label =
     NULL; // Speedometer Average Speed Unit
 static uint8_t s_speedometer_safety_tt_val = 0;
 static lv_obj_t *s_speedometer_road_name_label = NULL; // Speedometer Road Name Label
+static lv_obj_t *s_speedometer_road_name_sub_label = NULL; // Speedometer Road Name Sub-Label
 
 static lv_obj_t *s_hyd_msg_label =
     NULL; // HYD TX 메시지 표시용 label (앱->ESP32)
@@ -626,6 +627,7 @@ static lv_obj_t *s_dest_distance_unit_label =
 static lv_obj_t *s_dest_image = NULL;      // 목적지정보 이미지 (go_to.bmp)
 static lv_obj_t *s_dest_label = NULL;      // "도착지까지" 라벨
 static lv_obj_t *s_road_name_label = NULL; // 도로명 표시 라벨 (Sector 12)
+static lv_obj_t *s_road_name_sub_label = NULL; // 도로명 서브 라벨 (Sector 12)
 static lv_obj_t *s_rssi_label = NULL; // 블루투스 RSSI 표시용 label (20pt, 흰색)
 static lv_obj_t *s_speed_mark_value_label =
     NULL; // speed_mark 속도 값 표시용 (155pt, 흰색)
@@ -2627,8 +2629,8 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
   static uint32_t s_last_distance_m = 0xFFFFFFFF;
   static uint8_t s_last_distance_mode = 0xFF;
 
-  // safety거리값이 20 이하이거나 999km 이상(0xFFFFFF 포함)인 경우 표기하지 않음
-  if (distance_m <= 20 || distance_m >= 999000) {
+  // safety거리값이 20 이하이거나 10000m 이상(10km)인 경우 표기하지 않음
+  if (distance_m <= 20 || distance_m >= 10000) {
     if (s_safety_length_value_label != NULL) {
       lv_obj_add_flag(s_safety_length_value_label, LV_OBJ_FLAG_HIDDEN);
     }
@@ -3216,8 +3218,14 @@ static void update_clear_display(uint8_t data1) {
     if (s_road_name_label != NULL) {
       lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
     }
+    if (s_road_name_sub_label != NULL) {
+      lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+    }
     if (s_speedometer_road_name_label != NULL) {
       lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (s_speedometer_road_name_sub_label != NULL) {
+      lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
     }
     // 도로명이 지워졌으므로 속도계 단위(km/h) 다시 표시
     if (s_speedometer_unit_label != NULL) {
@@ -3589,6 +3597,16 @@ static void align_avr_speed_labels(void) {
   lv_obj_move_foreground(s_avr_speed_unit_label);
 }
 
+static size_t utf8_strlen_simple(const char *s) {
+  size_t count = 0;
+  while (*s) {
+    if ((*s & 0xC0) != 0x80)
+      count++;
+    s++;
+  }
+  return count;
+}
+
 // Update speed label (called from LVGL task)
 // NOTE: This function should only be called
 // from LVGL handler task
@@ -3795,20 +3813,29 @@ static void update_speed_label(uint8_t data1, uint8_t speed) {
         lv_obj_set_style_text_color(s_speedometer_avr_speed_unit_label,
                                     lv_color_hex(0x808080), 0);
 
-        // 1. Align Title (구간속도): Center - 80pt right, 40pt up
-        lv_obj_align(s_speedometer_avr_speed_title_label, LV_ALIGN_CENTER, 80,
-                     -40);
+        // Speedometer mode: Align to HUD-equivalent position
+        // HUD labels alternate with road name at Y=170 (rel to center)
+        // Road name is at TOP_MID, 0, 388 (466/2 = 233. 388-233 = 155 approx)
+        // Let's use Y=170 for consistency with HUD's avr_y logic
+        
+        lv_obj_update_layout(s_speedometer_avr_speed_value_label);
+        lv_coord_t val_w = lv_obj_get_width(s_speedometer_avr_speed_value_label);
+        char *txt = lv_label_get_text(s_speedometer_avr_speed_value_label);
+        size_t char_count = utf8_strlen_simple(txt);
+        lv_coord_t char_w = (char_count > 0) ? (val_w / char_count) : 0;
 
-        // 2. Align Value: Center - 60pt right
-        // "구간속도 숫자는 화면 중앙에서 우측으로 60pt 이동해줘" (Previous
-        // request retained)
-        lv_obj_align(s_speedometer_avr_speed_value_label, LV_ALIGN_CENTER, 60,
-                     0);
+        lv_obj_align(s_speedometer_avr_speed_value_label, LV_ALIGN_CENTER, (val_w - char_w) / 2, 170);
+        lv_obj_align_to(s_speedometer_avr_speed_title_label, s_speedometer_avr_speed_value_label,
+                        LV_ALIGN_OUT_LEFT_MID, -5, 0);
+        lv_obj_align_to(s_speedometer_avr_speed_unit_label, s_speedometer_avr_speed_value_label,
+                        LV_ALIGN_OUT_RIGHT_MID, 1, 0);
+        
+        // Show unit by default for HUD parity
+        lv_obj_clear_flag(s_speedometer_avr_speed_unit_label, LV_OBJ_FLAG_HIDDEN);
 
-        // 3. Unit: Right of Value
-        lv_obj_align_to(s_speedometer_avr_speed_unit_label,
-                        s_speedometer_avr_speed_value_label,
-                        LV_ALIGN_OUT_RIGHT_BOTTOM, 5, 0);
+        // Hide speedometer road names when average speed is shown
+        if (s_speedometer_road_name_label) lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_speedometer_road_name_sub_label) lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
       }
     }
   }
@@ -4125,6 +4152,7 @@ static void request_destination_update(uint8_t data1, uint8_t data2,
   // task - actual LVGL object manipulation)
 }
 
+
 static void update_road_name_label(const char *road_name) {
   if (s_road_name_label == NULL) {
     ESP_LOGW(TAG, "Road Name: s_road_name_label is NULL!");
@@ -4133,11 +4161,32 @@ static void update_road_name_label(const char *road_name) {
 
   LVGL_LOCK(); // Ensure thread safety
 
+  // Reset long modes and widths for fresh update
+  lv_label_set_long_mode(s_road_name_label, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(s_road_name_label, LV_SIZE_CONTENT);
+  if (s_road_name_sub_label) {
+    lv_label_set_long_mode(s_road_name_sub_label, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(s_road_name_sub_label, LV_SIZE_CONTENT);
+  }
+  if (s_speedometer_road_name_label) {
+    lv_label_set_long_mode(s_speedometer_road_name_label, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(s_speedometer_road_name_label, LV_SIZE_CONTENT);
+  }
+  if (s_speedometer_road_name_sub_label) {
+    lv_label_set_long_mode(s_speedometer_road_name_sub_label, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(s_speedometer_road_name_sub_label, LV_SIZE_CONTENT);
+  }
+
   if (road_name == NULL || strlen(road_name) == 0) {
     ESP_LOGI(TAG, "Road Name: Received empty string, hiding labels");
     lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_road_name_sub_label) lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+    
     if (s_speedometer_road_name_label) {
       lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (s_speedometer_road_name_sub_label) {
+      lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
     }
 
     // 도로명이 사라지면 km/h 단위 다시 표시 (HUD 모드)
@@ -4162,12 +4211,16 @@ static void update_road_name_label(const char *road_name) {
 
   ESP_LOGI(TAG, "Road Name: Updating label to '%s'", road_name);
 
-  // Road Name Line Break Logic: "로" + "숫자" + "길" -> Insert \n
+  // Road Name Logic: Split by \n if logic applies, otherwise check for manual \n
+  char line1[128] = {0};
+  char line2[128] = {0};
+  bool has_split = false;
+
+  // Existing Line Break Logic: "로" + "숫자" + "길" -> Insert \n
   char processed_name[256];
   strncpy(processed_name, road_name, sizeof(processed_name) - 1);
   processed_name[sizeof(processed_name) - 1] = '\0';
 
-  bool updated = false;
   const char *ro_search_start = processed_name;
   while (1) {
     char *ro_ptr = strstr((char *)ro_search_start, "\xEB\xA1\x9C"); // "로"
@@ -4184,28 +4237,74 @@ static void update_road_name_label(const char *road_name) {
         pattern_ptr++;
 
       if (strncmp(pattern_ptr, "\xEA\xB8\xB8", 3) == 0) { // "길"
-        char final_name[512];
         size_t head_len = digit_start - processed_name;
         while (head_len > 0 && processed_name[head_len - 1] == ' ')
           head_len--;
 
-        snprintf(final_name, sizeof(final_name), "%.*s\n%s", (int)head_len,
-                 processed_name, digit_start);
-        lv_label_set_text(s_road_name_label, final_name);
-        if (s_speedometer_road_name_label) {
-          lv_label_set_text(s_speedometer_road_name_label, final_name);
-        }
-        updated = true;
+        snprintf(line1, sizeof(line1), "%.*s", (int)head_len, processed_name);
+        snprintf(line2, sizeof(line2), "%s", digit_start);
+        has_split = true;
         break;
       }
     }
     ro_search_start = ro_ptr + 3;
   }
 
-  if (!updated) {
-    lv_label_set_text(s_road_name_label, road_name);
+  // If not split by pattern, check for existing \n or just use as line1
+  if (!has_split) {
+    char *newline_ptr = strchr(processed_name, '\n');
+    if (newline_ptr) {
+      size_t line1_len = newline_ptr - processed_name;
+      snprintf(line1, sizeof(line1), "%.*s", (int)line1_len, processed_name);
+      snprintf(line2, sizeof(line2), "%s", newline_ptr + 1);
+      has_split = true;
+    } else {
+      strncpy(line1, processed_name, sizeof(line1) - 1);
+      line2[0] = '\0';
+      has_split = false;
+    }
+  }
+
+  // Set texts
+  lv_label_set_text(s_road_name_label, line1);
+  if (s_speedometer_road_name_label) lv_label_set_text(s_speedometer_road_name_label, line1);
+  
+  if (has_split) {
+    if (s_road_name_sub_label) {
+      lv_label_set_text(s_road_name_sub_label, line2);
+      lv_obj_clear_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (s_speedometer_road_name_sub_label) {
+      lv_label_set_text(s_speedometer_road_name_sub_label, line2);
+      lv_obj_clear_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+    }
+  } else {
+    if (s_road_name_sub_label) lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_speedometer_road_name_sub_label) lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+  }
+
+  // Apply Scrolling (11 chars for top, 5 chars for bottom)
+  // 30pt font: 11 chars ~= 250px, 5 chars ~= 115px (approximate)
+  const lv_coord_t top_limit_width = 250;
+  const lv_coord_t bottom_limit_width = 115;
+
+  if (utf8_strlen_simple(line1) >= 11) {
+    lv_obj_set_width(s_road_name_label, top_limit_width);
+    lv_label_set_long_mode(s_road_name_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
     if (s_speedometer_road_name_label) {
-      lv_label_set_text(s_speedometer_road_name_label, road_name);
+      lv_obj_set_width(s_speedometer_road_name_label, top_limit_width);
+      lv_label_set_long_mode(s_speedometer_road_name_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    }
+  }
+
+  if (has_split && utf8_strlen_simple(line2) >= 5) {
+    if (s_road_name_sub_label) {
+      lv_obj_set_width(s_road_name_sub_label, bottom_limit_width);
+      lv_label_set_long_mode(s_road_name_sub_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    }
+    if (s_speedometer_road_name_sub_label) {
+      lv_obj_set_width(s_speedometer_road_name_sub_label, bottom_limit_width);
+      lv_label_set_long_mode(s_speedometer_road_name_sub_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
     }
   }
 
@@ -4213,7 +4312,14 @@ static void update_road_name_label(const char *road_name) {
   if (s_current_mode == DISPLAY_MODE_HUD) {
     lv_obj_set_parent(s_road_name_label, s_hud_screen);
     lv_obj_move_foreground(s_road_name_label);
+    if (s_road_name_sub_label) {
+        lv_obj_set_parent(s_road_name_sub_label, s_hud_screen);
+        lv_obj_move_foreground(s_road_name_sub_label);
+    }
+    
     lv_obj_align(s_road_name_label, LV_ALIGN_TOP_MID, 0, 388);
+    if (s_road_name_sub_label) lv_obj_align(s_road_name_sub_label, LV_ALIGN_TOP_MID, 0, 423);
+    
     lv_obj_set_style_text_color(s_road_name_label, lv_palette_main(LV_PALETTE_YELLOW), 0);
 
     bool avr_visible = s_avr_speed_value_label && !lv_obj_has_flag(s_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN);
@@ -4221,33 +4327,44 @@ static void update_road_name_label(const char *road_name) {
 
     if (!avr_visible && !safety_active) {
       lv_obj_clear_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+      if (has_split && s_road_name_sub_label) lv_obj_clear_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+      
       if (s_speed_mark_unit_label) {
         lv_obj_add_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
       }
     } else {
       lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_road_name_sub_label) lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
     }
-    // Disable speedometer label
+    // Disable speedometer labels
     if (s_speedometer_road_name_label) lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_speedometer_road_name_sub_label) lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
 
   } else if (s_current_mode == DISPLAY_MODE_SPEEDOMETER) {
-    // 속도계 모드: s_speedometer_road_name_label 표시
-    bool safety_active = (s_speedometer_safety_image != NULL && !lv_obj_has_flag(s_speedometer_safety_image, LV_OBJ_FLAG_HIDDEN));
-
+    // 속도계 모드
     if (s_speedometer_road_name_label != NULL) {
-      // Always clear HIDDEN flag if road name is available, regardless of safety_active
-      lv_obj_clear_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+      bool avr_visible = s_speedometer_avr_speed_value_label && !lv_obj_has_flag(s_speedometer_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN);
+      bool safety_active = (s_speedometer_safety_image != NULL && !lv_obj_has_flag(s_speedometer_safety_image, LV_OBJ_FLAG_HIDDEN));
+      if (!avr_visible && !safety_active) {
+        lv_obj_clear_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+        if (has_split && s_speedometer_road_name_sub_label) lv_obj_clear_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+      } else {
+        lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_speedometer_road_name_sub_label) lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+      }
+      
       if (s_speedometer_unit_label != NULL) {
         lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
       }
     }
-    // Disable primary HUD label
+    // Disable primary HUD labels
     lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_road_name_sub_label) lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
   } else {
     lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
-    if (s_speedometer_road_name_label) {
-      lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
-    }
+    if (s_road_name_sub_label) lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_speedometer_road_name_label) lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_speedometer_road_name_sub_label) lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
   }
 
   LVGL_UNLOCK();
@@ -4948,21 +5065,27 @@ void hud_send_notify_bytes(const uint8_t *data, uint16_t len) {
       }
   }
 
-  if (!is_bulk_res) {
-    ESP_LOGI(TAG, "[TX] HUD -> App (%u bytes)", (unsigned)len);
-    ESP_LOG_BUFFER_HEX(TAG, data, len);
+  // Force notification for firmware update packets (ID=0x4F) and image transfer packets (ID=0x50) 
+  // to ensure completion messages are delivered even if CCCD wasn't fully enabled by the app's OTA mode.
+  bool force_this_packet = false;
+  if (len >= 2 && data[0] == 0x19) {
+      if (data[1] == 0x4F || data[1] == 0x50) {
+          force_this_packet = true;
+      }
   }
 
-  if (!s_hud_notify_enabled && !s_force_hud_notify) {
-    // ESP_LOGW(TAG, "HUD notify skipped:
-    // notify_enabled=%d force=%d",
-    //          s_hud_notify_enabled ? 1 : 0,
-    //          s_force_hud_notify ? 1 : 0);
+  if (!s_hud_notify_enabled && !s_force_hud_notify && !force_this_packet) {
     return;
   }
+
   if (!data || len == 0) {
     ESP_LOGW(TAG, "HUD notify skipped: data=%p len=%u", data, len);
     return;
+  }
+
+  if (!is_bulk_res) {
+    ESP_LOGI(TAG, "[TX] HUD -> App (%u bytes)%s", (unsigned)len, force_this_packet ? " [FORCED]" : "");
+    ESP_LOG_BUFFER_HEX(TAG, data, len);
   }
   // Parse HUD TX data (10-byte format: 0x19
   // 0x4D cmd dlen data1 data2 data3 data4
@@ -5824,6 +5947,15 @@ static esp_err_t lvgl_init(void) {
   lv_label_set_text(s_road_name_label, "");
   lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
 
+  s_road_name_sub_label = lv_label_create(s_hud_screen);
+  lv_obj_set_style_text_color(s_road_name_sub_label,
+                              lv_palette_main(LV_PALETTE_YELLOW), 0);
+  lv_obj_set_style_text_font(s_road_name_sub_label, &font_addr_30, 0);
+  lv_obj_set_style_text_align(s_road_name_sub_label, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(s_road_name_sub_label, LV_ALIGN_TOP_MID, 0, 423);
+  lv_label_set_text(s_road_name_sub_label, "");
+  lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+
   lv_obj_add_flag(s_dest_time_minute_value_label,
                   LV_OBJ_FLAG_HIDDEN); // 초기에는 숨김
 
@@ -6080,16 +6212,26 @@ static void update_display_mode_ui(display_mode_t mode) {
     if (s_road_name_label) {
       lv_obj_set_parent(s_road_name_label, s_hud_screen);
       lv_obj_move_foreground(s_road_name_label); // Bring to front
+      if (s_road_name_sub_label) {
+        lv_obj_set_parent(s_road_name_sub_label, s_hud_screen);
+        lv_obj_move_foreground(s_road_name_sub_label);
+      }
+
       const char *current_road = lv_label_get_text(s_road_name_label);
       if (current_road && strlen(current_road) > 0) {
         bool safety_active = (s_safety_image != NULL && !lv_obj_has_flag(s_safety_image, LV_OBJ_FLAG_HIDDEN));
         if (!safety_active) {
           lv_obj_clear_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+          if (s_road_name_sub_label && strlen(lv_label_get_text(s_road_name_sub_label)) > 0) {
+            lv_obj_clear_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+          }
           if (s_speed_mark_unit_label) lv_obj_add_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
         } else {
           lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+          if (s_road_name_sub_label) lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
         }
         lv_obj_invalidate(s_road_name_label);
+        if (s_road_name_sub_label) lv_obj_invalidate(s_road_name_sub_label);
       }
     }
 
@@ -6121,9 +6263,13 @@ static void update_display_mode_ui(display_mode_t mode) {
                                lv_label_get_text(s_speedometer_road_name_label)[0] != '\0');
       if (road_name_active) {
         if (s_speedometer_road_name_label) lv_obj_clear_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_speedometer_road_name_sub_label && strlen(lv_label_get_text(s_speedometer_road_name_sub_label)) > 0) {
+          lv_obj_clear_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+        }
         if (s_speedometer_unit_label) lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
       } else {
         if (s_speedometer_road_name_label) lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_speedometer_road_name_sub_label) lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
         if (s_speedometer_unit_label) lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
       }
     }
@@ -8361,8 +8507,6 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
                 // If we have a full packet, process it
                 if (s_rx_expected_len > 0 && s_rx_pos == s_rx_expected_len) {
                     if (s_rx_buffer[s_rx_pos - 1] == 0x2F) {
-                        uint8_t mid = s_rx_buffer[1];
-                        uint8_t mcmd = s_rx_buffer[2];
                         // Log all reassembled packets to terminal
                         // ESP_LOGI(TAG, "[RX Full Packet] ID=0x%02X CMD=0x%02X (len=%u)", mid, mcmd, s_rx_pos);
                         save_packet_to_sdcard(s_rx_buffer, s_rx_pos, "RX");
@@ -9499,6 +9643,15 @@ static void create_speedometer_ui(void) {
   // 위치를 HUD 모드와 동일하게 설정 (1행 중심 403pt 위치)
   lv_obj_align(s_speedometer_road_name_label, LV_ALIGN_TOP_MID, 0, 388);
   lv_label_set_text(s_speedometer_road_name_label, "");
+
+  s_speedometer_road_name_sub_label = lv_label_create(s_speedometer_screen);
+  lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_set_style_text_font(s_speedometer_road_name_sub_label, &font_addr_30, 0);
+  lv_obj_set_style_text_color(s_speedometer_road_name_sub_label, lv_palette_main(LV_PALETTE_YELLOW), 0);
+  lv_obj_set_style_text_align(s_speedometer_road_name_sub_label, LV_TEXT_ALIGN_CENTER, 0);
+  // 2행 위치: 1행(388) + 폰트 높이 고려 (약 35pt 간격)
+  lv_obj_align(s_speedometer_road_name_sub_label, LV_ALIGN_TOP_MID, 0, 423);
+  lv_label_set_text(s_speedometer_road_name_sub_label, "");
 
   // 4. Average Speed Labels (Initially Hidden)
   // [구간속도 문구] 10pt [구간속도 숫자] 5pt [구간속도 단위]

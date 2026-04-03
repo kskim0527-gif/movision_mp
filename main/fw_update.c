@@ -95,13 +95,14 @@ static void handle_fw_info(const uint8_t *data, size_t len) {
     }
 
     // Extract size based on tail position (more robust for variable version lengths)
+    // 0x4F 프로토콜은 2바이트 DLEN을 사용하므로 페이로드는 index 5부터 시작합니다.
+    // [19][4F][01][DL_H][DL_L] [Payload...] [2F]
+    // 페이로드의 마지막 4바이트가 전체 파일 크기(Big-Endian)입니다.
+    if (len < 10) return; // 최소 길이 확인
+    
     size_t tail_idx = len - 1;
-    if (len >= 20) { // New protocol with extra fields
-        s_fw_ctx.total_size = (uint32_t)((data[tail_idx-9] << 24) | (data[tail_idx-8] << 16) | 
-                                         (data[tail_idx-7] << 8) | data[tail_idx-6]);
-    } else { // Old/Original protocol
-        s_fw_ctx.total_size = (uint32_t)((data[11] << 24) | (data[12] << 16) | (data[13] << 8) | data[14]);
-    }
+    s_fw_ctx.total_size = (uint32_t)((data[tail_idx-4] << 24) | (data[tail_idx-3] << 16) | 
+                                     (data[tail_idx-2] << 8) | data[tail_idx-1]);
     
     s_fw_ctx.current_size = 0;
     s_fw_ctx.last_seq = 0xFFFF;
@@ -163,6 +164,12 @@ static void handle_fw_data(const uint8_t *data, size_t len) {
         s_fw_ctx.current_size += payload_len;
         s_fw_ctx.last_seq = seq;
         
+        // 블럭별 저장 완료 로그 추가 (처음 5개 및 100개 단위)
+        if (seq % 100 == 0 || seq < 5 || s_fw_ctx.current_size >= s_fw_ctx.total_size) {
+            ESP_LOGW("BLE_ONLY", "[저장 완료] 펌웨어 시퀀스 번호 = %04X, 누적 크기 = %lu/%lu", 
+                     seq, (unsigned long)s_fw_ctx.current_size, (unsigned long)s_fw_ctx.total_size);
+        }
+        
         int percent = (s_fw_ctx.current_size * 100) / s_fw_ctx.total_size;
         if (percent > s_fw_ctx.last_percent || percent == 100) {
             update_ui_progress(percent, "업데이트 진행 중..."); // 메시지를 한글로 유지
@@ -177,10 +184,23 @@ static void handle_fw_data(const uint8_t *data, size_t len) {
                 err = esp_ota_set_boot_partition(s_fw_ctx.update_partition);
                 if (err == ESP_OK) {
                     s_fw_ctx.state = FW_STATE_FINISHED;
-                    send_fw_response(CMD_FW_COMPLETE, 0, 0); // Success
-                    update_ui_progress(100, "업데이트 완료! 3초 후 재부팅합니다.");
                     
-                    // Delay reboot to allow ACK to be sent
+                    // 완료 통보 전 사용자 요청으로 1초 대기 (기존 5초에서 단축)
+                    vTaskDelay(pdMS_TO_TICKS(1000));
+                    
+                    send_fw_response(CMD_FW_COMPLETE, 0, 0); // 1. 완료 통보(0x05) 1회 송신
+                    update_ui_progress(100, "업데이트 완료! 곧 재부팅합니다.");
+                    
+                    // 2. 0.5초 간격으로 시간 업데이트 요청(0x4E 0D) 2회 송신
+                    static const uint8_t time_req[] = {0x19, 0x4E, 0x0D, 0x01, 0x00, 0x2F}; 
+                    for (int i = 0; i < 2; i++) {
+                        vTaskDelay(pdMS_TO_TICKS(500));
+                        hud_send_notify_bytes(time_req, sizeof(time_req));
+                        save_packet_to_sdcard(time_req, sizeof(time_req), "TX");
+                    }
+                    
+                    update_ui_progress(100, "업데이트 완료! 곧 재부팅합니다.");
+                    // 완료 통보가 PC에 도달할 시간을 충분히 줌 (1초 -> 3초)
                     vTaskDelay(pdMS_TO_TICKS(3000));
                     esp_restart();
                 } else {
