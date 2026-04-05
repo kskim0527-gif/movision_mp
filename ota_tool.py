@@ -13,6 +13,7 @@ TAIL = 0x2F
 CMD_FW_INFO = 0x01
 CMD_FW_REQ = 0x02
 CMD_FW_DATA = 0x03
+CMD_FW_DATA_ACK = 0x04
 CMD_FW_COMPLETE = 0x05
 
 # UUIDs
@@ -34,6 +35,8 @@ class MOVISION_OTA:
         self.pbar = None
         self.start_transfer = False
         self.last_rx_time = 0
+        self.ack_event = asyncio.Event()
+        self.last_ack_seq = -1
 
     def build_packet(self, cmd, data):
         dlen = len(data)
@@ -46,13 +49,9 @@ class MOVISION_OTA:
 
     async def handle_notification(self, sender, data):
         self.last_rx_time = time.time()
-        hex_data = format_hex(data)
         
-        # 무조건 로깅 (전송 중에 너무 많은 로그 방지를 위해 100% 이후거나 시작 전일 때만 상세 출력)
-        if not self.start_transfer or self.current_pos >= self.total_size:
-            print(f"\n[RX] {hex_data}")
-
-        if len(data) < 5: return
+        if len(data) < 3: return
+        cid = data[1]
         cmd = data[2]
         
         # Payload start detection
@@ -60,48 +59,84 @@ class MOVISION_OTA:
         if data[0] == HEADER:
             d_1 = data[3]
             d_2 = (data[3] << 8) | data[4]
-            # If d_1 is length and tail is at 3+1+d_1
             if 3+1+d_1 < len(data) and data[3+1+d_1] == TAIL: payload_idx = 4
             elif 3+2+d_2 < len(data) and data[3+2+d_2] == TAIL: payload_idx = 5
 
-        if cmd == CMD_FW_REQ:
-            result = data[payload_idx]
-            sbs = (data[payload_idx+1] << 8) | data[payload_idx+2]
-            if result == 1:
-                self.block_size = sbs
-                self.start_transfer = True
-            else:
-                self.error = "HUD rejected update (Busy or Size Error)."
+        # 로그 출력 여부 결정
+        show_log = True
+        msg_raw = f"[RX] ID=0x{cid:02X} CMD=0x{cmd:02X} Raw: {data.hex().upper()}"
         
-        elif cmd == CMD_FW_COMPLETE:
-            status = data[payload_idx]
-            if status == 0:
-                print(f"[OK] Completion packet verified.")
-                self.finished = True
-            else:
-                self.error = f"Update failed on HUD (Error Code: {status})"
+        if cid == 0x4F and cmd == 0x04:
+            # ACK 패킷 처리
+            try:
+                ack_seq = (data[payload_idx] << 8) | data[payload_idx+1]
+                self.last_ack_seq = ack_seq
+                is_last = (self.current_pos >= self.total_size - self.block_size)
+                
+                # 200개 단위 또는 처음/마지막만 출력
+                if not (ack_seq % 200 == 0 or ack_seq == 0 or is_last):
+                    show_log = False
+                
+                msg_raw += f" -> ACK Recv: Seq {ack_seq}"
+                self.ack_event.set()
+            except IndexError:
+                pass
+        
+        # 필터를 통과했거나 ACK가 아닌 패킷인 경우 출력
+        if show_log:
+            if self.pbar: self.pbar.write(msg_raw)
+            else: print(msg_raw)
+
+        # 0x4F (펌웨어 로그) 추가 로직
+        if cid == 0x4F:
+            if cmd == CMD_FW_REQ:
+                self.start_transfer = True
+            elif cmd == CMD_FW_COMPLETE:
+                status = data[payload_idx]
+                if status == 0:
+                    print(f"[OK] Completion packet verified.")
+                    self.finished = True
+                else:
+                    self.error = f"Update failed on HUD (Error Code: {status})"
 
     async def run_transfer_loop(self):
-        print(f"[INFO] Pushing data (Block={self.block_size}, Delay=20ms)...")
+        print(f"[INFO] Pushing data (Block={self.block_size}, Windowed x5 Mode)...")
         try:
             with open(self.bin_path, 'rb') as f:
                 while self.current_pos < self.total_size and not self.error:
                     f.seek(self.current_pos)
                     chunk = f.read(self.block_size)
                     seq = self.current_pos // self.block_size
+                    
                     payload = bytearray([(seq >> 8) & 0xFF, seq & 0xFF])
                     payload.extend(chunk)
                     packet = self.build_packet(CMD_FW_DATA, payload)
                     
-                    # WNR (Write No Response)
+                    # ACK 대기 이벤트 초기화
+                    self.ack_event.clear()
+                    
+                    # 비동기 송신 (WNR)
                     await self.client.write_gatt_char(CHAR_FFF2_WRITE, packet, response=False)
+                    
+                    # 5블럭마다 또는 마지막 블럭에서만 ACK 대기
+                    is_last = (self.current_pos + len(chunk) >= self.total_size)
+                    if (seq % 5 == 4) or is_last:
+                        try:
+                            await asyncio.wait_for(self.ack_event.wait(), timeout=10.0)
+                        except asyncio.TimeoutError:
+                            self.error = f"ACK Timeout at Seq {seq}"
+                            break
+                    else:
+                        # 윈도우 내 연속 전송 시 Windows 스택 부하 분산 (1.5ms)
+                        await asyncio.sleep(0.0015)
                     
                     self.current_pos += len(chunk)
                     if self.pbar: self.pbar.update(len(chunk))
                     
-                    await asyncio.sleep(0.02)
-                    
-            print("\n[INFO] 100% Sent. Waiting for HUD state change...")
+            if not self.error:
+                msg = "\n[INFO] 100% Sent. Waiting for final HUD confirmation..."
+                if self.pbar: self.pbar.write(msg)
+                else: print(msg)
         except Exception as e:
             self.error = f"Transfer Interrupted: {e}"
 
@@ -136,7 +171,7 @@ class MOVISION_OTA:
                     if time.time() - start_wait > 15.0:
                         # 100% 전송되었으면 패킷 도달 여부에 상관없이 성공으로 간주할 수도 있음 (보수적 처리)
                         if self.current_pos >= self.total_size: 
-                            print("[WARN] 100% Sent but no ACK. Device likely rebooted early.")
+                            if self.pbar: self.pbar.write("[WARN] 100% Sent but no ACK. Device likely rebooted early.")
                             self.finished = True
                         else:
                             self.error = "Timeout waiting for 0x4F 05."
@@ -150,7 +185,7 @@ class MOVISION_OTA:
             print(f"\n[FATAL ERROR] {e}")
 
 async def main():
-    print("MOVISION OTA Tool v3.7 (Indication Support)")
+    print("MOVISION OTA Tool v5.8 (Windowed ACK x5 - Filtered Logging)")
     devices = await BleakScanner.discover(timeout=4.0)
     huds = [d for d in devices if d.name and "HUD" in d.name.upper()]
     if not huds: print("No HUD found."); return

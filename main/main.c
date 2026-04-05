@@ -39,11 +39,11 @@
 // Custom fonts (Dynamically loaded from LittleFS)
 static lv_font_t *s_font_kopub_20 = NULL;
 static lv_font_t *s_font_kopub_25 = NULL;
-static lv_font_t *s_font_kopub_30 = NULL;
+
 static lv_font_t *s_font_kopub_35 = NULL;
 static lv_font_t *s_font_kopub_40 = NULL;
-static lv_font_t *s_font_vip_100 = NULL;
-static lv_font_t *s_font_vip_155 = NULL;
+static lv_font_t *s_font_orb_100 = NULL;
+static lv_font_t *s_font_orb_155 = NULL;
 // static lv_font_t *s_font_gman_188 = NULL;
 static lv_font_t *s_font_addr_30 = NULL; // 도로명 표시용 폰트 (font_addr_30)
 
@@ -51,11 +51,11 @@ static lv_font_t *s_font_addr_30 = NULL; // 도로명 표시용 폰트 (font_add
   ((f) ? (f) : (&lv_font_montserrat_14)) // LVGL default fallback
 #define font_kopub_20 (*SAFE_FONT(s_font_kopub_20))
 #define font_kopub_25 (*SAFE_FONT(s_font_kopub_25))
-#define font_kopub_30 (*SAFE_FONT(s_font_kopub_30))
+
 #define font_kopub_35 (*SAFE_FONT(s_font_kopub_35))
 #define font_kopub_40 (*SAFE_FONT(s_font_kopub_40))
-#define font_vip_100 (*SAFE_FONT(s_font_vip_100))
-#define font_VIP_155 (*SAFE_FONT(s_font_vip_155))
+#define font_ORB_100 (*SAFE_FONT(s_font_orb_100))
+#define font_ORB_155 (*SAFE_FONT(s_font_orb_155))
 #define font_gman_188 (*SAFE_FONT(s_font_gman_188))
 #define font_addr_30 (*SAFE_FONT(s_font_addr_30))
 #if LV_USE_FS_POSIX
@@ -2499,12 +2499,27 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
         // Also hide primary HUD road name
         if (s_road_name_label)
           lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_road_name_sub_label)
+          lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
       }
       
-      // HUD 모드일 때도 도로명 숨기기
+      // HUD 모드일 때 도로명 숨기기 로직 제거 (안전운행 정보 표시 중에도 도로명 유지 요청)
       if (s_current_mode == DISPLAY_MODE_HUD) {
-          if (s_road_name_label) lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
-          if (s_speed_mark_unit_label) lv_obj_add_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
+          // 구간속도가 보이고 있다면 도로명 숨겨야 함 (공간 중첩)
+          bool avr_visible = s_avr_speed_value_label && !lv_obj_has_flag(s_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN);
+          if (avr_visible) {
+              if (s_road_name_label) lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+              if (s_road_name_sub_label) lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+          } else {
+              // 구간속도가 없으면 도로명 표시 (안전운행 중이어도)
+              if (s_road_name_label && lv_label_get_text(s_road_name_label)[0] != '\0') {
+                  lv_obj_clear_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+                  if (s_road_name_sub_label && lv_label_get_text(s_road_name_sub_label)[0] != '\0') {
+                      lv_obj_clear_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+                  }
+                  if (s_speed_mark_unit_label) lv_obj_add_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
+              }
+          }
       }
 
       // 하트비트 업데이트 (이미지 표시 후)
@@ -3197,6 +3212,9 @@ static void update_clear_display(uint8_t data1) {
             bool avr_visible = s_avr_speed_value_label && !lv_obj_has_flag(s_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN);
             if (!avr_visible) {
                 lv_obj_clear_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+                if (s_road_name_sub_label && lv_label_get_text(s_road_name_sub_label)[0] != '\0') {
+                    lv_obj_clear_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+                }
                 if (s_speed_mark_unit_label) lv_obj_add_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
             }
         }
@@ -3505,15 +3523,20 @@ static void update_speed_mark(uint8_t data2) {
   // Update speed value label (155pt, white, center + 83pt down)
   lv_label_set_text(s_speed_mark_value_label, speed_text);
   lv_obj_set_style_text_color(s_speed_mark_value_label, lv_color_white(), 0);
-  lv_obj_set_style_text_font(s_speed_mark_value_label, &font_VIP_155, 0);
+  lv_obj_set_style_text_font(s_speed_mark_value_label, &font_ORB_155, 0);
   lv_obj_align(s_speed_mark_value_label, LV_ALIGN_CENTER, 0, 83);
   lv_obj_clear_flag(s_speed_mark_value_label, LV_OBJ_FLAG_HIDDEN);
 
   // --- HUD 모드 요청: 도로명이나 평균속도가 있으면 단위(km/h) 숨기고, 없으면
   // 표시 ---
+  // 도로명이 1행 또는 2행 중 하나라도 활성 상태면(숨겨지지 않았으면) 보고 있는 것으로 판단
   bool road_name_visible =
       (s_road_name_label != NULL &&
        !lv_obj_has_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN));
+  if (s_road_name_sub_label && !lv_obj_has_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN)) {
+      road_name_visible = true;
+  }
+  
   bool avr_speed_visible =
       (s_avr_speed_value_label != NULL &&
        !lv_obj_has_flag(s_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN));
@@ -3571,10 +3594,16 @@ static void align_avr_speed_labels(void) {
     if (s_road_name_label) {
       if (avr_visible) {
         lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_road_name_sub_label)
+          lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
       } else {
         const char *current_road = lv_label_get_text(s_road_name_label);
         if (current_road && strlen(current_road) > 0) {
           lv_obj_clear_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+          if (s_road_name_sub_label &&
+              strlen(lv_label_get_text(s_road_name_sub_label)) > 0) {
+            lv_obj_clear_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+          }
         }
         lv_obj_align(s_road_name_label, LV_ALIGN_TOP_MID, 0,
                      388); // Same Y as avg speed, first line center at 403pt
@@ -4320,12 +4349,13 @@ static void update_road_name_label(const char *road_name) {
     lv_obj_align(s_road_name_label, LV_ALIGN_TOP_MID, 0, 388);
     if (s_road_name_sub_label) lv_obj_align(s_road_name_sub_label, LV_ALIGN_TOP_MID, 0, 423);
     
-    lv_obj_set_style_text_color(s_road_name_label, lv_palette_main(LV_PALETTE_YELLOW), 0);
+    // 도로명 색상을 약간 어두운 노란색으로 변경 (210, 210, 0)
+    lv_obj_set_style_text_color(s_road_name_label, lv_color_make(210, 210, 0), 0);
+    if (s_road_name_sub_label) lv_obj_set_style_text_color(s_road_name_sub_label, lv_color_make(210, 210, 0), 0);
 
     bool avr_visible = s_avr_speed_value_label && !lv_obj_has_flag(s_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN);
-    bool safety_active = (s_safety_image != NULL && !lv_obj_has_flag(s_safety_image, LV_OBJ_FLAG_HIDDEN));
-
-    if (!avr_visible && !safety_active) {
+    // 안전운행 정보 표시 중에도 도로명을 표기하도록 로직 수정 (avr_visible만 체크)
+    if (!avr_visible) {
       lv_obj_clear_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
       if (has_split && s_road_name_sub_label) lv_obj_clear_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
       
@@ -4343,9 +4373,13 @@ static void update_road_name_label(const char *road_name) {
   } else if (s_current_mode == DISPLAY_MODE_SPEEDOMETER) {
     // 속도계 모드
     if (s_speedometer_road_name_label != NULL) {
+      // 속도계 모드 도로명 색상도 동일하게 변경
+      lv_obj_set_style_text_color(s_speedometer_road_name_label, lv_color_make(210, 210, 0), 0);
+      if (s_speedometer_road_name_sub_label) lv_obj_set_style_text_color(s_speedometer_road_name_sub_label, lv_color_make(210, 210, 0), 0);
+
       bool avr_visible = s_speedometer_avr_speed_value_label && !lv_obj_has_flag(s_speedometer_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN);
-      bool safety_active = (s_speedometer_safety_image != NULL && !lv_obj_has_flag(s_speedometer_safety_image, LV_OBJ_FLAG_HIDDEN));
-      if (!avr_visible && !safety_active) {
+      // 안전운행 정보(카메라) 표시 중에도 도로명을 표기하도록 로직 수정 (avr_visible만 체크)
+      if (!avr_visible) {
         lv_obj_clear_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
         if (has_split && s_speedometer_road_name_sub_label) lv_obj_clear_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
       } else {
@@ -5057,10 +5091,10 @@ void hud_send_notify_bytes(const uint8_t *data, uint16_t len) {
     return;
   }
 
-  // 50 03, 4F 03 패킷은 개별 로그에서 제외 (노이즈가 매우 많음)
+  // 50 03, 4F 03, 4F 04 패킷은 개별 로그에서 제외 (노이즈 방지)
   bool is_bulk_res = false;
   if (len >= 3 && data[0] == 0x19) {
-      if ((data[1] == 0x50 || data[1] == 0x4F) && data[2] == 0x03) {
+      if ((data[1] == 0x50 || data[1] == 0x4F) && (data[2] == 0x03 || data[2] == 0x04)) {
           is_bulk_res = true;
       }
   }
@@ -5405,11 +5439,11 @@ static void load_all_fonts(void) {
   ESP_LOGI(TAG, "Font: Starting bulk font loading...");
   s_font_kopub_20 = load_font_from_fs("font_kopub_20"); vTaskDelay(pdMS_TO_TICKS(20));
   s_font_kopub_25 = load_font_from_fs("font_kopub_25"); vTaskDelay(pdMS_TO_TICKS(20));
-  s_font_kopub_30 = load_font_from_fs("font_kopub_30"); vTaskDelay(pdMS_TO_TICKS(20));
+
   s_font_kopub_35 = load_font_from_fs("font_kopub_35"); vTaskDelay(pdMS_TO_TICKS(20));
   s_font_kopub_40 = load_font_from_fs("font_kopub_40"); vTaskDelay(pdMS_TO_TICKS(20));
-  s_font_vip_100 = load_font_from_fs("font_vip_100");  vTaskDelay(pdMS_TO_TICKS(20));
-  s_font_vip_155 = load_font_from_fs("font_vip_155");  vTaskDelay(pdMS_TO_TICKS(20));
+  s_font_orb_100 = load_font_from_fs("font_orb_100");  vTaskDelay(pdMS_TO_TICKS(20));
+  s_font_orb_155 = load_font_from_fs("font_orb_155");  vTaskDelay(pdMS_TO_TICKS(20));
   
   /* ESP_LOGI(TAG, "Font: Attempting to load gman_188...");
   s_font_gman_188 = load_font_from_fs("font_gman_188"); vTaskDelay(pdMS_TO_TICKS(20)); */
@@ -5417,20 +5451,12 @@ static void load_all_fonts(void) {
   ESP_LOGI(TAG, "Font: Attempting to load addr_30...");
   s_font_addr_30 = load_font_from_fs("font_addr_30");   vTaskDelay(pdMS_TO_TICKS(20));
 
-  ESP_LOGI(TAG, "Font: Starting font link/fallback process...");
-  // Multi-font fallback chain for Road Name (addr -> kopub)
-  if (s_font_addr_30 && s_font_kopub_30) {
-    s_font_addr_30->fallback = s_font_kopub_30;
-    ESP_LOGI(TAG, "Font: Linked font_kopub_30 as fallback for font_addr_30");
-  } else if (s_font_kopub_30 && s_font_addr_30 == NULL) {
-    ESP_LOGW(TAG, "Font: font_addr_30 failed to load, road name will use "
-                  "kopub_30 fallback");
-  }
 
-  // Link font_gman_188 as fallback for font_vip_155 if both are available
-  /* if (s_font_vip_155 && s_font_gman_188) {
-    s_font_vip_155->fallback = s_font_gman_188;
-    ESP_LOGI(TAG, "Font: Linked font_gman_188 as fallback for font_vip_155");
+
+  // Link font_gman_188 as fallback for font_orb_155 if both are available
+  /* if (s_font_orb_155 && s_font_gman_188) {
+    s_font_orb_155->fallback = s_font_gman_188;
+    ESP_LOGI(TAG, "Font: Linked font_gman_188 as fallback for font_orb_155");
   } */
   ESP_LOGI(TAG, "Font: All fonts processed.");
 }
@@ -5732,7 +5758,7 @@ static esp_err_t lvgl_init(void) {
   // Create Normal Speed labels
   s_normal_speed_value_label = lv_label_create(lv_scr_act());
   lv_obj_set_style_text_color(s_normal_speed_value_label, lv_color_white(), 0);
-  lv_obj_set_style_text_font(s_normal_speed_value_label, &font_VIP_155, 0);
+  lv_obj_set_style_text_font(s_normal_speed_value_label, &font_ORB_155, 0);
   lv_obj_align(s_normal_speed_value_label, LV_ALIGN_CENTER, 0, 120);
   lv_obj_add_flag(s_normal_speed_value_label, LV_OBJ_FLAG_HIDDEN);
 
@@ -5882,7 +5908,7 @@ static esp_err_t lvgl_init(void) {
   // 레이블 중심 기준으로 좌측으로 150pt
   s_dest_time_value_label = lv_label_create(lv_scr_act());
   lv_obj_set_style_text_color(s_dest_time_value_label,
-                              lv_palette_main(LV_PALETTE_YELLOW),
+                              lv_color_make(210, 210, 0),
                               0); // 노랑색
   lv_obj_set_style_text_font(s_dest_time_value_label, &font_kopub_35,
                              0); // 35pt 폰트로 환원 (기존 40pt)
@@ -5914,7 +5940,7 @@ static esp_err_t lvgl_init(void) {
   // 폰트, 노랑색) - 61분 이상일 때만 사용
   s_dest_time_minute_value_label = lv_label_create(lv_scr_act());
   lv_obj_set_style_text_color(s_dest_time_minute_value_label,
-                              lv_palette_main(LV_PALETTE_YELLOW),
+                              lv_color_make(210, 210, 0),
                               0); // 노랑색
   lv_obj_set_style_text_font(s_dest_time_minute_value_label, &font_kopub_35,
                              0); // 35pt 폰트로 환원 (기존 40pt)
@@ -5940,7 +5966,7 @@ static esp_err_t lvgl_init(void) {
   // Position: Center X=0, Down 170pt (Y=170), Color: Yellow
   s_road_name_label = lv_label_create(s_hud_screen);
   lv_obj_set_style_text_color(s_road_name_label,
-                              lv_palette_main(LV_PALETTE_YELLOW), 0);
+                              lv_color_make(210, 210, 0), 0);
   lv_obj_set_style_text_font(s_road_name_label, &font_addr_30, 0);
   lv_obj_set_style_text_align(s_road_name_label, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_align(s_road_name_label, LV_ALIGN_TOP_MID, 0, 388);
@@ -5949,7 +5975,7 @@ static esp_err_t lvgl_init(void) {
 
   s_road_name_sub_label = lv_label_create(s_hud_screen);
   lv_obj_set_style_text_color(s_road_name_sub_label,
-                              lv_palette_main(LV_PALETTE_YELLOW), 0);
+                              lv_color_make(210, 210, 0), 0);
   lv_obj_set_style_text_font(s_road_name_sub_label, &font_addr_30, 0);
   lv_obj_set_style_text_align(s_road_name_sub_label, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_align(s_road_name_sub_label, LV_ALIGN_TOP_MID, 0, 423);
@@ -6020,7 +6046,7 @@ static esp_err_t lvgl_init(void) {
   // 위치: LCD 중앙에서 아래로 83pt 이동
   s_speed_mark_value_label = lv_label_create(lv_scr_act());
   lv_obj_set_style_text_color(s_speed_mark_value_label, lv_color_white(), 0);
-  lv_obj_set_style_text_font(s_speed_mark_value_label, &font_VIP_155,
+  lv_obj_set_style_text_font(s_speed_mark_value_label, &font_ORB_155,
                              0); // 155pt 폰트
   lv_obj_align(s_speed_mark_value_label, LV_ALIGN_CENTER, 0,
                83); // 중앙에서 아래로 83pt
@@ -6047,7 +6073,7 @@ static esp_err_t lvgl_init(void) {
   // 위로 50pt, 우측으로 130pt 이동
   s_length_tbt_value_label = lv_label_create(lv_scr_act());
   lv_obj_set_style_text_color(s_length_tbt_value_label,
-                              lv_palette_main(LV_PALETTE_YELLOW),
+                              lv_color_make(210, 210, 0),
                               0); // 노란색
   lv_obj_set_style_text_font(s_length_tbt_value_label, &lv_font_montserrat_48,
                              0); // 48pt 폰트
@@ -7699,16 +7725,23 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event,
                param->ble_security.auth_cmpl.bd_addr[5],
                param->ble_security.auth_cmpl.key_type);
 
-      // Update connection parameters after successful encryption (Fix for 0x3d
-      // MIC Failure)
+      // Update connection parameters to 7.5ms~20ms immediately after auth complete
       esp_ble_conn_update_params_t conn_params = {0};
       memcpy(conn_params.bda, param->ble_security.auth_cmpl.bd_addr,
              sizeof(esp_bd_addr_t));
-      conn_params.min_int = 0x10; // 20ms
-      conn_params.max_int = 0x20; // 40ms
+      conn_params.min_int = 0x06; // 7.5ms (Fastest possible)
+      conn_params.max_int = 0x10; // 20ms
       conn_params.latency = 0;
-      conn_params.timeout = 3200; // 32000ms (32 seconds - Spec Maximum)
+      conn_params.timeout = 400;  // 4s
       esp_ble_gap_update_conn_params(&conn_params);
+      ESP_LOGI(TAG, "Requested 7.5ms connection params immediately after auth complete");
+
+      // Also request 2M PHY for improved throughput
+      esp_ble_gap_set_preferred_phy(param->ble_security.auth_cmpl.bd_addr, 
+                                    0, // 0 means use the follow masks
+                                    ESP_BLE_GAP_PHY_2M_PREF_MASK, 
+                                    ESP_BLE_GAP_PHY_2M_PREF_MASK, 
+                                    0);
       ESP_LOGI(TAG, "Requested connection params update after auth complete");
     }
     // Service Changed Indication removed -
@@ -8507,9 +8540,14 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
                 // If we have a full packet, process it
                 if (s_rx_expected_len > 0 && s_rx_pos == s_rx_expected_len) {
                     if (s_rx_buffer[s_rx_pos - 1] == 0x2F) {
-                        // Log all reassembled packets to terminal
-                        // ESP_LOGI(TAG, "[RX Full Packet] ID=0x%02X CMD=0x%02X (len=%u)", mid, mcmd, s_rx_pos);
-                        save_packet_to_sdcard(s_rx_buffer, s_rx_pos, "RX");
+                        // 펌웨어 데이터(0x4F 03)나 이미지 데이터(0x50) 등의 벌크 데이터는 SD 카드 로그에서 제외 (속도 향상)
+                        uint8_t mid = s_rx_buffer[1];
+                        uint8_t mcmd = s_rx_buffer[2];
+                        bool is_bulk = (mid == 0x4F && mcmd == 0x03) || (mid == 0x50);
+                        
+                        if (!is_bulk) {
+                            save_packet_to_sdcard(s_rx_buffer, s_rx_pos, "RX");
+                        }
                         process_app_command(s_rx_buffer, s_rx_pos);
                     } else {
                         ESP_LOGW(TAG, "Full packet received but tail is not 0x2F (0x%02X)", s_rx_buffer[s_rx_pos-1]);
@@ -9282,10 +9320,10 @@ static void clock_timer_cb(lv_timer_t *timer) {
   const char *week_days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
 
   if (s_current_mode == DISPLAY_MODE_STANDBY) {
-    if (s_boot_time_label && s_font_vip_100) {
+    if (s_boot_time_label && s_font_orb_100) {
       lv_label_set_text_fmt(s_boot_time_label, "%02d:%02d", hour, minute);
     }
-    if (s_boot_date_label && s_font_kopub_30) {
+    if (s_boot_date_label && s_font_addr_30) {
       const char *months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN",
                               "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
       lv_label_set_text_fmt(s_boot_date_label, "%s %02d %s",
@@ -9307,14 +9345,14 @@ static void create_boot_ui(void) {
 
   // 1. HH:MM (Large, Center)
   s_boot_time_label = lv_label_create(s_boot_screen);
-  lv_obj_set_style_text_font(s_boot_time_label, &font_vip_100, 0);
+  lv_obj_set_style_text_font(s_boot_time_label, &font_ORB_100, 0);
   lv_obj_set_style_text_color(s_boot_time_label, lv_color_white(), 0);
   lv_obj_align(s_boot_time_label, LV_ALIGN_CENTER, 0, 0); // Perfectly centered
   lv_label_set_text(s_boot_time_label, "12:00");
 
   // 3. Date Header (Top)
   s_boot_date_label = lv_label_create(s_boot_screen);
-  lv_obj_set_style_text_font(s_boot_date_label, &font_kopub_30, 0);
+  lv_obj_set_style_text_font(s_boot_date_label, &font_addr_30, 0);
   lv_obj_set_style_text_color(s_boot_date_label, lv_color_hex(0xAAAAAA), 0);
   lv_obj_align(s_boot_date_label, LV_ALIGN_CENTER, 0, -100);
   lv_label_set_text(s_boot_date_label, "JAN 01 MON");
@@ -9334,7 +9372,7 @@ static void draw_analog_clock(int hour, int minute, int second) {
   // Hour Hand (Proportional increase and match thickness)
   double h_rad = ((hour % 12) * 30 + minute * 0.5 - 90) * M_PI / 180.0;
   int hl = r * 0.65; // Slightly lengthened for larger M-logo
-  int h_off = 40;    // Increased from 30px to 40px (Matches new center cap size)
+  int h_off = 43;    // Increased to 43px
 
   // BG (Full length)
   s_clock1_hour_points[0].x = cx; s_clock1_hour_points[0].y = cy;
@@ -9343,9 +9381,9 @@ static void draw_analog_clock(int hour, int minute, int second) {
   lv_line_set_points(s_clock1_hour_bg, s_clock1_hour_points, 2);
 
   // Hour Hand Shadow
-  s_clock1_hour_shadow_points[0].x = cx + 3; s_clock1_hour_shadow_points[0].y = cy + 3;
-  s_clock1_hour_shadow_points[1].x = cx + (int)(hl * cos(h_rad)) + 3;
-  s_clock1_hour_shadow_points[1].y = cy + (int)(hl * sin(h_rad)) + 3;
+  s_clock1_hour_shadow_points[0].x = cx + 10; s_clock1_hour_shadow_points[0].y = cy + 10;
+  s_clock1_hour_shadow_points[1].x = cx + (int)(hl * cos(h_rad)) + 10;
+  s_clock1_hour_shadow_points[1].y = cy + (int)(hl * sin(h_rad)) + 10;
   lv_line_set_points(s_clock1_hour_shadow, s_clock1_hour_shadow_points, 2);
 
   // FG (Offset Start)
@@ -9358,7 +9396,7 @@ static void draw_analog_clock(int hour, int minute, int second) {
   // Minute Hand (Maximize length)
   double m_rad = (minute * 6 + second * 0.1 - 90) * M_PI / 180.0;
   int ml = r * 0.95; // Maximum length to match larger aesthetic
-  int m_off = 40;    // Increased from 30px to 40px
+  int m_off = 43;    // Increased to 43px
 
   // BG (Full length)
   s_clock1_minute_points[0].x = cx; s_clock1_minute_points[0].y = cy;
@@ -9367,9 +9405,9 @@ static void draw_analog_clock(int hour, int minute, int second) {
   lv_line_set_points(s_clock1_minute_bg, s_clock1_minute_points, 2);
 
   // Minute Hand Shadow
-  s_clock1_minute_shadow_points[0].x = cx + 3; s_clock1_minute_shadow_points[0].y = cy + 3;
-  s_clock1_minute_shadow_points[1].x = cx + (int)(ml * cos(m_rad)) + 3;
-  s_clock1_minute_shadow_points[1].y = cy + (int)(ml * sin(m_rad)) + 3;
+  s_clock1_minute_shadow_points[0].x = cx + 10; s_clock1_minute_shadow_points[0].y = cy + 10;
+  s_clock1_minute_shadow_points[1].x = cx + (int)(ml * cos(m_rad)) + 10;
+  s_clock1_minute_shadow_points[1].y = cy + (int)(ml * sin(m_rad)) + 10;
   lv_line_set_points(s_clock1_minute_shadow, s_clock1_minute_shadow_points, 2);
 
   // FG (Offset Start)
@@ -9426,19 +9464,19 @@ static void create_clock_ui(void) {
   lv_obj_set_scrollbar_mode(s_clock_screen, LV_SCROLLBAR_MODE_OFF);
 
   lv_color_t orange_fill = lv_color_make(255, 100, 0); 
-  lv_color_t dark_fill = lv_color_make(32, 32, 32);     
+  lv_color_t dark_fill = lv_color_make(64, 64, 64);     
 
   // Shadow lines (Draw first to be at bottom)
   s_clock1_hour_shadow = lv_line_create(s_clock_screen);
   lv_obj_set_style_line_width(s_clock1_hour_shadow, 32, 0);
   lv_obj_set_style_line_color(s_clock1_hour_shadow, lv_color_black(), 0);
-  lv_obj_set_style_line_opa(s_clock1_hour_shadow, LV_OPA_30, 0);
+  lv_obj_set_style_line_opa(s_clock1_hour_shadow, LV_OPA_20, 0);
   lv_obj_set_style_line_rounded(s_clock1_hour_shadow, true, 0);
 
   s_clock1_minute_shadow = lv_line_create(s_clock_screen);
   lv_obj_set_style_line_width(s_clock1_minute_shadow, 32, 0);
   lv_obj_set_style_line_color(s_clock1_minute_shadow, lv_color_black(), 0);
-  lv_obj_set_style_line_opa(s_clock1_minute_shadow, LV_OPA_30, 0);
+  lv_obj_set_style_line_opa(s_clock1_minute_shadow, LV_OPA_20, 0);
   lv_obj_set_style_line_rounded(s_clock1_minute_shadow, true, 0);
 
   s_clock1_hour_bg = lv_line_create(s_clock_screen);
@@ -9462,15 +9500,16 @@ static void create_clock_ui(void) {
   lv_obj_set_style_line_rounded(s_clock1_minute_fg, true, 0);
 
   s_clock_center_dot = lv_obj_create(s_clock_screen);
-  lv_obj_set_size(s_clock_center_dot, 40, 40); // Enlarged to 40px (was 30px)
+  lv_obj_set_size(s_clock_center_dot, 46, 46); // Adjusted to 46px
   lv_obj_set_style_radius(s_clock_center_dot, LV_RADIUS_CIRCLE, 0);
-  lv_obj_set_style_bg_color(s_clock_center_dot, lv_color_hex(0x202020), 0); // Dark Grey
+  lv_obj_set_style_bg_color(s_clock_center_dot, lv_color_hex(0x404040), 0); // Lighter Grey
   lv_obj_set_style_border_width(s_clock_center_dot, 0, 0); // Removed white border
   // Center dot shadow for 3D depth
   lv_obj_set_style_shadow_width(s_clock_center_dot, 15, 0);
   lv_obj_set_style_shadow_color(s_clock_center_dot, lv_color_black(), 0);
-  lv_obj_set_style_shadow_opa(s_clock_center_dot, LV_OPA_80, 0);
-  lv_obj_set_style_shadow_ofs_y(s_clock_center_dot, 3, 0);
+  lv_obj_set_style_shadow_opa(s_clock_center_dot, LV_OPA_20, 0);
+  lv_obj_set_style_shadow_ofs_x(s_clock_center_dot, 10, 0);
+  lv_obj_set_style_shadow_ofs_y(s_clock_center_dot, 10, 0);
   lv_obj_center(s_clock_center_dot);
 
   if (s_clock_timer == NULL) s_clock_timer = lv_timer_create(clock_timer_cb, 1000, NULL);
@@ -9569,7 +9608,7 @@ static void create_speedometer_ui(void) {
 
   // 2. Speed Labels
   s_speedometer_speed_label = lv_label_create(s_speedometer_screen);
-  lv_obj_set_style_text_font(s_speedometer_speed_label, &font_vip_100, 0);
+  lv_obj_set_style_text_font(s_speedometer_speed_label, &font_ORB_100, 0);
   lv_obj_set_style_text_color(s_speedometer_speed_label, lv_color_white(), 0);
   lv_label_set_text(s_speedometer_speed_label, "0");
   lv_obj_align(s_speedometer_speed_label, LV_ALIGN_CENTER, 0, 110);
@@ -9638,7 +9677,7 @@ static void create_speedometer_ui(void) {
   s_speedometer_road_name_label = lv_label_create(s_speedometer_screen);
   lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
   lv_obj_set_style_text_font(s_speedometer_road_name_label, &font_addr_30, 0); // Use address font
-  lv_obj_set_style_text_color(s_speedometer_road_name_label, lv_palette_main(LV_PALETTE_YELLOW), 0);
+  lv_obj_set_style_text_color(s_speedometer_road_name_label, lv_color_make(210, 210, 0), 0);
   lv_obj_set_style_text_align(s_speedometer_road_name_label, LV_TEXT_ALIGN_CENTER, 0);
   // 위치를 HUD 모드와 동일하게 설정 (1행 중심 403pt 위치)
   lv_obj_align(s_speedometer_road_name_label, LV_ALIGN_TOP_MID, 0, 388);
@@ -9647,7 +9686,7 @@ static void create_speedometer_ui(void) {
   s_speedometer_road_name_sub_label = lv_label_create(s_speedometer_screen);
   lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
   lv_obj_set_style_text_font(s_speedometer_road_name_sub_label, &font_addr_30, 0);
-  lv_obj_set_style_text_color(s_speedometer_road_name_sub_label, lv_palette_main(LV_PALETTE_YELLOW), 0);
+  lv_obj_set_style_text_color(s_speedometer_road_name_sub_label, lv_color_make(210, 210, 0), 0);
   lv_obj_set_style_text_align(s_speedometer_road_name_sub_label, LV_TEXT_ALIGN_CENTER, 0);
   // 2행 위치: 1행(388) + 폰트 높이 고려 (약 35pt 간격)
   lv_obj_align(s_speedometer_road_name_sub_label, LV_ALIGN_TOP_MID, 0, 423);
@@ -9719,7 +9758,7 @@ static void create_setting_ui(void) {
   // Row 1: 밝기 옵션 (Moved Left)
   lv_obj_t *label1 = lv_label_create(s_setting_page1_obj);
   lv_obj_set_style_text_font(label1, &font_addr_30, 0);
-  lv_obj_set_style_text_color(label1, lv_palette_main(LV_PALETTE_YELLOW), 0);
+  lv_obj_set_style_text_color(label1, lv_color_make(210, 210, 0), 0);
   lv_label_set_text(label1, "밝기 옵션");
   lv_obj_align(label1, LV_ALIGN_TOP_MID, -115, 10);
 
@@ -9750,7 +9789,7 @@ static void create_setting_ui(void) {
   lv_line_set_points(s_setting_line_bright_dn, points_dn, 3);
   lv_obj_set_style_line_width(s_setting_line_bright_dn, 6, 0);
   lv_obj_set_style_line_color(s_setting_line_bright_dn,
-                              lv_palette_main(LV_PALETTE_YELLOW), 0);
+                              lv_color_make(210, 210, 0), 0);
   lv_obj_set_style_line_rounded(s_setting_line_bright_dn, true, 0);
   lv_obj_align(s_setting_line_bright_dn, LV_ALIGN_CENTER, 0, 0);
 
@@ -9760,7 +9799,7 @@ static void create_setting_ui(void) {
   lv_obj_set_style_bg_opa(s_setting_circ_bright_dn, 0, 0);
   lv_obj_set_style_border_width(s_setting_circ_bright_dn, 4, 0);
   lv_obj_set_style_border_color(s_setting_circ_bright_dn,
-                                lv_palette_main(LV_PALETTE_YELLOW), 0);
+                                lv_color_make(210, 210, 0), 0);
   lv_obj_set_style_pad_all(s_setting_circ_bright_dn, 0, 0);
   lv_obj_center(s_setting_circ_bright_dn);
   lv_obj_add_flag(s_setting_circ_bright_dn, LV_OBJ_FLAG_HIDDEN);
@@ -9798,7 +9837,7 @@ static void create_setting_ui(void) {
   lv_line_set_points(s_setting_line_bright_up, points_up, 3);
   lv_obj_set_style_line_width(s_setting_line_bright_up, 6, 0);
   lv_obj_set_style_line_color(s_setting_line_bright_up,
-                              lv_palette_main(LV_PALETTE_YELLOW), 0);
+                              lv_color_make(210, 210, 0), 0);
   lv_obj_set_style_line_rounded(s_setting_line_bright_up, true, 0);
   lv_obj_align(s_setting_line_bright_up, LV_ALIGN_CENTER, 0, 0);
 
@@ -9808,7 +9847,7 @@ static void create_setting_ui(void) {
   lv_obj_set_style_bg_opa(s_setting_circ_bright_up, 0, 0);
   lv_obj_set_style_border_width(s_setting_circ_bright_up, 4, 0);
   lv_obj_set_style_border_color(s_setting_circ_bright_up,
-                                lv_palette_main(LV_PALETTE_YELLOW), 0);
+                                lv_color_make(210, 210, 0), 0);
   lv_obj_set_style_pad_all(s_setting_circ_bright_up, 0, 0);
   lv_obj_center(s_setting_circ_bright_up);
   lv_obj_add_flag(s_setting_circ_bright_up, LV_OBJ_FLAG_HIDDEN);
@@ -9816,7 +9855,7 @@ static void create_setting_ui(void) {
   // Row 2: 앨범 옵션 (Moved Left)
   lv_obj_t *label2 = lv_label_create(s_setting_page1_obj);
   lv_obj_set_style_text_font(label2, &font_addr_30, 0);
-  lv_obj_set_style_text_color(label2, lv_palette_main(LV_PALETTE_YELLOW), 0);
+  lv_obj_set_style_text_color(label2, lv_color_make(210, 210, 0), 0);
   lv_label_set_text(label2, "앨범 옵션");
   lv_obj_align(label2, LV_ALIGN_TOP_MID, -115, 90);
 
@@ -9846,7 +9885,7 @@ static void create_setting_ui(void) {
   lv_line_set_points(s_setting_line_album_dn, points_dn, 3);
   lv_obj_set_style_line_width(s_setting_line_album_dn, 6, 0);
   lv_obj_set_style_line_color(s_setting_line_album_dn,
-                              lv_palette_main(LV_PALETTE_YELLOW), 0);
+                              lv_color_make(210, 210, 0), 0);
   lv_obj_set_style_line_rounded(s_setting_line_album_dn, true, 0);
   lv_obj_align(s_setting_line_album_dn, LV_ALIGN_CENTER, 0, 0);
 
@@ -9856,7 +9895,7 @@ static void create_setting_ui(void) {
   lv_obj_set_style_bg_opa(s_setting_circ_album_dn, 0, 0);
   lv_obj_set_style_border_width(s_setting_circ_album_dn, 4, 0);
   lv_obj_set_style_border_color(s_setting_circ_album_dn,
-                                lv_palette_main(LV_PALETTE_YELLOW), 0);
+                                lv_color_make(210, 210, 0), 0);
   lv_obj_set_style_pad_all(s_setting_circ_album_dn, 0, 0);
   lv_obj_center(s_setting_circ_album_dn);
   lv_obj_add_flag(s_setting_circ_album_dn, LV_OBJ_FLAG_HIDDEN);
@@ -9892,7 +9931,7 @@ static void create_setting_ui(void) {
   lv_line_set_points(s_setting_line_album_up, points_up, 3);
   lv_obj_set_style_line_width(s_setting_line_album_up, 6, 0);
   lv_obj_set_style_line_color(s_setting_line_album_up,
-                              lv_palette_main(LV_PALETTE_YELLOW), 0);
+                              lv_color_make(210, 210, 0), 0);
   lv_obj_set_style_line_rounded(s_setting_line_album_up, true, 0);
   lv_obj_align(s_setting_line_album_up, LV_ALIGN_CENTER, 0, 0);
 
@@ -9902,7 +9941,7 @@ static void create_setting_ui(void) {
   lv_obj_set_style_bg_opa(s_setting_circ_album_up, 0, 0);
   lv_obj_set_style_border_width(s_setting_circ_album_up, 4, 0);
   lv_obj_set_style_border_color(s_setting_circ_album_up,
-                                lv_palette_main(LV_PALETTE_YELLOW), 0);
+                                lv_color_make(210, 210, 0), 0);
   lv_obj_set_style_pad_all(s_setting_circ_album_up, 0, 0);
   lv_obj_center(s_setting_circ_album_up);
   lv_obj_add_flag(s_setting_circ_album_up, LV_OBJ_FLAG_HIDDEN);
@@ -9910,7 +9949,7 @@ static void create_setting_ui(void) {
   // Row 3: 시계 옵션 (Moved Left)
   lv_obj_t *label3 = lv_label_create(s_setting_page1_obj);
   lv_obj_set_style_text_font(label3, &font_addr_30, 0);
-  lv_obj_set_style_text_color(label3, lv_palette_main(LV_PALETTE_YELLOW), 0);
+  lv_obj_set_style_text_color(label3, lv_color_make(210, 210, 0), 0);
   lv_label_set_text(label3, "시계 옵션");
   lv_obj_align(label3, LV_ALIGN_TOP_MID, -115, 170);
 
@@ -9940,7 +9979,7 @@ static void create_setting_ui(void) {
   lv_line_set_points(s_setting_line_clock_dn, points_dn, 3);
   lv_obj_set_style_line_width(s_setting_line_clock_dn, 6, 0);
   lv_obj_set_style_line_color(s_setting_line_clock_dn,
-                              lv_palette_main(LV_PALETTE_YELLOW), 0);
+                              lv_color_make(210, 210, 0), 0);
   lv_obj_set_style_line_rounded(s_setting_line_clock_dn, true, 0);
   lv_obj_align(s_setting_line_clock_dn, LV_ALIGN_CENTER, 0, 0);
 
@@ -9950,7 +9989,7 @@ static void create_setting_ui(void) {
   lv_obj_set_style_bg_opa(s_setting_circ_clock_dn, 0, 0);
   lv_obj_set_style_border_width(s_setting_circ_clock_dn, 4, 0);
   lv_obj_set_style_border_color(s_setting_circ_clock_dn,
-                                lv_palette_main(LV_PALETTE_YELLOW), 0);
+                                lv_color_make(210, 210, 0), 0);
   lv_obj_set_style_pad_all(s_setting_circ_clock_dn, 0, 0);
   lv_obj_center(s_setting_circ_clock_dn);
   lv_obj_add_flag(s_setting_circ_clock_dn, LV_OBJ_FLAG_HIDDEN);
@@ -9986,7 +10025,7 @@ static void create_setting_ui(void) {
   lv_line_set_points(s_setting_line_clock_up, points_up, 3);
   lv_obj_set_style_line_width(s_setting_line_clock_up, 6, 0);
   lv_obj_set_style_line_color(s_setting_line_clock_up,
-                              lv_palette_main(LV_PALETTE_YELLOW), 0);
+                              lv_color_make(210, 210, 0), 0);
   lv_obj_set_style_line_rounded(s_setting_line_clock_up, true, 0);
   lv_obj_align(s_setting_line_clock_up, LV_ALIGN_CENTER, 0, 0);
 
@@ -9996,7 +10035,7 @@ static void create_setting_ui(void) {
   lv_obj_set_style_bg_opa(s_setting_circ_clock_up, 0, 0);
   lv_obj_set_style_border_width(s_setting_circ_clock_up, 4, 0);
   lv_obj_set_style_border_color(s_setting_circ_clock_up,
-                                lv_palette_main(LV_PALETTE_YELLOW), 0);
+                                lv_color_make(210, 210, 0), 0);
   lv_obj_set_style_pad_all(s_setting_circ_clock_up, 0, 0);
   lv_obj_center(s_setting_circ_clock_up);
   lv_obj_add_flag(s_setting_circ_clock_up, LV_OBJ_FLAG_HIDDEN);
@@ -10017,7 +10056,7 @@ static void create_setting_ui(void) {
   s_setting_save_label = lv_label_create(s_setting_save_btn);
   lv_obj_set_style_text_font(s_setting_save_label, &font_addr_30, 0);
   lv_obj_set_style_text_color(s_setting_save_label,
-                              lv_palette_main(LV_PALETTE_YELLOW), 0);
+                              lv_color_make(210, 210, 0), 0);
   lv_label_set_text(s_setting_save_label, "저장");
   lv_obj_center(s_setting_save_label);
 
@@ -10032,44 +10071,54 @@ static void create_setting_ui(void) {
 
   // --- 1. Info Texts Control (4 Rows, Centered Colon Alignment) ---
   const char *keys[] = {"Model", "S/W Ver", "Serial no", "Website"};
-  const char *values[] = {"MOVISION HD1", FIRMWARE_VERSION, "1A2B1-00001", "www.naver.com"};
+  const char *values[] = {"MOVISION HD1", FIRMWARE_VERSION, "1A2B1-00001", "https://m.smartstore.naver.com/b2broom"};
   int start_y = 5;
   int row_h = 32; // Slightly reduced gap to fit 4 rows nicely
 
   for (int i = 0; i < 4; i++) {
-    // Colon (Center Reference - Move Left by 60px)
-    lv_obj_t *colon_label = lv_label_create(s_setting_page2_obj);
-    lv_obj_set_style_text_font(colon_label, &font_addr_30, 0);
-    lv_obj_set_style_text_color(colon_label, lv_color_hex(0xFFFF00), 0);
-    lv_label_set_text(colon_label, ":");
-    lv_obj_align(colon_label, LV_ALIGN_TOP_MID, -60, start_y + (i * row_h));
+    if (i < 3) {
+        // --- Rows 1-3: Label : Value ---
+        // Colon (Center Reference - Move Left by 60px)
+        lv_obj_t *colon_label = lv_label_create(s_setting_page2_obj);
+        lv_obj_set_style_text_font(colon_label, &font_addr_30, 0);
+        lv_obj_set_style_text_color(colon_label, lv_color_make(210, 210, 0), 0);
+        lv_label_set_text(colon_label, ":");
+        lv_obj_align(colon_label, LV_ALIGN_TOP_MID, -60, start_y + (i * row_h));
 
-    // Key (To the left of colon)
-    lv_obj_t *key_label = lv_label_create(s_setting_page2_obj);
-    lv_obj_set_style_text_font(key_label, &font_addr_30, 0);
-    lv_obj_set_style_text_color(key_label, lv_color_hex(0xFFFF00), 0);
-    lv_label_set_text(key_label, keys[i]);
-    lv_obj_align_to(key_label, colon_label, LV_ALIGN_OUT_LEFT_MID, -15, 0);
+        // Key (To the left of colon)
+        lv_obj_t *key_label = lv_label_create(s_setting_page2_obj);
+        lv_obj_set_style_text_font(key_label, &font_addr_30, 0);
+        lv_obj_set_style_text_color(key_label, lv_color_make(210, 210, 0), 0);
+        lv_label_set_text(key_label, keys[i]);
+        lv_obj_align_to(key_label, colon_label, LV_ALIGN_OUT_LEFT_MID, -15, 0);
 
-    // Value (To the right of colon)
-    lv_obj_t *val_label = lv_label_create(s_setting_page2_obj);
-    lv_obj_set_style_text_font(val_label, &font_addr_30, 0);
-    lv_obj_set_style_text_color(val_label, lv_color_hex(0xFFFF00), 0);
-    lv_label_set_text(val_label, values[i]);
-    lv_obj_align_to(val_label, colon_label, LV_ALIGN_OUT_RIGHT_MID, 15, 0);
+        // Value (To the right of colon)
+        lv_obj_t *val_label = lv_label_create(s_setting_page2_obj);
+        lv_obj_set_style_text_font(val_label, &font_addr_30, 0);
+        lv_obj_set_style_text_color(val_label, lv_color_make(210, 210, 0), 0);
+        lv_label_set_text(val_label, values[i]);
+        lv_obj_align_to(val_label, colon_label, LV_ALIGN_OUT_RIGHT_MID, 15, 0);
+    } else {
+        // --- Row 4: Website URL only (Centered) ---
+        lv_obj_t *url_label = lv_label_create(s_setting_page2_obj);
+        lv_obj_set_style_text_font(url_label, &lv_font_montserrat_20, 0); // Smaller font for long URL
+        lv_obj_set_style_text_color(url_label, lv_color_make(210, 210, 0), 0);
+        lv_label_set_text(url_label, values[i]);
+        lv_obj_align(url_label, LV_ALIGN_TOP_MID, 0, start_y + (i * row_h) + 5);
+    }
   }
 
-  // --- 2. QR Code (White theme, Combined Data) ---
-  lv_obj_t *qr = lv_qrcode_create(s_setting_page2_obj, 120, lv_color_black(), lv_color_white());
+  // --- 2. QR Code (Grey on Black theme) ---
+  lv_obj_t *qr = lv_qrcode_create(s_setting_page2_obj, 120, lv_color_make(180, 180, 180), lv_color_black());
   if (qr) {
-    const char *qr_data = "Model:MOVISION HUD1,SW:v260323,SN:1A2B1-00001,URL:www.naver.com";
+    const char *qr_data = "https://m.smartstore.naver.com/b2broom";
     lv_qrcode_update(qr, qr_data, strlen(qr_data));
     // Positioned below the 4 rows
     lv_obj_align(qr, LV_ALIGN_TOP_MID, 0, 145); 
     
-    // Clean white border for the QR
-    lv_obj_set_style_border_color(qr, lv_color_white(), 0);
-    lv_obj_set_style_border_width(qr, 4, 0);
+    // Clean Grey border for the QR
+    lv_obj_set_style_border_color(qr, lv_color_make(180, 180, 180), 0);
+    lv_obj_set_style_border_width(qr, 2, 0); // Reduced width slightly for better look
     lv_obj_set_style_border_side(qr, LV_BORDER_SIDE_FULL, 0);
   }
 
@@ -11243,4 +11292,33 @@ void app_main(void) {
     update_auto_brightness(false);
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
+}
+
+void hud_request_fast_conn(void) {
+    if (!s_peer_bda_valid) return;
+    esp_ble_conn_update_params_t conn_params = {0};
+    memcpy(conn_params.bda, s_peer_bda, 6);
+    conn_params.min_int = 0x06; // 7.5ms
+    conn_params.max_int = 0x10; // 20ms (Windows performance sweet spot)
+    conn_params.latency = 0;
+    conn_params.timeout = 400;  // 4s
+    
+    // PHY 업데이트를 먼저 시도 (status 298 충돌 방지)
+    esp_ble_gap_set_preferred_phy(s_peer_bda, 
+                                  0, // 0 means use the follow masks
+                                  ESP_BLE_GAP_PHY_2M_PREF_MASK, 
+                                  ESP_BLE_GAP_PHY_2M_PREF_MASK, 
+                                  0);
+    
+    // 연결 파라미터는 500ms 후 별도로 요청하여 충돌 방지
+    vTaskDelay(pdMS_TO_TICKS(500));
+    esp_err_t err = esp_ble_gap_update_conn_params(&conn_params);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Fast Conn Update retry...");
+        for (int i = 0; i < 3; i++) {
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            if (esp_ble_gap_update_conn_params(&conn_params) == ESP_OK) break;
+        }
+    }
+    ESP_LOGW(TAG, "HUD High-Performance Mode (PHY 2M + 7.5ms) Requested");
 }
