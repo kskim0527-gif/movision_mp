@@ -60,11 +60,12 @@ static void send_fw_response(uint8_t cmd, uint16_t seq, uint8_t error_code) {
         resp[7] = PROTOCOL_TAIL;
         len = 8;
     } else if (cmd == CMD_FW_DATA_ACK) {
-        resp[3] = 0x02;  // D-Len: [SEQ:2]
+        resp[3] = 0x03;  // 데이터 길이: [시퀀스 번호:2][에러 코드:1]
         resp[4] = (uint8_t)(seq >> 8);
         resp[5] = (uint8_t)(seq & 0xFF);
-        resp[6] = PROTOCOL_TAIL;
-        len = 7;
+        resp[6] = error_code; // 에러 코드 (0: No Error, 1: Retry, 2: Cancel)
+        resp[7] = PROTOCOL_TAIL;
+        len = 8;
     } else if (cmd == CMD_FW_COMPLETE) {
         resp[3] = 0x01;  // D-Len
         resp[4] = error_code;
@@ -80,12 +81,30 @@ static void send_fw_response(uint8_t cmd, uint16_t seq, uint8_t error_code) {
     }
 }
 
+// 널 데이터 킵얼라이브 태스크 (삭제 중 2초 간격 전송)
+static bool s_keepalive_active = false;
+static void fw_keepalive_task(void *pvParameters) {
+    uint8_t null_pkt[] = {0x19, 0x00, 0x00, 0x01, 0x00, 0x2F};
+    while (s_keepalive_active) {
+        hud_send_notify_bytes(null_pkt, sizeof(null_pkt));
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+    vTaskDelete(NULL);
+}
+
 // 펌웨어 업데이트 시작 태스크 (플래시 삭제 및 준비)
 static void fw_start_task(void *pvParameters) {
     ESP_LOGI(TAG, "FW Storage Erasing Task Starting (Size=%lu)...", (unsigned long)s_fw_ctx.total_size);
     update_ui_progress(0, "플래시 영역 삭제 중...");
 
+    s_keepalive_active = true;
+    // 스택 크기 증설 (2048 -> 4096)
+    xTaskCreate(fw_keepalive_task, "fw_ka", 4096, NULL, 5, NULL);
+
     esp_err_t err = esp_ota_begin(s_fw_ctx.update_partition, s_fw_ctx.total_size, &s_fw_ctx.update_handle);
+    
+    s_keepalive_active = false;
+
     if (err == ESP_OK) {
         ESP_LOGI(TAG, "Flash Erase Complete. Device ready for data.");
         s_fw_ctx.state = FW_STATE_UPDATING;
@@ -137,10 +156,11 @@ void fw_update_init(void) {
 }
 
 static void handle_fw_info(const uint8_t *data, size_t len) {
-    if (len < 12) return;
-    size_t tail_idx = len - 1;
-    s_fw_ctx.total_size = (uint32_t)((data[tail_idx-4] << 24) | (data[tail_idx-3] << 16) | 
-                                     (data[tail_idx-2] << 8) | data[tail_idx-1]);
+    if (len < 16) return;
+    // 패킷 규격: [Header:1][ID:1][CMD:1][LEN:2][Version:6][Size:4][Tail:1]
+    // 파일 크기는 고정 위치(index 11~14)에서 파싱
+    s_fw_ctx.total_size = (uint32_t)((data[11] << 24) | (data[12] << 16) | 
+                                     (data[13] << 8) | data[14]);
     
     s_fw_ctx.current_size = 0;
     s_fw_ctx.last_seq = 0xFFFF;

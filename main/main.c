@@ -9148,6 +9148,7 @@ void save_packet_to_sdcard(const uint8_t *data, size_t len,
       case 0x06: desc = "이미지 자동 모드 설정(RX)"; break;
       case 0x07: desc = "이미지 상태 요청(TX)"; break;
       case 0x08: desc = "이미지 상태 전달(RX)"; break;
+      case 0x11: desc = "이미지 정보 수신 응답(TX)"; break;
       }
     } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x4F) {
       uint8_t cmd = data[2];
@@ -9157,7 +9158,6 @@ void save_packet_to_sdcard(const uint8_t *data, size_t len,
       case 0x03: desc = "펌웨어 데이터(Data)(RX)"; break;
       case 0x04: desc = "데이터 수신 응답(ACK)(TX)"; break;
       case 0x05: desc = "업데이트 완료 통보(TX)"; break;
-      case 0x11: desc = "이미지 정보 응답"; break;
       }
     } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x4E) {
     if (data[2] == 0x0B)

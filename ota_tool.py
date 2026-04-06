@@ -55,12 +55,7 @@ class MOVISION_OTA:
         cmd = data[2]
         
         # Payload start detection
-        payload_idx = 4
-        if data[0] == HEADER:
-            d_1 = data[3]
-            d_2 = (data[3] << 8) | data[4]
-            if 3+1+d_1 < len(data) and data[3+1+d_1] == TAIL: payload_idx = 4
-            elif 3+2+d_2 < len(data) and data[3+2+d_2] == TAIL: payload_idx = 5
+        payload_idx = 5 if len(data) > 5 and data[0] == HEADER else 4
 
         # 로그 출력 여부 결정
         show_log = True
@@ -68,10 +63,20 @@ class MOVISION_OTA:
         
         if cid == 0x4F and cmd == 0x04:
             # ACK 패킷 처리
+            # HUD 펌웨어 실제 포맷: [19][4F][04][03][SEQ_H][SEQ_L][ERR][2F]
+            # index:               0    1   2   3    4      5     6    7
             try:
-                ack_seq = (data[payload_idx] << 8) | data[payload_idx+1]
+                ack_seq = (data[4] << 8) | data[5]  # index 4, 5
+                err_code = data[6] if len(data) > 6 else 0  # index 6 (index 7 = 0x2F tail)
+                
                 self.last_ack_seq = ack_seq
                 is_last = (self.current_pos >= self.total_size - self.block_size)
+                
+                # 0x2F(47)는 Tail 바이트 - 에러 코드가 아님
+                if err_code not in (0, 0x2F):
+                    self.error = f"HUD reported error {err_code} at Seq {ack_seq}"
+                    self.ack_event.set()
+                    return
                 
                 # 200개 단위 또는 처음/마지막만 출력
                 if not (ack_seq % 200 == 0 or ack_seq == 0 or is_last):
@@ -92,7 +97,9 @@ class MOVISION_OTA:
             if cmd == CMD_FW_REQ:
                 self.start_transfer = True
             elif cmd == CMD_FW_COMPLETE:
-                status = data[payload_idx]
+                # 완료 패킷 포맷: [19][4F][05][01][ERR][2F]
+                # ERR 위치는 고정 index 4 (data[5] = 0x2F Tail 바이트)
+                status = data[4] if len(data) > 4 else 0xFF
                 if status == 0:
                     print(f"[OK] Completion packet verified.")
                     self.finished = True
@@ -155,7 +162,9 @@ class MOVISION_OTA:
                 # Indication/Notification 모두 처리
                 await client.start_notify(CHAR_FFF1_NOTIFY, self.handle_notification)
                 
-                info = bytearray([6]) + b"1.10.x" + struct.pack(">I", self.total_size)
+                # 규격: [Version:6][Size:4]
+                # HUD가 index 11~14에서 크기를 읽으므로, 앞에 버전 6바이트를 정확히 배치 (총 10바이트)
+                info = b"260407" + struct.pack(">I", self.total_size) 
                 packet = self.build_packet(CMD_FW_INFO, info)
                 print(f"[TX] {format_hex(packet)} (Start Handshake)")
                 await client.write_gatt_char(CHAR_FFF2_WRITE, packet)

@@ -327,19 +327,11 @@ void ota_ble_gatts_event_handler(esp_gatts_cb_event_t event,
                                   param->write.trans_id, ESP_GATT_OK, NULL);
     }
     break;
-  case ESP_GATTS_CONNECT_EVT: {
-    esp_ble_conn_update_params_t conn_params = {.bda = {0},
-                                                .min_int = 0x06,
-                                                .max_int = 0x10,
-                                                .latency = 0,
-                                                .timeout = 800};
-    memcpy(conn_params.bda, param->connect.remote_bda, 6);
-    esp_ble_gap_update_conn_params(&conn_params);
-    esp_ble_gap_set_preferred_phy(
-        param->connect.remote_bda, ESP_BLE_GAP_PHY_OPTIONS_NO_PREF,
-        ESP_BLE_GAP_PHY_2M_PREF_MASK, ESP_BLE_GAP_PHY_2M_PREF_MASK, 0);
+  case ESP_GATTS_CONNECT_EVT:
+    // 연결 직후 파라미터 업데이트는 암호화(Encryption) 과정과 충돌하여 0x3d 에러를 유발할 수 있습니다.
+    // 따라서 이 작업은 main.c의 ESP_GAP_BLE_AUTH_CMPL_EVT 핸들러로 위임되었습니다.
     esp_ble_gap_set_pkt_data_len(param->connect.remote_bda, 251);
-  } break;
+    break;
   case ESP_GATTS_DISCONNECT_EVT:
     storage_update_in_progress = false;
     ota_in_progress = false;
