@@ -97,6 +97,7 @@ static void send_response(uint8_t cmd, uint16_t seq, uint8_t error_code) {
     resp[6] = error_code;
     resp[7] = PROTOCOL_TAIL;
     len = 8;
+    ESP_LOGI(TAG, "TX -> 19 50 03 03 %02X %02X %02X 2F", resp[4], resp[5], resp[6]);
   } else if (cmd == CMD_IMG_RES_CMP) {
     resp[3] = 0x01; // D-Len: [ERR:1] (1-byte)
     resp[4] = error_code;
@@ -147,11 +148,24 @@ static void handle_img_info(const uint8_t *data, size_t len) {
 
   if (s_ctx.image_type == 0) {
     snprintf(s_ctx.file_path, sizeof(s_ctx.file_path),
-             "/littlefs/intro_new.gif");
+             "/littlefs/intro_new.tmp");
   } else {
-    // Save background images as album_X.png in the discovered base dir
-    snprintf(s_ctx.file_path, sizeof(s_ctx.file_path), "%s/album_%d.png",
+    // 임시 파일 경로 설정
+    snprintf(s_ctx.file_path, sizeof(s_ctx.file_path), "%s/album_%d.tmp",
              s_img_base_dir, s_ctx.image_seq);
+             
+    // 전송 시작 시 용량 확보를 위해 동일 이름의 기존 이미지들 사전 삭제
+    char old_path[128];
+    snprintf(old_path, sizeof(old_path), "%s/album_%d.png", s_img_base_dir, s_ctx.image_seq);
+    unlink(old_path);
+    snprintf(old_path, sizeof(old_path), "%s/album_%d.jpg", s_img_base_dir, s_ctx.image_seq);
+    unlink(old_path);
+    snprintf(old_path, sizeof(old_path), "%s/album_%d.jpeg", s_img_base_dir, s_ctx.image_seq);
+    unlink(old_path);
+    snprintf(old_path, sizeof(old_path), "%s/album_%d.gif", s_img_base_dir, s_ctx.image_seq);
+    unlink(old_path);
+    snprintf(old_path, sizeof(old_path), "%s/album_%d.bmp", s_img_base_dir, s_ctx.image_seq);
+    unlink(old_path);
   }
 
   if (s_ctx.file)
@@ -192,12 +206,9 @@ static void handle_img_data(const uint8_t *data, size_t len) {
     s_ctx.current_size += payload_len;
     s_ctx.last_block_seq = seq;
     
-    // 프로토콜 v1.11 시퀀스 다이어그램에 따라 지연 방지를 위해 데이터 블록별 수신 응답(0x5003) 제거
-    // 단, 안정성을 위해 사용자 요청에 따라 5번째 블록마다 널 데이터(Dummy) 전송
+    // 프로토콜에 따라 앱의 안정적인 전송을 위해 5번째 블록마다 수신 응답(0x50 0x03) 전송
     if (seq % 5 == 0) {
-      static const uint8_t null_data[] = {0x19, 0x00, 0x00, 0x01, 0x00, 0x2F};
-      hud_send_notify_bytes(null_data, sizeof(null_data));
-      save_packet_to_sdcard(null_data, sizeof(null_data), "TX");
+      send_response(CMD_IMG_RES_SEQ, seq, 0);
     }
 
     int percent = (int)(s_ctx.current_size * 100 / s_ctx.total_size);
@@ -216,7 +227,29 @@ static void handle_img_data(const uint8_t *data, size_t len) {
 
       if (s_ctx.image_type == 0) {
         unlink("/littlefs/intro.gif");
-        rename("/littlefs/intro_new.gif", "/littlefs/intro.gif");
+        rename("/littlefs/intro_new.tmp", "/littlefs/intro.gif");
+      } else {
+        // Read header to determine real extension
+        FILE *f = fopen(s_ctx.file_path, "rb");
+        char ext[10] = ".png"; // Default
+        if (f) {
+          uint8_t header[4] = {0};
+          if (fread(header, 1, 4, f) == 4) {
+            if (header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF) {
+              strcpy(ext, ".jpg");
+            } else if (header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47) {
+              strcpy(ext, ".png");
+            } else if (header[0] == 'G' && header[1] == 'I' && header[2] == 'F') {
+              strcpy(ext, ".gif");
+            }
+          }
+          fclose(f);
+        }
+        
+        char final_path[128];
+        snprintf(final_path, sizeof(final_path), "%s/album_%d%s", s_img_base_dir, s_ctx.image_seq, ext);
+        rename(s_ctx.file_path, final_path);
+        ESP_LOGI(TAG, "File saved with proper extension: %s", final_path);
       }
 
       // 상태 초기화
@@ -254,7 +287,15 @@ void process_img_command(const uint8_t *data, size_t len) {
     char path[128];
     snprintf(path, sizeof(path), "%s/album_%d.png", s_img_base_dir, data[5]);
     unlink(path);
-    ESP_LOGI(TAG, "Deleted: %s", path);
+    snprintf(path, sizeof(path), "%s/album_%d.jpg", s_img_base_dir, data[5]);
+    unlink(path);
+    snprintf(path, sizeof(path), "%s/album_%d.jpeg", s_img_base_dir, data[5]);
+    unlink(path);
+    snprintf(path, sizeof(path), "%s/album_%d.gif", s_img_base_dir, data[5]);
+    unlink(path);
+    snprintf(path, sizeof(path), "%s/album_%d.bmp", s_img_base_dir, data[5]);
+    unlink(path);
+    ESP_LOGI(TAG, "Deleted images for album_%d", data[5]);
   } else if (cmd == CMD_IMG_AUTO_MODE) {
     // 3.7.7 Auto Mode (0x06): 0: Auto, 1: Manual
     if (len >= 6) {
