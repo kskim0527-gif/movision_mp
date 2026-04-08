@@ -1,6 +1,9 @@
 #include "img_transfer.h"
 #include "esp_log.h"
 #include "fw_update.h"
+#include "sdkconfig.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include <dirent.h>
 #include <errno.h>
 #include <stdio.h>
@@ -20,6 +23,9 @@ static const char *TAG = "IMG_TRANSFER";
 #define CMD_IMG_INFO 0x01
 #define CMD_IMG_DATA 0x02
 #define CMD_IMG_DELETE 0x05
+#define CMD_IMG_AUTO_MODE 0x06
+#define CMD_IMG_STATUS_REQ 0x07
+#define CMD_IMG_STATUS_SYNC 0x08
 
 // Commands from Device
 #define CMD_IMG_INFO_RES 0x11
@@ -52,6 +58,14 @@ extern void hud_send_notify_bytes(const uint8_t *data, uint16_t len);
 extern void save_packet_to_sdcard(const uint8_t *data, size_t len,
                                   const char *prefix);
 extern void update_img_transfer_ui(int percent, bool finished);
+extern void load_image_from_sd(int direction); // Force load image
+
+// State variables from main.c
+extern uint8_t s_album_option;
+extern int s_current_image_index;
+extern int s_image_count;
+extern bool s_img_transfer_finished_flag;
+extern void start_reboot_task(void);
 
 void img_transfer_init(void) {
   memset(&s_ctx, 0, sizeof(s_ctx));
@@ -102,6 +116,21 @@ static void send_response(uint8_t cmd, uint16_t seq, uint8_t error_code) {
   }
 }
 
+// 3.7.7 Status Report (0x07) - HUD -> APP
+static void send_status_report(void) {
+  uint8_t resp[7];
+  resp[0] = PROTOCOL_HEADER;
+  resp[1] = PROTOCOL_ID_IMG;
+  resp[2] = CMD_IMG_STATUS_REQ;
+  resp[3] = 0x02;                               // D-Len: [Mode:1][Index:1]
+  resp[4] = (s_album_option == 0) ? 0x00 : 0x01; // 0: Auto, 1: Manual
+  resp[5] = (uint8_t)(s_current_image_index + 1);
+  resp[6] = PROTOCOL_TAIL;
+
+  hud_send_notify_bytes(resp, sizeof(resp));
+  save_packet_to_sdcard(resp, sizeof(resp), "TX");
+}
+
 static void handle_img_info(const uint8_t *data, size_t len) {
   // Index: 0 1 2 3 4:Len, 5:Seq, 6~9:Size, 10:Type
   if (len < 12)
@@ -109,7 +138,8 @@ static void handle_img_info(const uint8_t *data, size_t len) {
 
   s_ctx.image_seq = data[5];
   s_ctx.total_size =
-      (data[6] << 24) | (data[7] << 16) | (data[8] << 8) | data[9];
+      (data[6] << 24) | (data[7] << 16) | (data[8] | (data[9]));
+  s_ctx.total_size = (data[6] << 24) | (data[7] << 16) | (data[8] << 8) | data[9];
   s_ctx.image_type = data[10];
   s_ctx.current_size = 0;
   s_ctx.last_block_seq = 0xFFFF;
@@ -144,10 +174,6 @@ static void handle_img_data(const uint8_t *data, size_t len) {
   if (len < 7)
     return;
   uint16_t seq = (data[5] << 8) | data[6];
-  if (seq % 100 == 0 || seq < 5) {
-    ESP_LOGW("BLE_ONLY", "이미지 시퀀스 번호 = %02X %02X", (uint8_t)(seq >> 8),
-             (uint8_t)(seq & 0xFF));
-  }
 
   if (s_ctx.state != IMG_STATE_RECEIVING || !s_ctx.file) {
     // App may send data before info, must ACK for the app to continue
@@ -165,10 +191,14 @@ static void handle_img_data(const uint8_t *data, size_t len) {
   if (written == payload_len) {
     s_ctx.current_size += payload_len;
     s_ctx.last_block_seq = seq;
-    if (seq % 100 == 0 || seq < 5) {
-      ESP_LOGW("BLE_ONLY", "이미지 데이터 수신 결과 전송 (시퀀스 %u)", seq);
+    
+    // 프로토콜 v1.11 시퀀스 다이어그램에 따라 지연 방지를 위해 데이터 블록별 수신 응답(0x5003) 제거
+    // 단, 안정성을 위해 사용자 요청에 따라 5번째 블록마다 널 데이터(Dummy) 전송
+    if (seq % 5 == 0) {
+      static const uint8_t null_data[] = {0x19, 0x00, 0x00, 0x01, 0x00, 0x2F};
+      hud_send_notify_bytes(null_data, sizeof(null_data));
+      save_packet_to_sdcard(null_data, sizeof(null_data), "TX");
     }
-    send_response(CMD_IMG_RES_SEQ, seq, 0);
 
     int percent = (int)(s_ctx.current_size * 100 / s_ctx.total_size);
     if (percent > s_ctx.last_percent || percent == 100) {
@@ -177,24 +207,34 @@ static void handle_img_data(const uint8_t *data, size_t len) {
     }
 
     if (s_ctx.current_size >= s_ctx.total_size) {
-      ESP_LOGW("BLE_ONLY", "이미지 전송 완료: %lu 바이트",
+      ESP_LOGI(TAG, "Image transfer finished: %lu bytes. Closing file...",
                (unsigned long)s_ctx.current_size);
 
-      // Ensure data is flushed to physical storage to prevent corruption
-      fflush(s_ctx.file);
-      fsync(fileno(s_ctx.file));
-
+      // 파일 기록 완료 보장 (fsync 제거하여 속도 향상 및 콜백 블로킹 방지)
       fclose(s_ctx.file);
       s_ctx.file = NULL;
-      s_ctx.state = IMG_STATE_IDLE;
+
       if (s_ctx.image_type == 0) {
         unlink("/littlefs/intro.gif");
         rename("/littlefs/intro_new.gif", "/littlefs/intro.gif");
       }
-      update_img_transfer_ui(100, true);
+
+      // 상태 초기화
+      s_ctx.state = IMG_STATE_IDLE;
+      
+      // UI 제거는 메인 루프에서 비동기로 수행하여 BLE 태스크가 빨리 리턴되게 함
+      s_img_transfer_finished_flag = true;
+      
+      // 앱에 완료 통보 (즉시 실행)
       send_response(CMD_IMG_RES_CMP, 0, 0);
+
+      // 독립된 재부팅 전용 태스크 시작 (정확히 2초 보장)
+      start_reboot_task();
+
+      ESP_LOGI(TAG, "Image session ended OK (0x04 sent). Fast reboot pending...");
     }
   } else {
+    // Write failed
     send_response(CMD_IMG_RES_SEQ, seq, 1);
   }
 }
@@ -215,5 +255,28 @@ void process_img_command(const uint8_t *data, size_t len) {
     snprintf(path, sizeof(path), "%s/album_%d.png", s_img_base_dir, data[5]);
     unlink(path);
     ESP_LOGI(TAG, "Deleted: %s", path);
+  } else if (cmd == CMD_IMG_AUTO_MODE) {
+    // 3.7.7 Auto Mode (0x06): 0: Auto, 1: Manual
+    if (len >= 6) {
+      uint8_t mode = data[5];
+      s_album_option = (mode == 0) ? 0 : (s_current_image_index + 1);
+      ESP_LOGI(TAG, "Album Mode changed: %s", (mode == 0) ? "AUTO" : "MANUAL");
+      send_status_report(); // Sync state to APP
+    }
+  } else if (cmd == CMD_IMG_STATUS_REQ) {
+    // 3.7.8 Status Request (0x07): APP asks current state
+    send_status_report();
+  } else if (cmd == CMD_IMG_STATUS_SYNC) {
+    // 3.7.9 Status Sync (0x08): APP sets specific image index
+    if (len >= 6) {
+      uint8_t index = data[5]; // 1~5
+      if (index >= 1 && index <= s_image_count) {
+        s_album_option = index; // Fixed mode
+        s_current_image_index = index - 1;
+        ESP_LOGI(TAG, "Album Sync: index %d", index);
+        load_image_from_sd(0); // Show it immediately
+      }
+      send_status_report();
+    }
   }
 }

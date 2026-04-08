@@ -226,6 +226,7 @@ static TaskHandle_t s_lcd_task_handle = NULL;
 static uint16_t s_conn_id = 0;
 static esp_gatt_if_t s_gatts_if = ESP_GATT_IF_NONE;
 static bool s_connected = false;
+static bool s_has_ever_connected = false; // 부팅 후 최초 앱 연결 여부
 static uint16_t s_mtu = 23;
 static uint16_t s_cccd = 0x0000; // 0x0001 notify, 0x0002 indicate (FFEA)
 static esp_bd_addr_t s_peer_bda = {0};
@@ -372,7 +373,7 @@ static esp_lcd_panel_handle_t s_lcd_panel = NULL;
 static esp_lcd_panel_io_handle_t s_lcd_io_handle =
     NULL;                                // LCD IO handle for brightness control
 static uint8_t s_brightness_level = 0;   // 0=Auto, 1=max, 5=min
-static uint8_t s_album_option = 0;       // 0=Auto(5s), 1~5=Static
+uint8_t s_album_option = 0;       // 0=Auto(5s), 1~5=Static
 static uint8_t s_clock_option = 0;       // 0=Auto(1h), 1=Clock1, 2=Clock2
 static uint8_t s_setting_page_index = 1; // 1 or 2
 
@@ -474,8 +475,9 @@ static lv_obj_t *s_clock_canvas = NULL;
 // Helper declarations
 static void draw_analog_clock(int hour, int minute, int second);
 static void set_lcd_brightness(uint8_t level, bool notify); // Forward declaration
-static void load_image_from_sd(int direction);
+void load_image_from_sd(int direction);
 static void reset_album_to_default_image(void);
+static void show_restart_msg(void);
 
 // ==================== NVS Settings Storage ====================
 static void save_nvs_settings(void) {
@@ -643,8 +645,11 @@ static int8_t s_rssi_value =
 static bool s_rssi_read_once = false; // RSSI 값이 한 번이라도 읽혔는지 여부
 #define MAX_IMAGE_FILES 200
 static char s_image_files[MAX_IMAGE_FILES][280] EXT_RAM_BSS_ATTR; // Image paths
-static int s_image_count = 0;
-static int s_current_image_index = 0;
+int s_image_count = 0;
+int s_current_image_index = 0;
+bool s_img_transfer_finished_flag = false; // 이미지 전송 완료 비동기 처리용
+volatile uint32_t s_restart_pending_tick = 0;       // 0: idle, >0: tick when 0x04 sent
+bool s_restart_msg_shown = false;
 static uint32_t s_album_auto_timer = 0;
 
 static lv_obj_t *s_intro_image = NULL; // 부팅 인트로 이미지 객체
@@ -1041,6 +1046,9 @@ static void process_app_command(const uint8_t *data, size_t len) {
   if (id != 0x4D)
     return;
 
+  // \uccab \uc720\ud6a8 \uba85\ub839 \uc218\uc2e0 \ud45c\uc2dc (\uc778\ud2b8\ub85c \ud3f4\ub9c1 \ub8e8\ud504 \uc870\uae30 \uc885\ub8cc\uc6a9)
+  s_hud_seen_first_cmd = true;
+
   // 1. Time Set
   if (commend == 0x09 && data_length == 0x0E && len >= 19) {
     time_set(data, len);
@@ -1135,17 +1143,7 @@ static void process_app_command(const uint8_t *data, size_t len) {
       hud_send_notify_bytes(resp, sizeof(resp));
       save_packet_to_sdcard(resp, sizeof(resp), "TX");
     } else if (data[4] == 0x03) {
-      // (2) Firmware Info Query -> Trigger Switch to STANDBY (Digital Clock)
-      if (s_current_mode != DISPLAY_MODE_STANDBY &&
-          s_current_mode != DISPLAY_MODE_BOOT &&
-          s_current_mode != DISPLAY_MODE_SETTING &&
-          s_current_mode != DISPLAY_MODE_OTA) {
-        ESP_LOGI(
-            TAG,
-            "Firmware Info Query (0x06, 0x03) received: Switching to STANDBY");
-        switch_display_mode(DISPLAY_MODE_STANDBY);
-      }
-
+      // (2) Firmware Info Query -> 버전 응답만 전송 (STANDBY 전환 없음)
       // Cmd: 19 4D 06 01 03 2F -> Resp: 19 4E 0C 0A [HUD1] [YYMMDD] 2F
       const esp_app_desc_t *app_desc = esp_app_get_description();
       uint8_t resp[15];
@@ -1197,16 +1195,8 @@ static void process_app_command(const uint8_t *data, size_t len) {
     }
   }
 
-  // 11. Destination Arrived (목적지 도착)
-  if (commend == 0x0D && data_length == 0x01 && len >= 6) {
-    if (data[4] == 0x00) { // 목적지 도착
-      if (s_current_mode == DISPLAY_MODE_HUD) {
-        ESP_LOGI(TAG,
-                 "Destination Arrived command received: Switch to STANDBY");
-        switch_display_mode(DISPLAY_MODE_STANDBY);
-      }
-    }
-  }
+  // 11. Destination Arrived (목적지 도착) - STANDBY 전환 제거됨
+  // if (commend == 0x0D && data_length == 0x01 && len >= 6) { ... }
 
   // 12. Road Name (도로명 전송)
   if (commend == 0x0E && len >= 5) {
@@ -3118,6 +3108,12 @@ static void align_avr_speed_labels(void);
 static void update_clear_display(uint8_t data1) {
   ESP_LOGI(TAG, "clear_display called: data1=0x%02X", data1);
 
+  // 속도계 모드에서는 0x07(전체 화면 블랙) 명령을 무시
+  if (s_current_mode == DISPLAY_MODE_SPEEDOMETER && data1 == 0x07) {
+    ESP_LOGI(TAG, "clear_display: Speedometer mode - ignoring data1=0x07");
+    return;
+  }
+
   // 0x07(전체 화면 블랙)을 제외한 요청의 경우
   // 블랙 오버레이를 숨김
   if (data1 != 0x07) {
@@ -4025,18 +4021,18 @@ static void time_set(const uint8_t *data, size_t data_len) {
            "%04d-%02d-%02d %02d:%02d:%02d",
            year, month, day, hour, min, sec);
 
-  // Mark time as initialized
+  // 부팅 후 첫 번째 시간 수신 시에만 대기 모드 전환 예약
+  // s_time_initialized가 true가 되기 전에 체크해야 첫 번째만 트리거됨
+  if (!s_time_initialized && s_current_mode != DISPLAY_MODE_OTA) {
+    s_boot_clock_trigger = true;
+  }
+
+  // Mark time as initialized (첫 수신 체크 후 세팅)
   s_time_initialized = true;
 
   // Enable packet logging from now on
   s_logging_enabled = true;
   ESP_LOGI(TAG, "Packet logging enabled (time data received)");
-
-  // 부팅 과정 중(BOOT)이거나 아직 초기화 전이라면 대기 모드(디지털 시계)로 전환
-  // 예약
-  if (s_current_mode == DISPLAY_MODE_BOOT) {
-    s_boot_clock_trigger = true;
-  }
 
   // Update display immediately (request via flag to be thread-safe)
   s_time_display_update_required = true;
@@ -6156,7 +6152,6 @@ static void update_display_mode_ui(display_mode_t mode) {
   bool is_active_state = s_connected || s_virtual_drive_active;
 
   // Logo Show-Once Logic
-  static bool s_has_ever_connected = false;
   if (is_active_state) {
     s_has_ever_connected = true;
   }
@@ -8209,10 +8204,6 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
     break;
   case ESP_GATTS_DISCONNECT_EVT: {
     s_connected = false;
-    // Update UI immediately on disconnection (Show logo, hide ring)
-    LVGL_LOCK();
-    update_display_mode_ui(s_current_mode);
-    LVGL_UNLOCK();
     s_cccd = 0x0000;
     s_peer_bda_valid = false;
     s_adv_active = false;
@@ -8235,6 +8226,17 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
     s_rssi_value = -128;      // RSSI 값 초기화
                               // (읽지 않음 상태)
     s_rssi_read_once = false; // RSSI 읽기 플래그 초기화
+    // 이전에 한 번이라도 앱에 연결된 적이 있으면 대기 모드로 전환
+    // (OTA 모드 중에는 제외)
+    if (s_has_ever_connected && s_current_mode != DISPLAY_MODE_OTA) {
+      ESP_LOGI(TAG, "disconnected after active session -> STANDBY");
+      switch_display_mode(DISPLAY_MODE_STANDBY); // 내부에서 LVGL_LOCK 처리
+    } else {
+      // 최초 연결 전 끊김: 기존 UI 갱신만 수행
+      LVGL_LOCK();
+      update_display_mode_ui(s_current_mode);
+      LVGL_UNLOCK();
+    }
     try_start_advertising();
     ESP_LOGI(TAG, "disconnected reason=0x%x", param->disconnect.reason);
     break;
@@ -8405,6 +8407,10 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
     break;
   }
   case ESP_GATTS_WRITE_EVT:
+    if (event == ESP_GATTS_WRITE_EVT) {
+      ESP_LOGI("BLE_DIAG", "GATT Write Event: handle=%u, len=%u", 
+               (unsigned)param->write.handle, (unsigned)param->write.len);
+    }
     note_ble_activity();
 
     // FFF2 채널에서 들어오는 데이터만
@@ -10333,6 +10339,95 @@ static void scan_intro_images(void) {
   ESP_LOGI(TAG, "Scanned %d images in intro folder", s_image_count);
 }
 
+// UI Objects for OTA and Image Transfer
+static lv_obj_t *s_update_bg = NULL;
+static lv_obj_t *s_update_label = NULL;
+static lv_obj_t *s_update_bar = NULL;
+
+static lv_obj_t *s_img_update_bg = NULL;
+static lv_obj_t *s_img_update_label = NULL;
+static lv_obj_t *s_img_progress_bar = NULL;
+
+void update_ui_progress(int percent, const char *status) {
+  static int last_percent = -1;
+  if (percent == last_percent && status == NULL)
+    return;
+  last_percent = percent;
+
+  LVGL_LOCK();
+  if (!s_update_bg) {
+    s_update_bg = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(s_update_bg, LCD_H_RES, LCD_V_RES);
+    lv_obj_set_style_bg_color(s_update_bg, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(s_update_bg, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(s_update_bg, 0, 0);
+
+    s_update_label = lv_label_create(s_update_bg);
+    lv_obj_align(s_update_label, LV_ALIGN_CENTER, 0, -30);
+    lv_obj_set_style_text_color(s_update_label, lv_color_hex(0xFFFF00), 0);
+    lv_obj_set_style_text_font(s_update_label, &font_addr_30, 0);
+    lv_label_set_text(s_update_label, status ? status : "OTA 업데이트 진행중..");
+
+    s_update_bar = lv_bar_create(s_update_bg);
+    lv_obj_set_size(s_update_bar, 300, 18);
+    lv_obj_align(s_update_bar, LV_ALIGN_CENTER, 0, 20);
+    lv_obj_set_style_bg_color(s_update_bar, lv_color_make(64, 64, 64), 0);
+    lv_obj_set_style_bg_color(s_update_bar, lv_color_hex(0xFFFF00), LV_PART_INDICATOR);
+    lv_bar_set_range(s_update_bar, 0, 100);
+  }
+
+  if (s_update_bar) {
+    lv_bar_set_value(s_update_bar, percent, LV_ANIM_OFF);
+  }
+  if (status && s_update_label) {
+    lv_label_set_text(s_update_label, status);
+  }
+  LVGL_UNLOCK();
+}
+
+void update_img_transfer_ui(int percent, bool finished) {
+  LVGL_LOCK();
+  if (finished) {
+    if (s_img_update_bg) {
+        if (s_img_update_label) lv_obj_add_flag(s_img_update_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_img_progress_bar) lv_obj_add_flag(s_img_progress_bar, LV_OBJ_FLAG_HIDDEN);
+    }
+    LVGL_UNLOCK();
+    return;
+  }
+
+  if (!s_img_update_bg) {
+    s_img_update_bg = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(s_img_update_bg, LCD_H_RES, LCD_V_RES);
+    lv_obj_set_style_bg_color(s_img_update_bg, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(s_img_update_bg, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(s_img_update_bg, 0, 0);
+
+    s_img_update_label = lv_label_create(s_img_update_bg);
+    lv_obj_align(s_img_update_label, LV_ALIGN_CENTER, 0, -30);
+    lv_obj_set_style_text_color(s_img_update_label, lv_color_hex(0xFFFF00), 0);
+    lv_obj_set_style_text_font(s_img_update_label, &font_addr_30, 0);
+    lv_label_set_text(s_img_update_label, "사진 전송 중...\n잠시만 기다려 주세요.");
+
+    s_img_progress_bar = lv_bar_create(s_img_update_bg);
+    lv_obj_set_size(s_img_progress_bar, 300, 20);
+    lv_obj_align(s_img_progress_bar, LV_ALIGN_CENTER, 0, 60);
+    lv_obj_set_style_bg_color(s_img_progress_bar, lv_color_make(64, 64, 64), 0);
+    lv_obj_set_style_bg_color(s_img_progress_bar, lv_color_hex(0xFFFF00), LV_PART_INDICATOR);
+    lv_bar_set_range(s_img_progress_bar, 0, 100);
+  } else {
+    // 연속 전송 시: 이전에 숨겨두었던 텍스트와 바를 다시 보이게 함
+    if (s_img_update_label) lv_obj_clear_flag(s_img_update_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_img_progress_bar) lv_obj_clear_flag(s_img_progress_bar, LV_OBJ_FLAG_HIDDEN);
+  }
+
+
+  if (s_img_progress_bar) {
+    lv_bar_set_value(s_img_progress_bar, percent, LV_ANIM_OFF);
+  }
+  LVGL_UNLOCK();
+}
+
 static void reset_album_to_default_image(void) {
   if (s_image_count == 0) {
     scan_intro_images();
@@ -10383,7 +10478,7 @@ static void reset_album_to_default_image(void) {
   load_image_from_sd(0);
 }
 
-static void load_image_from_sd(int direction) {
+void load_image_from_sd(int direction) {
   LVGL_LOCK();
   // Reset auto timer whenever an image is loaded (either auto or manual)
   s_album_auto_timer = 0;
@@ -10721,102 +10816,53 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
   swiped = false;
 }
 
-// Update UI Callback
-static lv_obj_t *s_update_percent_label = NULL;
-static lv_obj_t *s_update_label = NULL;
-static lv_obj_t *s_update_bg = NULL;
-static lv_obj_t *s_update_bar = NULL;
 
-static lv_obj_t *s_img_update_bg = NULL;
-static lv_obj_t *s_img_update_label = NULL;
-static lv_obj_t *s_img_progress_bar = NULL;
-
-void update_ui_progress(int percent, const char *status) {
-  static int last_percent = -1;
-  if (percent == last_percent && status == NULL)
-    return;
-  last_percent = percent;
-
+static void show_restart_msg(void) {
   LVGL_LOCK();
-  if (!s_update_bg) {
-    // Create a fullscreen background on Top Layer (covers everything safely
-    // without deleting original objects)
-    s_update_bg = lv_obj_create(lv_layer_top());
-    lv_obj_set_size(s_update_bg, LCD_H_RES, LCD_V_RES);
-    lv_obj_set_style_bg_color(s_update_bg, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(s_update_bg, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(s_update_bg, 0, 0);
-    lv_obj_set_style_pad_all(s_update_bg, 0, 0);
+  lv_obj_t *scr = lv_obj_create(lv_layer_top());
+  lv_obj_set_size(scr, LCD_H_RES, LCD_V_RES);
+  lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_width(scr, 0, 0);
 
-    // [노란색 타이틀] 위쪽으로 배치
-    s_update_label = lv_label_create(s_update_bg);
-    lv_obj_align(s_update_label, LV_ALIGN_CENTER, 0, -30); // 중앙보다 위
-    lv_obj_set_style_text_color(s_update_label, lv_color_hex(0xFFFF00), 0); // 노란색
-    lv_obj_set_style_text_font(s_update_label, &font_addr_30, 0);
-    lv_label_set_text(s_update_label, "OTA 업데이트 진행중..");
-
-    // [노란색 진행바] 타이틀 아래에 배치
-    s_update_bar = lv_bar_create(s_update_bg);
-    lv_obj_set_size(s_update_bar, 300, 18);
-    lv_obj_align(s_update_bar, LV_ALIGN_CENTER, 0, 20); // 타이틀 아래
-    lv_obj_set_style_bg_color(s_update_bar, lv_color_make(64, 64, 64), 0);            // 배경 회색
-    lv_obj_set_style_bg_color(s_update_bar, lv_color_hex(0xFFFF00), LV_PART_INDICATOR); // 진행 노란색
-    lv_bar_set_range(s_update_bar, 0, 100);
-    lv_bar_set_value(s_update_bar, 0, LV_ANIM_OFF);
-  }
-
-  // 진행바 실시간 업데이트
-  if (s_update_bar) {
-    lv_bar_set_value(s_update_bar, percent, LV_ANIM_OFF);
-  }
-
-  if (percent >= 100) {
-    ESP_LOGI("UPDATE", "Update 100% reached. UI kept for delay visibility.");
-  }
+  lv_obj_t *label = lv_label_create(scr);
+  lv_obj_set_style_text_font(label, &font_addr_30, 0);
+  lv_obj_set_style_text_color(label, lv_color_hex(0xFFFF00), 0); // Yellow
+  lv_label_set_text(label, "시스템을 재부팅합니다!");
+  lv_obj_center(label);
   LVGL_UNLOCK();
 }
 
-void update_img_transfer_ui(int percent, bool finished) {
-  if (finished) {
-    if (s_img_update_bg) {
-      LVGL_LOCK();
-      lv_obj_del(s_img_update_bg);
-      s_img_update_bg = NULL;
-      LVGL_UNLOCK();
-    }
-    return;
+static void delayed_reboot_task(void *pvParameter) {
+  ESP_LOGI(TAG, "Reboot task started: Waiting for 2.0s of BLE inactivity...");
+  
+  while (1) {
+      uint32_t current_tick = xTaskGetTickCount();
+      // note_ble_activity()가 업데이트하는 마지막 수신 시간을 기준으로 2초(2000ms) 경과 확인
+      uint32_t elapsed_ms = (current_tick - s_last_ble_activity_tick) * portTICK_PERIOD_MS;
+      
+      if (elapsed_ms >= 2000) {
+          ESP_LOGW(TAG, "No activity for 2.0s. Showing restart message...");
+          show_restart_msg();
+          
+          // 시스템을 시원하게 재부팅하기 전에 문자열이 화면에 그려지는 것을 보장(1초 여유)
+          vTaskDelay(pdMS_TO_TICKS(1000));
+          
+          ESP_LOGW(TAG, "Executing scheduled restart NOW.");
+          esp_restart();
+      }
+      
+      // 0.1초마다 대기하며 갱신 여부 체크
+      vTaskDelay(pdMS_TO_TICKS(100));
   }
+}
 
-  LVGL_LOCK();
-  if (!s_img_update_bg) {
-    s_img_update_bg = lv_obj_create(lv_layer_top());
-    lv_obj_set_size(s_img_update_bg, LCD_H_RES, LCD_V_RES);
-    lv_obj_set_style_bg_color(s_img_update_bg, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(s_img_update_bg, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(s_img_update_bg, 0, 0);
-    lv_obj_set_style_pad_all(s_img_update_bg, 0, 0);
-
-    s_img_update_label = lv_label_create(s_img_update_bg);
-    lv_obj_align(s_img_update_label, LV_ALIGN_CENTER, 0, -30);
-    lv_obj_set_style_text_color(s_img_update_label, lv_color_hex(0xFFFF00), 0); // Yellow
-    lv_obj_set_style_text_font(s_img_update_label, &font_addr_30, 0);
-    lv_obj_set_style_text_align(s_img_update_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_text_line_space(s_img_update_label, 15, 0); // 1.5 line spacing effect
-    lv_label_set_text(s_img_update_label, "사진 전송 중...\n잠시만 기다려 주세요.");
-
-    s_img_progress_bar = lv_bar_create(s_img_update_bg);
-    lv_obj_set_size(s_img_progress_bar, 300, 20);
-    lv_obj_align(s_img_progress_bar, LV_ALIGN_CENTER, 0, 60);
-    lv_obj_set_style_bg_color(s_img_progress_bar, lv_color_make(64, 64, 64), 0); // Dark track
-    lv_obj_set_style_bg_color(s_img_progress_bar, lv_color_hex(0xFFFF00), LV_PART_INDICATOR); // Yellow bar
-    lv_bar_set_range(s_img_progress_bar, 0, 100);
-    lv_bar_set_value(s_img_progress_bar, 0, LV_ANIM_OFF);
+void start_reboot_task(void) {
+  static bool reboot_started = false;
+  if (!reboot_started) {
+    reboot_started = true;
+    xTaskCreate(delayed_reboot_task, "reboot_task", 4096, NULL, 5, NULL);
   }
-
-  if (percent >= 0 && s_img_progress_bar) {
-    lv_bar_set_value(s_img_progress_bar, percent, LV_ANIM_OFF);
-  }
-  LVGL_UNLOCK();
 }
 
 void app_main(void) {
@@ -11148,7 +11194,20 @@ void app_main(void) {
           // Play for initial duration. Since loop count is 1, it will stop on
           // the last frame.
           ESP_LOGI(TAG, "System Boot: Playing intro.gif (one cycle)...");
-          vTaskDelay(pdMS_TO_TICKS(3000));
+          // 최대 3초 대기하되, 앱 연결 후 첫 명령이 오면 즉시 종료
+          {
+            uint32_t elapsed_ms = 0;
+            const uint32_t check_ms = 50;
+            const uint32_t max_ms   = 3000;
+            while (elapsed_ms < max_ms) {
+              if (s_hud_seen_first_cmd) {
+                ESP_LOGI(TAG, "System Boot: App command received, skipping remaining intro (%u ms elapsed)", (unsigned)elapsed_ms);
+                break;
+              }
+              vTaskDelay(pdMS_TO_TICKS(check_ms));
+              elapsed_ms += check_ms;
+            }
+          }
 
           // Do NOT cleanup GIF here. It will stay on screen until BLE
           // connects as handled by update_display_mode_ui.
@@ -11235,8 +11294,18 @@ void app_main(void) {
                      (state_ret && img_state == ESP_OTA_IMG_PENDING_VERIFY))) {
     ESP_LOGW(TAG, "Recovery conditions met. Starting OTA mode...");
     switch_display_mode(DISPLAY_MODE_OTA);
+  } else if (s_current_mode == DISPLAY_MODE_BOOT) {
+    // 인트로 종료 시점에 앱이 이미 연결되어 있으면 바로 STANDBY로 진입
+    // 앱 미연결 상태면 BOOT 유지 (연결 후 시간 수신 시 STANDBY로 이동)
+    if (s_connected) {
+      ESP_LOGI(TAG, "Intro ended with app connected -> STANDBY");
+      switch_display_mode(DISPLAY_MODE_STANDBY);
+    } else {
+      switch_display_mode(DISPLAY_MODE_BOOT);
+    }
   } else {
-    switch_display_mode(DISPLAY_MODE_BOOT);
+    // 인트로 중 앱이 이미 다른 모드로 전환함 → 그대로 유지
+    ESP_LOGI(TAG, "Intro ended: mode already %d (changed by app), skipping BOOT switch", s_current_mode);
   }
   LVGL_UNLOCK();
 
@@ -11261,8 +11330,35 @@ void app_main(void) {
     // 루프에서 처리)
     if (s_boot_clock_trigger) {
       s_boot_clock_trigger = false;
-      ESP_LOGI(TAG, "Main Task: Executing transition to STANDBY mode");
-      switch_display_mode(DISPLAY_MODE_STANDBY);
+      // OTA 모드를 제외한 모든 모드에서 STANDBY로 전환
+      // (첫 번째 시간 업데이트 수신 시 대기 모드 진입)
+      if (s_current_mode != DISPLAY_MODE_OTA) {
+        ESP_LOGI(TAG, "Main Task: First time update received -> STANDBY (from mode %d)", s_current_mode);
+        switch_display_mode(DISPLAY_MODE_STANDBY);
+      } else {
+        ESP_LOGI(TAG, "Main Task: boot_clock_trigger ignored (OTA mode)");
+      }
+    }
+
+    // 이미지 전송 완료 비동기 처리 (BLE 태스크 블로킹 방지)
+    if (s_img_transfer_finished_flag) {
+      s_img_transfer_finished_flag = false;
+      ESP_LOGI(TAG, "Main Task: Cleaning up image transfer UI...");
+      update_img_transfer_ui(100, true);
+    }
+
+
+
+
+
+    // 시스템 진단 로그 (5초마다)
+    static uint32_t s_diag_timer = 0;
+    if (++s_diag_timer >= 50) { // 100ms * 50 = 5s
+      s_diag_timer = 0;
+      ESP_LOGI("DIAG", "Heap: %lu, PSRAM: %lu, Connected: %d", 
+               (unsigned long)esp_get_free_heap_size(),
+               (unsigned long)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+               s_connected);
     }
 
     // 1. 앨범 자동 갱신 (10초)
