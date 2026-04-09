@@ -166,6 +166,7 @@ static display_mode_t s_current_mode =
     DISPLAY_MODE_BOOT; // 초기 상태는 부팅(로고) 모드
 static display_mode_t s_last_base_mode =
     DISPLAY_MODE_STANDBY; // 대기, 속도계, HUD 중 마지막 활성 모드
+static bool s_is_manual_mode_switch = false; // 터치/버튼에 의한 의도적 전환 여부
 
 int get_current_display_mode(void) { return (int)s_current_mode; }
 static bool s_virtual_drive_active = false;    // 가상 운행 활성화 플래그
@@ -271,7 +272,8 @@ static uint16_t s_dis_pnp_handle = 0;    // 0x2A50
 // Provisioning note:
 // Do NOT clone another real device's serial; use your own device's serial or a
 // test serial.
-static const char s_device_serial[] = "DEV000";
+static char s_device_serial[32] = "DEV000";
+static char s_app_reg_num[32] = "ABC01DEF";
 // ---------------------------------------------------------------------------
 // HID over GATT (HOGP) - minimal service 0x1812
 // ---------------------------------------------------------------------------
@@ -429,6 +431,13 @@ static lv_obj_t *s_boot_screen = NULL;     // Boot Mode Screen
 static lv_obj_t *s_boot_time_label = NULL; // Boot Mode Digital Time
 static lv_obj_t *s_boot_sec_label = NULL;  // Boot Mode Digital Seconds
 static lv_obj_t *s_boot_date_label = NULL; // Boot Mode Digital Date Header
+static lv_obj_t *s_boot_reg_title_label = NULL; // App Registration Title
+static lv_obj_t *s_boot_reg_val_label = NULL;   // App Registration Value
+static lv_obj_t *s_boot_install_title_label = NULL;
+static lv_obj_t *s_boot_install_sub_label = NULL;
+static lv_obj_t *s_boot_install_qr = NULL;
+static uint32_t s_boot_reg_timer_sec = 0;
+static bool s_boot_reg_shown = false;
 static lv_obj_t *s_hud_screen = NULL;
 static lv_obj_t *s_speedometer_screen = NULL; // Speedometer Screen
 static lv_obj_t *s_clock_screen = NULL;
@@ -484,9 +493,10 @@ static void save_nvs_settings(void) {
   static uint8_t last_bright = 0xFF;
   static uint8_t last_album = 0xFF;
   static uint8_t last_clock = 0xFF;
+  static uint8_t last_mode = 0xFF;
 
   if (last_bright == s_brightness_level && last_album == s_album_option &&
-      last_clock == s_clock_option) {
+      last_clock == s_clock_option && last_mode == (uint8_t)s_current_mode) {
     return; // No change
   }
 
@@ -496,14 +506,16 @@ static void save_nvs_settings(void) {
     nvs_set_u8(nvs, "bright_lvl", s_brightness_level);
     nvs_set_u8(nvs, "album_opt", s_album_option);
     nvs_set_u8(nvs, "clock_opt", s_clock_option);
+    nvs_set_u8(nvs, "boot_mode", (uint8_t)s_current_mode);
     nvs_commit(nvs);
     nvs_close(nvs);
 
     last_bright = s_brightness_level;
     last_album = s_album_option;
     last_clock = s_clock_option;
-    ESP_LOGI(TAG, "NVS Settings Saved: Br=%d, Alb=%d, Clk=%d", last_bright,
-             last_album, last_clock);
+    last_mode = (uint8_t)s_current_mode;
+    ESP_LOGI(TAG, "NVS Settings Saved: Br=%d, Alb=%d, Clk=%d, Mode=%d", last_bright,
+             last_album, last_clock, last_mode);
   }
 }
 
@@ -518,9 +530,32 @@ static void load_nvs_settings(void) {
       s_album_option = val;
     if (nvs_get_u8(nvs, "clock_opt", &val) == ESP_OK && val <= 2)
       s_clock_option = val;
+    if (nvs_get_u8(nvs, "boot_mode", &val) == ESP_OK && val < DISPLAY_MODE_MAX) {
+      if (val != DISPLAY_MODE_BOOT && val != DISPLAY_MODE_OTA) {
+        // [User Request] HUD 모드인 경우 부팅 시에는 속도계 모드로 강제 전환
+        if (val == DISPLAY_MODE_HUD) {
+          val = DISPLAY_MODE_SPEEDOMETER;
+          ESP_LOGI(TAG, "HUD mode restored as SPEEDOMETER per request.");
+        }
+        s_current_mode = (display_mode_t)val;
+        ESP_LOGI(TAG, "NVS Loaded Boot Mode: %d", val);
+      }
+    }
+
+    size_t len = sizeof(s_device_serial);
+    if (nvs_get_str(nvs, "serial_num", s_device_serial, &len) != ESP_OK) {
+      strcpy(s_device_serial, "NO_SN");
+    }
+
+    len = sizeof(s_app_reg_num);
+    if (nvs_get_str(nvs, "app_reg_num", s_app_reg_num, &len) != ESP_OK) {
+      strcpy(s_app_reg_num, "NO_REG");
+    }
+
     nvs_close(nvs);
-    ESP_LOGI(TAG, "NVS Settings Loaded: Br=%d, Alb=%d, Clk=%d",
-             s_brightness_level, s_album_option, s_clock_option);
+    ESP_LOGI(TAG, "NVS Settings Loaded: Br=%d, Alb=%d, Clk=%d, SN=%s, Reg=%s",
+             s_brightness_level, s_album_option, s_clock_option, 
+             s_device_serial, s_app_reg_num);
   } else {
     ESP_LOGI(TAG, "NVS empty, using defaults");
   }
@@ -1021,12 +1056,22 @@ static void process_app_command(const uint8_t *data, size_t len) {
   if (len < 5)
     return;
 
-  // Log all packets removed as requested
-
   uint8_t start = data[0];       // 0x19
   uint8_t id = data[1];          // 0x4D
   uint8_t commend = data[2];     // cmd
   uint8_t data_length = data[3]; // dlen
+
+  // [User Request] 시계/앨범 모드에서는 앱에서 오는 수신 메시지 차단
+  // 단, 현재시간 메시지(0x09)는 예외적으로 처리하도록 허용
+  if (s_current_mode == DISPLAY_MODE_CLOCK1 || 
+      s_current_mode == DISPLAY_MODE_CLOCK2 || 
+      s_current_mode == DISPLAY_MODE_ALBUM) {
+    if (id != 0x4D || commend != 0x09) {
+      return;
+    }
+  }
+
+  // Log all packets removed as requested
   // uint8_t end = data[len-1]; // 0x2F
 
   // Basic validation
@@ -3871,14 +3916,7 @@ static void update_speed_label(uint8_t data1, uint8_t speed) {
 // 날짜: MM(하늘색) 월(회색) dd(하늘색)
 // 일(회색)
 static void update_time_display(void) {
-  // Check if all labels exist
-  if (s_time_month_label == NULL || s_time_month_unit_label == NULL ||
-      s_time_day_label == NULL || s_time_day_unit_label == NULL ||
-      s_time_hour_label == NULL || s_time_colon1_label == NULL ||
-      s_time_minute_label == NULL || s_time_colon2_label == NULL ||
-      s_time_second_label == NULL || !s_time_initialized) {
-    return;
-  }
+  if (!s_time_initialized) return;
 
   struct tm timeinfo;
   time_t now;
@@ -3888,22 +3926,47 @@ static void update_time_display(void) {
   int hour = (int)timeinfo.tm_hour;
   int min = (int)timeinfo.tm_min;
   int sec = (int)timeinfo.tm_sec;
+  int month = (int)timeinfo.tm_mon + 1;
+  int day = (int)timeinfo.tm_mday;
 
-  // Background update for Clock Mode
+  // 1. Background update for Clock Mode (Analog)
   if (s_clock_canvas) {
     draw_analog_clock(hour, min, sec);
   }
 
-  // 모든 label invalidate
-  lv_obj_invalidate(s_time_month_label);
-  lv_obj_invalidate(s_time_month_unit_label);
-  lv_obj_invalidate(s_time_day_label);
-  lv_obj_invalidate(s_time_day_unit_label);
-  lv_obj_invalidate(s_time_hour_label);
-  lv_obj_invalidate(s_time_colon1_label);
-  lv_obj_invalidate(s_time_minute_label);
-  lv_obj_invalidate(s_time_colon2_label);
-  lv_obj_invalidate(s_time_second_label);
+  // 2. Update Digital Labels (Standby Mode)
+  if (s_time_month_label && s_time_month_unit_label &&
+      s_time_day_label && s_time_day_unit_label &&
+      s_time_hour_label && s_time_minute_label && s_time_second_label) {
+      
+    char buf[16];
+    
+    snprintf(buf, sizeof(buf), "%d", month);
+    lv_label_set_text(s_time_month_label, buf);
+    lv_label_set_text(s_time_month_unit_label, "월");
+
+    snprintf(buf, sizeof(buf), "%d", day);
+    lv_label_set_text(s_time_day_label, buf);
+    lv_label_set_text(s_time_day_unit_label, "일");
+
+    snprintf(buf, sizeof(buf), "%02d", hour);
+    lv_label_set_text(s_time_hour_label, buf);
+    if (s_time_colon1_label) lv_label_set_text(s_time_colon1_label, ":");
+
+    snprintf(buf, sizeof(buf), "%02d", min);
+    lv_label_set_text(s_time_minute_label, buf);
+    if (s_time_colon2_label) lv_label_set_text(s_time_colon2_label, ":");
+
+    snprintf(buf, sizeof(buf), "%02d", sec);
+    lv_label_set_text(s_time_second_label, buf);
+
+    // Invalidate everything to be sure
+    lv_obj_invalidate(s_time_month_label);
+    lv_obj_invalidate(s_time_day_label);
+    lv_obj_invalidate(s_time_hour_label);
+    lv_obj_invalidate(s_time_minute_label);
+    lv_obj_invalidate(s_time_second_label);
+  }
 }
 
 static bool s_time_display_update_required = false;
@@ -6436,6 +6499,23 @@ static void switch_display_mode(display_mode_t new_mode) {
     return;
   }
 
+  // == [User Request] 시계/앨범 모드에서는 터치 스와이프로만 다른 모드 이동 가능하도록 제한 ==
+  // 수동(터치/설정버튼) 조작이 아닌 외부 명령(App 명령 등)에 의한 전환 시도 시 차단
+  if (!s_is_manual_mode_switch) {
+    if (s_current_mode == DISPLAY_MODE_CLOCK1 || 
+        s_current_mode == DISPLAY_MODE_CLOCK2 || 
+        s_current_mode == DISPLAY_MODE_ALBUM) {
+        
+      // 시계1 <-> 시계2 자동 전환이나 OTA 진입 등은 시스템적으로 허용할 수 있음
+      // 하지만 앱에서 강제로 속도계/HUD로 끌고 나가는 것은 차단함
+      if (new_mode == DISPLAY_MODE_SPEEDOMETER || new_mode == DISPLAY_MODE_HUD || 
+          new_mode == DISPLAY_MODE_STANDBY) {
+        ESP_LOGI(TAG, "Mode switch blocked: Current mode (Clock/Album) locked. Swipe to exit.");
+        return;
+      }
+    }
+  }
+
   // == 1. 시계 모드 옵션 강제 적용 ==
   if (new_mode == DISPLAY_MODE_CLOCK1 || new_mode == DISPLAY_MODE_CLOCK2) {
     if (s_clock_option == 0)
@@ -6452,6 +6532,9 @@ static void switch_display_mode(display_mode_t new_mode) {
   }
 
   s_current_mode = new_mode;
+
+  // Persistence: Save current mode to NVS
+  save_nvs_settings();
 
   // 네비게이션용 베이스 모드 업데이트 (대기, 속도계, HUD만 베이스가 됨)
   if (new_mode == DISPLAY_MODE_STANDBY ||
@@ -6800,7 +6883,9 @@ static void setting_page_cb(lv_event_t *e) {
 
 static void ota_btn_event_cb(lv_event_t *e) {
   (void)e;
+  s_is_manual_mode_switch = true;
   switch_display_mode(DISPLAY_MODE_OTA);
+  s_is_manual_mode_switch = false;
 }
 
 static void clock_down_event_cb(lv_event_t *e) {
@@ -8151,7 +8236,13 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
   case ESP_GATTS_CONNECT_EVT:
     s_connected = true;
     s_conn_id = param->connect.conn_id;
-    // Update UI immediately on connection (Hide logo, show ring)
+
+    // 부팅 후 첫 연결 시, 현재 부팅 모드(로고/등록번호)라면 즉시 속도계 모드로 전환
+    if (s_current_mode == DISPLAY_MODE_BOOT) {
+      s_current_mode = DISPLAY_MODE_SPEEDOMETER;
+    }
+
+    // Update UI immediately on connection (Hide logo, show speedometer)
     LVGL_LOCK();
     update_display_mode_ui(s_current_mode);
     LVGL_UNLOCK();
@@ -8354,7 +8445,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
                "handle=%u",
                (unsigned)h);
       send_read_rsp(gatts_if, param, (const uint8_t *)s_device_serial,
-                    (uint16_t)(sizeof(s_device_serial) - 1));
+                    (uint16_t)strlen(s_device_serial));
     } else if (h == s_dis_pnp_handle) {
       static const uint8_t pnp_id[7] = {0x01, 0x00, 0x00, 0x01,
                                         0x00, 0x00, 0x01};
@@ -9134,7 +9225,7 @@ void save_packet_to_sdcard(const uint8_t *data, size_t len,
         desc = "(모델명과 펌웨어 버전 송신)";
       break;
     case 0x0D:
-      if (data[1] == 0x4E)
+      if (data[1] == 0x4E || data[1] == 0x4D)
         desc = "시간 업데이트 요청(TX)";
       else
         desc = "목적지 도착 알림(RX)";
@@ -9313,6 +9404,48 @@ static void clock_timer_cb(lv_timer_t *timer) {
       s_current_mode != DISPLAY_MODE_STANDBY)
     return;
 
+  // Handle Boot Registration display logic
+  if (s_current_mode == DISPLAY_MODE_BOOT && !s_connected && !s_hud_seen_first_cmd) {
+    if (!s_boot_reg_shown) {
+      s_boot_reg_timer_sec++;
+      if (s_boot_reg_timer_sec >= 10) {
+        if (s_intro_image) lv_obj_add_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
+        
+        if (s_boot_reg_title_label) {
+          lv_obj_clear_flag(s_boot_reg_title_label, LV_OBJ_FLAG_HIDDEN);
+          lv_obj_move_foreground(s_boot_reg_title_label);
+        }
+        if (s_boot_reg_val_label) {
+          lv_obj_clear_flag(s_boot_reg_val_label, LV_OBJ_FLAG_HIDDEN);
+          lv_obj_move_foreground(s_boot_reg_val_label);
+        }
+        if (s_boot_install_title_label) {
+          lv_obj_clear_flag(s_boot_install_title_label, LV_OBJ_FLAG_HIDDEN);
+          lv_obj_move_foreground(s_boot_install_title_label);
+        }
+        if (s_boot_install_sub_label) {
+          lv_obj_clear_flag(s_boot_install_sub_label, LV_OBJ_FLAG_HIDDEN);
+          lv_obj_move_foreground(s_boot_install_sub_label);
+        }
+        if (s_boot_install_qr) {
+          lv_obj_clear_flag(s_boot_install_qr, LV_OBJ_FLAG_HIDDEN);
+          lv_obj_move_foreground(s_boot_install_qr);
+        }
+        s_boot_reg_shown = true;
+      }
+    }
+  } else {
+    s_boot_reg_timer_sec = 0;
+    if (s_boot_reg_shown) {
+       if (s_boot_reg_title_label) lv_obj_add_flag(s_boot_reg_title_label, LV_OBJ_FLAG_HIDDEN);
+       if (s_boot_reg_val_label) lv_obj_add_flag(s_boot_reg_val_label, LV_OBJ_FLAG_HIDDEN);
+       if (s_boot_install_title_label) lv_obj_add_flag(s_boot_install_title_label, LV_OBJ_FLAG_HIDDEN);
+       if (s_boot_install_sub_label) lv_obj_add_flag(s_boot_install_sub_label, LV_OBJ_FLAG_HIDDEN);
+       if (s_boot_install_qr) lv_obj_add_flag(s_boot_install_qr, LV_OBJ_FLAG_HIDDEN);
+       s_boot_reg_shown = false;
+    }
+  }
+
   time_t now;
   struct tm timeinfo;
   time(&now);
@@ -9362,6 +9495,48 @@ static void create_boot_ui(void) {
   lv_obj_set_style_text_color(s_boot_date_label, lv_color_hex(0xAAAAAA), 0);
   lv_obj_align(s_boot_date_label, LV_ALIGN_CENTER, 0, -100);
   lv_label_set_text(s_boot_date_label, "JAN 01 MON");
+
+  // App Reg Info (Hidden by default)
+  s_boot_reg_title_label = lv_label_create(s_boot_screen);
+  lv_obj_set_style_text_font(s_boot_reg_title_label, &font_addr_30, 0); 
+  lv_obj_set_style_text_color(s_boot_reg_title_label, lv_color_hex(0xAAAAAA), 0);
+  lv_obj_align(s_boot_reg_title_label, LV_ALIGN_CENTER, 0, 135);
+  lv_label_set_text(s_boot_reg_title_label, "MCon K 등록번호");
+  lv_obj_add_flag(s_boot_reg_title_label, LV_OBJ_FLAG_HIDDEN);
+
+  s_boot_reg_val_label = lv_label_create(s_boot_screen);
+  lv_obj_set_style_text_font(s_boot_reg_val_label, &font_kopub_40, 0); 
+  lv_obj_set_style_text_color(s_boot_reg_val_label, lv_color_hex(0xFFFF00), 0);
+  lv_obj_align(s_boot_reg_val_label, LV_ALIGN_CENTER, 0, 180);
+  lv_label_set_text_fmt(s_boot_reg_val_label, "%s", s_app_reg_num);
+  lv_obj_add_flag(s_boot_reg_val_label, LV_OBJ_FLAG_HIDDEN);
+
+  // App Installation Info (Top Side, Hidden by default)
+  s_boot_install_title_label = lv_label_create(s_boot_screen);
+  lv_obj_set_style_text_font(s_boot_install_title_label, &font_addr_30, 0); 
+  lv_obj_set_style_text_color(s_boot_install_title_label, lv_color_white(), 0);
+  lv_obj_align(s_boot_install_title_label, LV_ALIGN_CENTER, 0, -170);
+  lv_label_set_text(s_boot_install_title_label, "MCon K 설치");
+  lv_obj_add_flag(s_boot_install_title_label, LV_OBJ_FLAG_HIDDEN);
+
+  s_boot_install_sub_label = lv_label_create(s_boot_screen);
+  lv_obj_set_style_text_font(s_boot_install_sub_label, &font_addr_30, 0); 
+  lv_obj_set_style_text_color(s_boot_install_sub_label, lv_color_hex(0xAAAAAA), 0);
+  lv_obj_align(s_boot_install_sub_label, LV_ALIGN_CENTER, 0, -135);
+  lv_label_set_text(s_boot_install_sub_label, "설치방법..");
+  lv_obj_add_flag(s_boot_install_sub_label, LV_OBJ_FLAG_HIDDEN);
+
+  // QR Code (Perfect Center)
+  s_boot_install_qr = lv_qrcode_create(s_boot_screen, 160, lv_color_make(180, 180, 180), lv_color_black());
+  if (s_boot_install_qr) {
+    const char *qr_data = "https://play.google.com/store/search?q=mcon+k&c=apps&hl=ko";
+    lv_qrcode_update(s_boot_install_qr, qr_data, strlen(qr_data));
+    lv_obj_align(s_boot_install_qr, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_border_color(s_boot_install_qr, lv_color_make(180, 180, 180), 0);
+    lv_obj_set_style_border_width(s_boot_install_qr, 3, 0);
+    lv_obj_set_style_border_side(s_boot_install_qr, LV_BORDER_SIDE_FULL, 0);
+    lv_obj_add_flag(s_boot_install_qr, LV_OBJ_FLAG_HIDDEN);
+  }
 }
 
 /* static void rotate_point(int px, int py, double angle_rad, int *ox, int *oy) {
@@ -10743,7 +10918,9 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
                 s_current_mode != DISPLAY_MODE_ALBUM) {
               reset_album_to_default_image();
             }
+            s_is_manual_mode_switch = true;
             switch_display_mode(next_mode);
+            s_is_manual_mode_switch = false;
             swiped = true;
           } // end else (not OTA)
         }
@@ -10761,11 +10938,15 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
             swiped = true;
           } else if (s_current_mode == DISPLAY_MODE_CLOCK1) {
             // Clock <-> Clock 2 (Vertical Swipe Toggle)
+            s_is_manual_mode_switch = true;
             switch_display_mode(DISPLAY_MODE_CLOCK2);
+            s_is_manual_mode_switch = false;
             swiped = true;
           } else if (s_current_mode == DISPLAY_MODE_CLOCK2) {
             // Clock 2 <-> Clock (Vertical Swipe Toggle)
+            s_is_manual_mode_switch = true;
             switch_display_mode(DISPLAY_MODE_CLOCK1);
+            s_is_manual_mode_switch = false;
             swiped = true;
           } else if (s_current_mode == DISPLAY_MODE_VIRTUAL_DRIVE) {
             // Toggle Virtual Drive Simulation (any vertical swipe)
@@ -10778,7 +10959,9 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
             swiped = true;
           } else if (s_current_mode == DISPLAY_MODE_OTA) {
             // OTA -> Setting (상하 스와이프으로 이동)
+            s_is_manual_mode_switch = true;
             switch_display_mode(DISPLAY_MODE_SETTING);
+            s_is_manual_mode_switch = false;
             swiped = true;
           } else if (s_current_mode == DISPLAY_MODE_STANDBY ||
                      s_current_mode == DISPLAY_MODE_SPEEDOMETER ||
@@ -10800,7 +10983,9 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
               else
                 next_base = DISPLAY_MODE_STANDBY;
             }
+            s_is_manual_mode_switch = true;
             switch_display_mode(next_base);
+            s_is_manual_mode_switch = false;
             swiped = true;
           }
         }
@@ -10866,6 +11051,9 @@ void start_reboot_task(void) {
 }
 
 void app_main(void) {
+  uint32_t intro_start_time = 0;
+  bool intro_playing = false;
+
   // 0. Rescue mode check (BOOT 버튼을 누른 채 부팅하면 Factory 모드로 강제
   // 진입)
   gpio_reset_pin(GPIO_NUM_0);
@@ -10968,15 +11156,8 @@ void app_main(void) {
   if (lfs_ret != ESP_OK) {
     ESP_LOGW(TAG, "LittleFS is not available: %s", esp_err_to_name(lfs_ret));
   } else {
-    // Print LittleFS Free Space
-    size_t total = 0, used = 0;
-    esp_err_t info_ret = esp_littlefs_info("storage", &total, &used);
-    if (info_ret == ESP_OK) {
-      ESP_LOGI(TAG,
-               "LittleFS Info: Total: %u bytes, Used: %u bytes, Free: %u bytes",
-               (unsigned int)total, (unsigned int)used,
-               (unsigned int)(total - used));
-    }
+    ESP_LOGI(TAG, "LittleFS mounted successfully.");
+    // esp_littlefs_info is skipped to reduce boot delay.
   }
 
   // Start LittleFS UART console (ls / cat / stat / df commands in monitor)
@@ -11031,6 +11212,39 @@ void app_main(void) {
       // Increased stack size for stability during heavy UI/SD operations
       xTaskCreate(lvgl_handler_task, "lvgl_handler", 9216, NULL, 5,
                   &s_lvgl_task_handle);
+
+      if (s_intro_image) {
+        const char *intro_gif_paths[] = {"/littlefs/intro.gif", "/littlefs/flash_data/intro.gif"};
+        const char *intro_lv_paths[] = {"S:/littlefs/intro.gif", "S:/littlefs/flash_data/intro.gif"};
+        for (int i = 0; i < 2; i++) {
+          struct stat st;
+          if (stat(intro_gif_paths[i], &st) == 0) {
+            ESP_LOGI(TAG, "System Boot: Intro GIF found at %s. Playing early...", intro_gif_paths[i]);
+            LVGL_LOCK();
+            if (s_intro_image) lv_obj_del(s_intro_image);
+#ifndef LV_USE_GIF
+#define LV_USE_GIF 1
+#endif
+#if LV_USE_GIF
+            s_intro_image = lv_gif_create(lv_scr_act());
+            if (s_intro_image) {
+              lv_gif_set_src(s_intro_image, intro_lv_paths[i]);
+              lv_obj_clear_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
+              lv_obj_center(s_intro_image);
+              lv_obj_move_foreground(s_intro_image);
+              lv_gif_set_loop_count(s_intro_image, 1);
+              LVGL_UNLOCK();
+              set_lcd_brightness(0, true);
+              intro_start_time = (uint32_t)(esp_timer_get_time() / 1000);
+              intro_playing = true;
+            } else {
+              LVGL_UNLOCK();
+            }
+#endif
+            break;
+          }
+        }
+      }
     }
   }
 
@@ -11084,18 +11298,8 @@ void app_main(void) {
   // LittleFS is already mounted at the beginning of app_main.
   // Check if it was successful before loading CSV files.
   if (lfs_ret == ESP_OK) {
-    // Print LittleFS Free Space
-    size_t total = 0, used = 0;
-    esp_err_t info_ret = esp_littlefs_info("storage", &total, &used);
-    if (info_ret == ESP_OK) {
-      ESP_LOGI(TAG,
-               "LittleFS Info: Total: %u bytes, Used: %u bytes, Free: %u bytes",
-               (unsigned int)total, (unsigned int)used,
-               (unsigned int)(total - used));
-    } else {
-      ESP_LOGE(TAG, "Failed to get LittleFS info: %s",
-               esp_err_to_name(info_ret));
-    }
+    // esp_littlefs_info block removed to avoid locking the filesystem 
+    // and causing the LVGL intro GIF to freeze.
 
     // Load image data CSV file
     ESP_LOGI(TAG, "Attempting to load CSV "
@@ -11155,74 +11359,28 @@ void app_main(void) {
     s_current_image_path[0] = '\0';
   }
 
-  // 1. System Boot: Intro GIF (2 seconds)
+  // 1. System Boot: Intro GIF Wait (2~3 seconds total)
   // ---------------------------------------------------------
-  if (s_intro_image) {
-    const char *intro_gif_paths[] = {"/littlefs/intro.gif",
-                                     "/littlefs/flash_data/intro.gif"};
-    const char *intro_lv_paths[] = {"S:/littlefs/intro.gif",
-                                    "S:/littlefs/flash_data/intro.gif"};
+  if (intro_playing) {
+    ESP_LOGI(TAG, "System Boot: Waiting for intro.gif to finish...");
+    uint32_t check_ms = 50;
+    uint32_t max_ms = 3000;
+    while (1) {
+      uint32_t current_time = (uint32_t)(esp_timer_get_time() / 1000);
+      uint32_t elapsed_ms = 0;
+      if (current_time > intro_start_time) {
+        elapsed_ms = current_time - intro_start_time;
+      }
+      if (elapsed_ms >= max_ms) break;
 
-    bool sys_boot_done = false;
-
-    // Search for intro.gif
-    for (int i = 0; i < 2; i++) {
-      struct stat st;
-      if (stat(intro_gif_paths[i], &st) == 0) {
-        ESP_LOGI(TAG, "System Boot: Intro GIF found at %s", intro_gif_paths[i]);
-
-        LVGL_LOCK();
-        if (s_intro_image)
-          lv_obj_del(s_intro_image);
-#define LV_USE_GIF 1
-#if LV_USE_GIF
-        s_intro_image = lv_gif_create(lv_scr_act());
-        if (s_intro_image) {
-          lv_gif_set_src(s_intro_image, intro_lv_paths[i]);
-          lv_obj_clear_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
-          lv_obj_center(s_intro_image);
-          lv_obj_move_foreground(s_intro_image);
-
-          // Set loop count to 1 (one cycle)
-          lv_gif_set_loop_count(s_intro_image, 1);
-
-          LVGL_UNLOCK();
-
-          // Show screen
-          set_lcd_brightness(0, true);
-
-          // Play for initial duration. Since loop count is 1, it will stop on
-          // the last frame.
-          ESP_LOGI(TAG, "System Boot: Playing intro.gif (one cycle)...");
-          // 최대 3초 대기하되, 앱 연결 후 첫 명령이 오면 즉시 종료
-          {
-            uint32_t elapsed_ms = 0;
-            const uint32_t check_ms = 50;
-            const uint32_t max_ms   = 3000;
-            while (elapsed_ms < max_ms) {
-              if (s_hud_seen_first_cmd) {
-                ESP_LOGI(TAG, "System Boot: App command received, skipping remaining intro (%u ms elapsed)", (unsigned)elapsed_ms);
-                break;
-              }
-              vTaskDelay(pdMS_TO_TICKS(check_ms));
-              elapsed_ms += check_ms;
-            }
-          }
-
-          // Do NOT cleanup GIF here. It will stay on screen until BLE
-          // connects as handled by update_display_mode_ui.
-          sys_boot_done = true;
-        } else {
-          LVGL_UNLOCK();
-        }
-#endif
+      if (s_hud_seen_first_cmd) {
+        ESP_LOGI(TAG, "System Boot: App command received, skipping remaining intro (%u ms elapsed)", (unsigned)elapsed_ms);
         break;
       }
+      vTaskDelay(pdMS_TO_TICKS(check_ms));
     }
-
-    if (!sys_boot_done) {
-      ESP_LOGW(TAG, "System Boot: Intro GIF not found or skipped.");
-    }
+  } else {
+    ESP_LOGW(TAG, "System Boot: Intro GIF not found or not played.");
   }
 
   // 2. HUD Mode Entry: Logo (Removed as per user request)
@@ -11294,18 +11452,12 @@ void app_main(void) {
                      (state_ret && img_state == ESP_OTA_IMG_PENDING_VERIFY))) {
     ESP_LOGW(TAG, "Recovery conditions met. Starting OTA mode...");
     switch_display_mode(DISPLAY_MODE_OTA);
-  } else if (s_current_mode == DISPLAY_MODE_BOOT) {
-    // 인트로 종료 시점에 앱이 이미 연결되어 있으면 바로 STANDBY로 진입
-    // 앱 미연결 상태면 BOOT 유지 (연결 후 시간 수신 시 STANDBY로 이동)
-    if (s_connected) {
-      ESP_LOGI(TAG, "Intro ended with app connected -> STANDBY");
-      switch_display_mode(DISPLAY_MODE_STANDBY);
-    } else {
-      switch_display_mode(DISPLAY_MODE_BOOT);
-    }
   } else {
-    // 인트로 중 앱이 이미 다른 모드로 전환함 → 그대로 유지
-    ESP_LOGI(TAG, "Intro ended: mode already %d (changed by app), skipping BOOT switch", s_current_mode);
+    // NVS에서 로드했거나 인트로 도중 앱이 전환한 모드를 최종 적용하여 UI 표시
+    ESP_LOGI(TAG, "Intro ended: applying current mode %d", s_current_mode);
+    s_is_manual_mode_switch = true; // 부팅 시에는 잠긴 모드(시계/앨범)라도 적용 허용
+    switch_display_mode(s_current_mode);
+    s_is_manual_mode_switch = false;
   }
   LVGL_UNLOCK();
 

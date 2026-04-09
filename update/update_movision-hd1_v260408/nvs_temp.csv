@@ -1,0 +1,4 @@
+key,type,encoding,value
+storage,namespace,,
+serial_num,data,string,DEV001
+app_reg_num,data,string,ABC01DEF
