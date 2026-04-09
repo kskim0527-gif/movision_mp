@@ -35,6 +35,7 @@
 #include "esp_gatts_api.h"
 
 #include "esp_timer.h"
+#include "esp_wifi.h"
 #include "lvgl.h"
 // Custom fonts (Dynamically loaded from LittleFS)
 static lv_font_t *s_font_kopub_20 = NULL;
@@ -90,9 +91,23 @@ extern void lv_fs_posix_init(void);
 #include "ota_sd.h"
 #include "ota_wifi.h"
 #include "src/extra/libs/gif/lv_gif.h"
+#include "esp_phy_cert_test.h"
 
 static const char *TAG = "BLE_ONLY";
 static const char *SYS_MON_TAG = "SYS_MON";
+
+// RF Certification Test State
+static bool s_rf_test_running = false;
+static bool s_rf_test_transitioning = false;
+static volatile bool s_rf_hop_task_run = false;
+static TaskHandle_t s_rf_hop_task_handle = NULL;
+static uint8_t s_rf_test_mode = 0;    // 0: MOD, 1: UNMOD, 2: RX, 3: HOP
+static uint8_t s_rf_test_channel = 1; // 0: Low, 1: Mid, 2: High
+
+static lv_obj_t *s_rf_mode_label = NULL;
+static lv_obj_t *s_rf_ch_label = NULL;
+static lv_obj_t *s_rf_start_btn = NULL;
+static lv_obj_t *s_rf_start_label = NULL;
 
 // Global mutexes and semaphores
 static SemaphoreHandle_t s_lvgl_mutex = NULL; // Mutex for LVGL thread safety
@@ -234,6 +249,8 @@ static esp_bd_addr_t s_peer_bda = {0};
 static bool s_peer_bda_valid = false;
 
 static TickType_t s_connect_tick = 0;
+static TickType_t s_last_time_req_tick = 0;
+static uint8_t s_time_req_count = 0;
 // static uint32_t s_ffea_probe_ok = 0;
 // static uint32_t s_ffea_probe_fail = 0;
 static uint32_t s_ffea_conf_ok = 0;
@@ -532,10 +549,10 @@ static void load_nvs_settings(void) {
       s_clock_option = val;
     if (nvs_get_u8(nvs, "boot_mode", &val) == ESP_OK && val < DISPLAY_MODE_MAX) {
       if (val != DISPLAY_MODE_BOOT && val != DISPLAY_MODE_OTA) {
-        // [User Request] HUD 모드인 경우 부팅 시에는 속도계 모드로 강제 전환
+        // [User Request] HUD 모드인 경우 부팅 시에는 속도계 모드로 강제 전환 (기존 2항 유지)
         if (val == DISPLAY_MODE_HUD) {
-          val = DISPLAY_MODE_SPEEDOMETER;
-          ESP_LOGI(TAG, "HUD mode restored as SPEEDOMETER per request.");
+           val = DISPLAY_MODE_SPEEDOMETER;
+           ESP_LOGI(TAG, "HUD mode restored as SPEEDOMETER per original policy.");
         }
         s_current_mode = (display_mode_t)val;
         ESP_LOGI(TAG, "NVS Loaded Boot Mode: %d", val);
@@ -631,6 +648,7 @@ static lv_obj_t *s_setting_circ_clock_dn = NULL;
 static lv_obj_t *s_setting_circ_clock_up = NULL;
 static lv_obj_t *s_setting_page1_obj = NULL;
 static lv_obj_t *s_setting_page2_obj = NULL;
+static lv_obj_t *s_setting_page3_obj = NULL;
 static lv_obj_t *s_setting_save_btn = NULL;
 static lv_obj_t *s_setting_save_label = NULL;
 static lv_obj_t *s_setting_title_label =
@@ -6492,6 +6510,169 @@ void prepare_for_ota(void) {
   ESP_LOGI(TAG, "OTA Preparation done. Tasks kept for safety.");
 }
 
+// === RF Certification Test Implementation ===
+
+// Dedicated task for Hopping Mode (cycling channels)
+static void rf_hop_sub_task(void *arg) {
+    ESP_LOGI(TAG, "[HOP] Hopping task started.");
+    s_rf_hop_task_run = true;
+    uint8_t hop_ch = 0;
+    
+    while (s_rf_hop_task_run) {
+        esp_ble_dtm_tx_t dtm_tx = {
+            .tx_channel = hop_ch,
+            .len_of_data = 37,
+            .pkt_payload = 0x00 // PRBS9
+        };
+        esp_ble_dtm_tx_start(&dtm_tx);
+        
+        // Fast hop (e.g., 20ms per channel)
+        vTaskDelay(pdMS_TO_TICKS(20));
+        
+        // Stop before next channel
+        esp_ble_dtm_stop();
+        
+        hop_ch = (hop_ch + 1) % 40;
+    }
+    
+    ESP_LOGI(TAG, "[HOP] Hopping task exiting.");
+    s_rf_hop_task_handle = NULL;
+    vTaskDelete(NULL);
+}
+
+static void update_rf_test_ui(void) {
+  if (!s_rf_mode_label || !s_rf_ch_label || !s_rf_start_btn || !s_rf_start_label) return;
+
+  const char *modes[] = {"연속변조 (MOD)", "연속무변조 (CW)", "수신모드 (RX)", "호핑모드 (HOP)"};
+  const char *channels[] = {"2402 MHz (Low)", "2440 MHz (Mid)", "2480 MHz (High)"};
+
+  lv_label_set_text(s_rf_mode_label, modes[s_rf_test_mode]);
+  lv_label_set_text(s_rf_ch_label, channels[s_rf_test_channel]);
+
+  if (s_rf_test_transitioning) {
+    lv_label_set_text(s_rf_start_label, "Busy...");
+    lv_obj_set_style_bg_color(s_rf_start_btn, lv_palette_main(LV_PALETTE_GREY), 0);
+  } else if (s_rf_test_running) {
+    lv_label_set_text(s_rf_start_label, "STOP");
+    lv_obj_set_style_bg_color(s_rf_start_btn, lv_palette_main(LV_PALETTE_RED), 0);
+  } else {
+    lv_label_set_text(s_rf_start_label, "START");
+    lv_obj_set_style_bg_color(s_rf_start_btn, lv_palette_main(LV_PALETTE_GREEN), 0);
+  }
+}
+
+static void rf_radio_ctrl_task(void *arg) {
+  bool start = (bool)arg;
+  uint8_t ble_ch = (s_rf_test_channel == 0) ? 0 : (s_rf_test_channel == 1 ? 19 : 39);
+
+  ESP_LOGI(TAG, "[Worker] RF Control Task. Start: %d, Mode: %d, BLE_Ch: %d", start, s_rf_test_mode, ble_ch);
+
+  if (start) {
+    // 1. Clean environment
+    ESP_LOGI(TAG, "[Worker] Resetting BT stack for clean RF state...");
+    
+    // Disable first for clean entry
+    esp_bluedroid_disable();
+    esp_bt_controller_disable();
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    // Re-enable
+    esp_bt_controller_enable(ESP_BT_MODE_BLE);
+    esp_bluedroid_enable();
+    vTaskDelay(pdMS_TO_TICKS(100));
+    
+    // Stop interference
+    esp_ble_gap_stop_advertising();
+    vTaskDelay(pdMS_TO_TICKS(200));
+
+    s_rf_test_transitioning = false;
+    LVGL_LOCK();
+    update_rf_test_ui();
+    LVGL_UNLOCK();
+
+    switch (s_rf_test_mode) {
+      case 0: // MOD -> DTM Mode
+        ESP_LOGI(TAG, "[Worker] Starting DTM Modulated TX (PRBS9) on BLE Ch %d", ble_ch);
+        
+        esp_ble_dtm_tx_t dtm_tx = {
+            .tx_channel = ble_ch,
+            .len_of_data = 37,
+            .pkt_payload = 0x00 // PRBS9
+        };
+        esp_err_t ret = esp_ble_dtm_tx_start(&dtm_tx);
+        if (ret != ESP_OK) ESP_LOGE(TAG, "DTM TX Start failed (0x%x)", ret);
+        break;
+      case 1: // CW -> PHY Tone
+        esp_phy_test_start_stop(1);
+        esp_phy_bt_tx_tone(1, ble_ch, 10); 
+        break;
+      case 2: // RX
+        esp_phy_test_start_stop(2);
+        esp_phy_ble_rx(ble_ch, 0x71764129, 0);
+        break;
+      case 3: // HOP -> Start Hopping Sub-task
+        ESP_LOGI(TAG, "[Worker] Starting Hopping Mode (0-39)...");
+        // Re-use dtm_init via stack reset logic already performed above
+        xTaskCreatePinnedToCore(rf_hop_sub_task, "rf_hop", 4096, NULL, 5, &s_rf_hop_task_handle, 1);
+        break;
+    }
+  } else {
+    ESP_LOGI(TAG, "[Worker] STOPPING RF TEST & RESTORING BLE");
+    
+    // Kill hopping task if running
+    if (s_rf_hop_task_run) {
+        s_rf_hop_task_run = false;
+        int timeout = 50;
+        while (s_rf_hop_task_handle != NULL && timeout-- > 0) {
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
+    }
+
+    esp_ble_dtm_stop();
+    esp_phy_bt_tx_tone(0, 0, 0);
+    esp_phy_test_start_stop(0); 
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    // Restore normal stack state
+    esp_bluedroid_disable();
+    esp_bt_controller_disable();
+    vTaskDelay(pdMS_TO_TICKS(50));
+    esp_bt_controller_enable(ESP_BT_MODE_BLE);
+    esp_bluedroid_enable();
+
+    s_rf_test_transitioning = false;
+    LVGL_LOCK();
+    update_rf_test_ui();
+    LVGL_UNLOCK();
+  }
+
+  ESP_LOGI(TAG, "[Worker] Task Finished");
+  vTaskDelete(NULL);
+}
+
+static void rf_mode_event_cb(lv_event_t *e) {
+  if (s_rf_test_running || s_rf_test_transitioning) return;
+  s_rf_test_mode = (s_rf_test_mode + 1) % 4;
+  update_rf_test_ui();
+}
+
+static void rf_ch_event_cb(lv_event_t *e) {
+  if (s_rf_test_running || s_rf_test_transitioning) return;
+  s_rf_test_channel = (s_rf_test_channel + 1) % 3;
+  update_rf_test_ui();
+}
+
+static void rf_start_event_cb(lv_event_t *e) {
+  if (s_rf_test_transitioning) return;
+  
+  s_rf_test_running = !s_rf_test_running;
+  s_rf_test_transitioning = true;
+  update_rf_test_ui();
+
+  // Run radio control in a separate task to keep UI responsive
+  xTaskCreatePinnedToCore(rf_radio_ctrl_task, "rf_ctrl", 4096, (void *)(uintptr_t)s_rf_test_running, 5, NULL, 1);
+}
+
 // 모드 전환 함수
 static void switch_display_mode(display_mode_t new_mode) {
   if (new_mode >= DISPLAY_MODE_MAX) {
@@ -6866,18 +7047,22 @@ static void clock_up_event_cb(lv_event_t *e) {
 
 static void setting_page_cb(lv_event_t *e) {
   (void)e;
-  s_setting_page_index = (s_setting_page_index == 1) ? 2 : 1;
+  s_setting_page_index = (s_setting_page_index % 3) + 1;
+
+  lv_obj_add_flag(s_setting_page1_obj, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_flag(s_setting_page2_obj, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_flag(s_setting_page3_obj, LV_OBJ_FLAG_HIDDEN);
 
   if (s_setting_page_index == 1) {
     lv_obj_clear_flag(s_setting_page1_obj, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(s_setting_page2_obj, LV_OBJ_FLAG_HIDDEN);
-    if (s_setting_title_label)
-      lv_label_set_text(s_setting_title_label, "SETUP 1");
-  } else {
-    lv_obj_add_flag(s_setting_page1_obj, LV_OBJ_FLAG_HIDDEN);
+    if (s_setting_title_label) lv_label_set_text(s_setting_title_label, "SETUP 1");
+  } else if (s_setting_page_index == 2) {
     lv_obj_clear_flag(s_setting_page2_obj, LV_OBJ_FLAG_HIDDEN);
-    if (s_setting_title_label)
-      lv_label_set_text(s_setting_title_label, "SETUP 2");
+    if (s_setting_title_label) lv_label_set_text(s_setting_title_label, "SETUP 2");
+  } else {
+    lv_obj_clear_flag(s_setting_page3_obj, LV_OBJ_FLAG_HIDDEN);
+    if (s_setting_title_label) lv_label_set_text(s_setting_title_label, "APPROVAL");
+    update_rf_test_ui();
   }
 }
 
@@ -8317,6 +8502,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
     s_rssi_value = -128;      // RSSI 값 초기화
                               // (읽지 않음 상태)
     s_rssi_read_once = false; // RSSI 읽기 플래그 초기화
+    s_last_time_req_tick = 0; // 연결 해제 시 시간 요청 타이머 초기화
+    s_time_req_count = 0;     // 연결 해제 시 시간 요청 횟수 초기화
     // 이전에 한 번이라도 앱에 연결된 적이 있으면 대기 모드로 전환
     // (OTA 모드 중에는 제외)
     if (s_has_ever_connected && s_current_mode != DISPLAY_MODE_OTA) {
@@ -8772,6 +8959,17 @@ static void ble_tx_task(void *arg) {
       if (r != ESP_OK) {
         ESP_LOGW(TAG, "RSSI read request failed: %s", esp_err_to_name(r));
       }
+    }
+
+    // Periodic Time Request (5s interval, max 3 times) when connected and notified
+    if (s_connected && s_hud_notify_enabled && s_time_req_count < 3) {
+        if (s_last_time_req_tick == 0 || (now - s_last_time_req_tick) >= pdMS_TO_TICKS(5000)) {
+            static const uint8_t time_req[] = {0x19, 0x4E, 0x0D, 0x01, 0x00, 0x2F};
+            hud_send_notify_bytes(time_req, sizeof(time_req));
+            s_last_time_req_tick = now;
+            s_time_req_count++;
+            ESP_LOGI(TAG, "Sent periodic time sync request (Count: %d/3)", s_time_req_count);
+        }
     }
 
     // Time request moved to ESP_GATTS_WRITE_EVT (CCCD enable) for immediate 
@@ -10306,6 +10504,55 @@ static void create_setting_ui(void) {
   // Initial state update
   set_lcd_brightness(s_brightness_level, true);
   update_setting_ui_labels();
+
+  // --- PAGE 3 CONTAINER (Certification / Approval) ---
+  s_setting_page3_obj = lv_obj_create(s_setting_screen);
+  lv_obj_set_size(s_setting_page3_obj, 460, 360);
+  lv_obj_align(s_setting_page3_obj, LV_ALIGN_TOP_MID, 0, 99);
+  lv_obj_set_style_bg_opa(s_setting_page3_obj, 0, 0);
+  lv_obj_set_style_border_width(s_setting_page3_obj, 0, 0);
+  lv_obj_set_scrollbar_mode(s_setting_page3_obj, LV_SCROLLBAR_MODE_OFF);
+  lv_obj_add_flag(s_setting_page3_obj, LV_OBJ_FLAG_HIDDEN);
+
+  // RF Mode Select
+  lv_obj_t *rf_m_btn = lv_btn_create(s_setting_page3_obj);
+  lv_obj_set_size(rf_m_btn, 300, 60);
+  lv_obj_align(rf_m_btn, LV_ALIGN_TOP_MID, 0, 10);
+  lv_obj_set_style_bg_color(rf_m_btn, lv_color_hex(0x333333), 0);
+  lv_obj_add_event_cb(rf_m_btn, rf_mode_event_cb, LV_EVENT_CLICKED, NULL);
+
+  s_rf_mode_label = lv_label_create(rf_m_btn);
+  lv_obj_set_style_text_font(s_rf_mode_label, &font_addr_30, 0);
+  lv_label_set_text(s_rf_mode_label, "연속변조 (MOD)");
+  lv_obj_center(s_rf_mode_label);
+
+  // RF Channel Select
+  lv_obj_t *rf_c_btn = lv_btn_create(s_setting_page3_obj);
+  lv_obj_set_size(rf_c_btn, 300, 60);
+  lv_obj_align(rf_c_btn, LV_ALIGN_TOP_MID, 0, 90);
+  lv_obj_set_style_bg_color(rf_c_btn, lv_color_hex(0x333333), 0);
+  lv_obj_add_event_cb(rf_c_btn, rf_ch_event_cb, LV_EVENT_CLICKED, NULL);
+
+  s_rf_ch_label = lv_label_create(rf_c_btn);
+  lv_obj_set_style_text_font(s_rf_ch_label, &font_addr_30, 0);
+  lv_label_set_text(s_rf_ch_label, "2440 MHz (Mid)");
+  lv_obj_center(s_rf_ch_label);
+
+  // RF Start/Stop Button
+  s_rf_start_btn = lv_btn_create(s_setting_page3_obj);
+  lv_obj_set_size(s_rf_start_btn, 200, 80);
+  lv_obj_align(s_rf_start_btn, LV_ALIGN_TOP_MID, 0, 180);
+  lv_obj_set_style_bg_color(s_rf_start_btn, lv_palette_main(LV_PALETTE_GREEN), 0);
+  lv_obj_add_event_cb(s_rf_start_btn, rf_start_event_cb, LV_EVENT_CLICKED, NULL);
+
+  s_rf_start_label = lv_label_create(s_rf_start_btn);
+  lv_obj_set_style_text_font(s_rf_start_label, &font_addr_30, 0);
+  lv_label_set_text(s_rf_start_label, "START");
+  lv_obj_center(s_rf_start_label);
+
+  // Enable Title Click for Page Switching
+  lv_obj_add_flag(s_setting_title_label, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(s_setting_title_label, setting_page_cb, LV_EVENT_CLICKED, NULL);
 }
 
 static void create_virtual_drive_ui(void) {
@@ -11478,18 +11725,11 @@ void app_main(void) {
   while (1) {
     static uint32_t s_clock_auto_timer = 0;
 
-    // 부팅 시 시계 화면 전환 트리거 처리 (BTC_TASK 스택 보호를 위해 메인
-    // 루프에서 처리)
+    // 부팅 시 시계 화면 전환 트리거 처리 (이전에는 대기모드로 자동 전환했으나 
+    // 사용자 요청으로 자동 전환 로직 제거, 플래그만 초기화함)
     if (s_boot_clock_trigger) {
       s_boot_clock_trigger = false;
-      // OTA 모드를 제외한 모든 모드에서 STANDBY로 전환
-      // (첫 번째 시간 업데이트 수신 시 대기 모드 진입)
-      if (s_current_mode != DISPLAY_MODE_OTA) {
-        ESP_LOGI(TAG, "Main Task: First time update received -> STANDBY (from mode %d)", s_current_mode);
-        switch_display_mode(DISPLAY_MODE_STANDBY);
-      } else {
-        ESP_LOGI(TAG, "Main Task: boot_clock_trigger ignored (OTA mode)");
-      }
+      ESP_LOGI(TAG, "Main Task: First clock update received, maintaining current boot mode %d", s_current_mode);
     }
 
     // 이미지 전송 완료 비동기 처리 (BLE 태스크 블로킹 방지)
