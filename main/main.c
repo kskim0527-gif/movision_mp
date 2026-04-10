@@ -5677,6 +5677,7 @@ static esp_err_t lvgl_init(void) {
   s_ota_screen = lv_obj_create(NULL);
 
   lv_obj_set_style_bg_color(s_boot_screen, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(s_boot_screen, LV_OPA_COVER, 0); 
   lv_obj_set_style_bg_color(s_hud_screen, lv_color_black(), 0);
   lv_obj_set_style_bg_color(s_speedometer_screen, lv_color_black(), 0);
   lv_obj_set_style_bg_color(s_clock_screen, lv_color_black(), 0);
@@ -6607,8 +6608,12 @@ static void rf_radio_ctrl_task(void *arg) {
         esp_phy_bt_tx_tone(1, ble_ch, 10); 
         break;
       case 2: // RX
-        esp_phy_test_start_stop(2);
-        esp_phy_ble_rx(ble_ch, 0x71764129, 0);
+        ESP_LOGI(TAG, "[Worker] Starting DTM RX on BLE Ch %d", ble_ch);
+        esp_ble_dtm_rx_t dtm_rx = {
+            .rx_channel = ble_ch
+        };
+        esp_err_t rx_ret = esp_ble_dtm_rx_start(&dtm_rx);
+        if (rx_ret != ESP_OK) ESP_LOGE(TAG, "DTM RX Start failed (0x%x)", rx_ret);
         break;
       case 3: // HOP -> Start Hopping Sub-task
         ESP_LOGI(TAG, "[Worker] Starting Hopping Mode (0-39)...");
@@ -9629,6 +9634,10 @@ static void clock_timer_cb(lv_timer_t *timer) {
           lv_obj_clear_flag(s_boot_install_qr, LV_OBJ_FLAG_HIDDEN);
           lv_obj_move_foreground(s_boot_install_qr);
         }
+        // [Fix] 설치 안내 화면과 대기 화면 라벨이 겹치지 않도록 숨김 처리
+        if (s_boot_time_label) lv_obj_add_flag(s_boot_time_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_boot_date_label) lv_obj_add_flag(s_boot_date_label, LV_OBJ_FLAG_HIDDEN);
+
         s_boot_reg_shown = true;
       }
     }
@@ -10448,15 +10457,15 @@ static void create_setting_ui(void) {
   lv_obj_set_scrollbar_mode(s_setting_page2_obj, LV_SCROLLBAR_MODE_OFF);
   lv_obj_add_flag(s_setting_page2_obj, LV_OBJ_FLAG_HIDDEN);
 
-  // --- 1. Info Texts Control (4 Rows, Centered Colon Alignment) ---
-  const char *keys[] = {"Model", "S/W Ver", "Serial no", "Website"};
-  const char *values[] = {"MOVISION HD1", FIRMWARE_VERSION, "1A2B1-00001", "https://m.smartstore.naver.com/b2broom"};
+  // --- 1. Info Texts Control (5 Rows, Centered Colon Alignment) ---
+  const char *keys[] = {"모델명", "S/W 버전", "시리얼 번호", "앱등록 번호", "제품 홈페이지"};
+  const char *values[] = {"MOVISION HUD1", FIRMWARE_VERSION, s_device_serial, s_app_reg_num, "https://m.smartstore.naver.com/b2broom"};
   int start_y = 5;
-  int row_h = 32; // Slightly reduced gap to fit 4 rows nicely
+  int row_h = 34; // Spacing adjusted for 5 rows (+4pt total)
 
-  for (int i = 0; i < 4; i++) {
-    if (i < 3) {
-        // --- Rows 1-3: Label : Value ---
+  for (int i = 0; i < 5; i++) {
+    if (i < 4) {
+        // --- Rows 1-4: Label : Value ---
         // Colon (Center Reference - Move Left by 60px)
         lv_obj_t *colon_label = lv_label_create(s_setting_page2_obj);
         lv_obj_set_style_text_font(colon_label, &font_addr_30, 0);
@@ -10478,7 +10487,7 @@ static void create_setting_ui(void) {
         lv_label_set_text(val_label, values[i]);
         lv_obj_align_to(val_label, colon_label, LV_ALIGN_OUT_RIGHT_MID, 15, 0);
     } else {
-        // --- Row 4: Website URL only (Centered) ---
+        // --- Row 5: Website URL only (Centered) ---
         lv_obj_t *url_label = lv_label_create(s_setting_page2_obj);
         lv_obj_set_style_text_font(url_label, &lv_font_montserrat_20, 0); // Smaller font for long URL
         lv_obj_set_style_text_color(url_label, lv_color_make(210, 210, 0), 0);
@@ -10492,12 +10501,12 @@ static void create_setting_ui(void) {
   if (qr) {
     const char *qr_data = "https://m.smartstore.naver.com/b2broom";
     lv_qrcode_update(qr, qr_data, strlen(qr_data));
-    // Positioned below the 4 rows
-    lv_obj_align(qr, LV_ALIGN_TOP_MID, 0, 145); 
+    // Adjusted position down to 180 to accommodate wider row spacing
+    lv_obj_align(qr, LV_ALIGN_TOP_MID, 0, 180); 
     
     // Clean Grey border for the QR
     lv_obj_set_style_border_color(qr, lv_color_make(180, 180, 180), 0);
-    lv_obj_set_style_border_width(qr, 2, 0); // Reduced width slightly for better look
+    lv_obj_set_style_border_width(qr, 2, 0); 
     lv_obj_set_style_border_side(qr, LV_BORDER_SIDE_FULL, 0);
   }
 
@@ -11375,6 +11384,17 @@ void app_main(void) {
   }
   ESP_LOGI(TAG, "Reset reason: %s (%d)", reset_reason_str, reset_reason);
 
+  // [Fix] NVS 초기화 및 설정을 UI 생성보다 먼저 수행하여 시리얼 번호(s_device_serial) 등이 올바르게 표시되도록 합니다.
+  esp_err_t ret_nvs = nvs_flash_init();
+  if (ret_nvs == ESP_ERR_NVS_NO_FREE_PAGES ||
+      ret_nvs == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+    ESP_ERROR_CHECK(nvs_flash_erase());
+    ESP_ERROR_CHECK(nvs_flash_init());
+  } else {
+    ESP_ERROR_CHECK(ret_nvs);
+  }
+  load_nvs_settings(); 
+
   const esp_app_desc_t *app_desc = esp_app_get_description();
   ESP_LOGI(TAG, "Firmware Version (Base): %s", app_desc->version);
   ESP_LOGI(TAG, "Build Version (Dynamic): %s", FIRMWARE_VERSION);
@@ -11519,23 +11539,12 @@ void app_main(void) {
              esp_err_to_name(btn_ret));
   }
 
-  ret = nvs_flash_init();
-  if (ret == ESP_ERR_NVS_NO_FREE_PAGES ||
-      ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-    ESP_ERROR_CHECK(nvs_flash_erase());
-    ESP_ERROR_CHECK(nvs_flash_init());
-  } else {
-    ESP_ERROR_CHECK(ret);
-  }
+  // 앱이 정상 부팅되었음을 마킹 (Rollback 방지)
+  esp_ota_mark_app_valid_cancel_rollback();
 
   ESP_ERROR_CHECK(init_ble());
   img_transfer_init();
   fw_update_init();
-
-  // 앱이 정상 부팅되었음을 마킹 (Rollback 방지)
-  esp_ota_mark_app_valid_cancel_rollback();
-
-  load_nvs_settings(); // 저장된 설정값 불러오기
 
   // Derived from assumption: simple TX task. 6KB is safer.
   xTaskCreate(ble_tx_task, "ble_tx", 6144, NULL, 5, &s_ble_tx_task_handle);
@@ -11630,6 +11639,31 @@ void app_main(void) {
     ESP_LOGW(TAG, "System Boot: Intro GIF not found or not played.");
   }
 
+  // [Fix] NVS에서 불러온 모드를 잠시 백업하고, 10초 대기 및 설치 안내 전환을 위해 BOOT 모드로 설정합니다.
+  display_mode_t saved_nvs_mode = s_current_mode;
+  s_current_mode = DISPLAY_MODE_BOOT;
+
+  // 1.5. 앱 연결 대기 루프 (최대 10초 타임아웃은 lvgl_handler_task에서 처리됨)
+  if (!s_connected && !s_hud_seen_first_cmd) {
+    ESP_LOGI(TAG, "Intro playback finished. Waiting for App connection before moving from BOOT mode...");
+    while (!s_connected && !s_hud_seen_first_cmd) {
+      vTaskDelay(pdMS_TO_TICKS(100));
+    }
+  }
+
+  LVGL_LOCK();
+  // 대기 중에 앱이 이미 모드를 바꿨다면(BOOT가 아니라면) 현재 모드 유지, 아니라면 NVS 모드 복구
+  if (s_current_mode == DISPLAY_MODE_BOOT) {
+    ESP_LOGI(TAG, "App connection detected. Restoring saved mode %d", (int)saved_nvs_mode);
+    s_is_manual_mode_switch = true; 
+    switch_display_mode(saved_nvs_mode);
+    s_is_manual_mode_switch = false;
+  } else {
+    ESP_LOGI(TAG, "App already set mode to %d during boot/wait. Keeping it.", (int)s_current_mode);
+    update_display_mode_ui(s_current_mode);
+  }
+  LVGL_UNLOCK();
+
   // 2. HUD Mode Entry: Logo (Removed as per user request)
   // ---------------------------------------------------------
   /*
@@ -11700,11 +11734,8 @@ void app_main(void) {
     ESP_LOGW(TAG, "Recovery conditions met. Starting OTA mode...");
     switch_display_mode(DISPLAY_MODE_OTA);
   } else {
-    // NVS에서 로드했거나 인트로 도중 앱이 전환한 모드를 최종 적용하여 UI 표시
-    ESP_LOGI(TAG, "Intro ended: applying current mode %d", s_current_mode);
-    s_is_manual_mode_switch = true; // 부팅 시에는 잠긴 모드(시계/앨범)라도 적용 허용
-    switch_display_mode(s_current_mode);
-    s_is_manual_mode_switch = false;
+    // [Fix] 상단에서 이미 대기 및 모드 적용이 완료되었으므로 여기서는 중복 처리를 하지 않습니다.
+    ESP_LOGI(TAG, "System Boot: Normal boot path verification.");
   }
   LVGL_UNLOCK();
 
