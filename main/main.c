@@ -289,8 +289,8 @@ static uint16_t s_dis_pnp_handle = 0;    // 0x2A50
 // Provisioning note:
 // Do NOT clone another real device's serial; use your own device's serial or a
 // test serial.
-static char s_device_serial[32] = "DEV000";
-static char s_app_reg_num[32] = "ABC01DEF";
+static char s_device_serial[64] = "NO_SN";
+static char s_app_reg_num[64] = "판매사에 문의하세요..";
 // ---------------------------------------------------------------------------
 // HID over GATT (HOGP) - minimal service 0x1812
 // ---------------------------------------------------------------------------
@@ -566,7 +566,7 @@ static void load_nvs_settings(void) {
 
     len = sizeof(s_app_reg_num);
     if (nvs_get_str(nvs, "app_reg_num", s_app_reg_num, &len) != ESP_OK) {
-      strcpy(s_app_reg_num, "NO_REG");
+      strcpy(s_app_reg_num, "판매사에 문의하세요..");
     }
 
     nvs_close(nvs);
@@ -575,6 +575,8 @@ static void load_nvs_settings(void) {
              s_device_serial, s_app_reg_num);
   } else {
     ESP_LOGI(TAG, "NVS empty, using defaults");
+    strcpy(s_device_serial, "NO_SN");
+    strcpy(s_app_reg_num, "판매사에 문의하세요..");
   }
 }
 // =============================================================
@@ -9712,8 +9714,13 @@ static void create_boot_ui(void) {
   lv_obj_add_flag(s_boot_reg_title_label, LV_OBJ_FLAG_HIDDEN);
 
   s_boot_reg_val_label = lv_label_create(s_boot_screen);
-  lv_obj_set_style_text_font(s_boot_reg_val_label, &font_kopub_40, 0); 
-  lv_obj_set_style_text_color(s_boot_reg_val_label, lv_color_hex(0xFFFF00), 0);
+  if (strcmp(s_app_reg_num, "판매사에 문의하세요..") == 0) {
+    lv_obj_set_style_text_font(s_boot_reg_val_label, &font_addr_30, 0); 
+    lv_obj_set_style_text_color(s_boot_reg_val_label, lv_color_make(255, 100, 0), 0); // Orange
+  } else {
+    lv_obj_set_style_text_font(s_boot_reg_val_label, &font_kopub_40, 0); 
+    lv_obj_set_style_text_color(s_boot_reg_val_label, lv_color_hex(0xFFFF00), 0);
+  }
   lv_obj_align(s_boot_reg_val_label, LV_ALIGN_CENTER, 0, 180);
   lv_label_set_text_fmt(s_boot_reg_val_label, "%s", s_app_reg_num);
   lv_obj_add_flag(s_boot_reg_val_label, LV_OBJ_FLAG_HIDDEN);
@@ -11642,6 +11649,11 @@ void app_main(void) {
   // [Fix] NVS에서 불러온 모드를 잠시 백업하고, 10초 대기 및 설치 안내 전환을 위해 BOOT 모드로 설정합니다.
   display_mode_t saved_nvs_mode = s_current_mode;
   s_current_mode = DISPLAY_MODE_BOOT;
+
+  // [Fix] 앱 연결 대기 전 부팅 화면(s_boot_screen)을 활성화하여 10초 후 설치 안내가 보이도록 함
+  LVGL_LOCK();
+  update_display_mode_ui(s_current_mode);
+  LVGL_UNLOCK();
 
   // 1.5. 앱 연결 대기 루프 (최대 10초 타임아웃은 lvgl_handler_task에서 처리됨)
   if (!s_connected && !s_hud_seen_first_cmd) {

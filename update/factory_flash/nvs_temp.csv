@@ -1,4 +1,4 @@
 key,type,encoding,value
 storage,namespace,,
-serial_num,data,string,0A2C100001
-app_reg_num,data,string,ACB12DEF
+serial_num,data,string,0A2C100003
+app_reg_num,data,string,ACB14DEF
