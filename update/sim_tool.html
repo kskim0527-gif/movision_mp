@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOVISION | BLE 시뮬레이터</title>
+    <style>
+        :root {
+            --primary: #daa520;
+            --primary-hover: #f1c40f;
+            --bg: #0f1218;
+            --card: #1a1f29;
+            --text: #e0e0e0;
+            --text-dim: #a0a0a0;
+            --success: #2ecc71;
+            --error: #e74c3c;
+            --warning: #f39c12;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 600px;
+            background: var(--card);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        h1 {
+            color: var(--primary);
+            text-align: center;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+            letter-spacing: 1px;
+        }
+
+        p.subtitle {
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        input[type="number"], input[type="file"] {
+            background: #252b36;
+            border: 1px solid #3d4655;
+            color: white;
+            padding: 0.8rem;
+            border-radius: 10px;
+            outline: none;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        input[type="file"]::-webkit-file-upload-button {
+            background: var(--primary);
+            border: none;
+            color: black;
+            padding: 0.4rem 0.8rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-right: 1rem;
+        }
+
+        .actions {
+            display: flex;
+            gap: 0.8rem;
+            margin-bottom: 1.5rem;
+        }
+
+        button {
+            flex: 1;
+            padding: 1rem;
+            border-radius: 12px;
+            border: none;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        #btnConnect { background: var(--primary); color: #000; }
+        #btnConnect:hover { background: var(--primary-hover); transform: translateY(-2px); }
+
+        #btnPause { background: var(--warning); color: #000; display: none; }
+        #btnPause:hover { background: #e67e22; }
+        #btnPause.resume { background: var(--success); }
+
+        #btnStop { background: #3d4655; color: #fff; display: none; }
+        #btnStop:hover { background: var(--error); }
+
+        .status-panel {
+            background: #000;
+            border-radius: 10px;
+            padding: 1rem;
+            font-family: 'Consolas', monospace;
+            font-size: 0.75rem;
+            height: 250px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            margin-bottom: 1rem;
+            white-space: pre-wrap;
+            line-height: 1.4;
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        #progressInner {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        .log-item { margin-bottom: 4px; border-left: 2px solid #555; padding-left: 8px; }
+        .log-tx { color: var(--primary); border-left-color: var(--primary); }
+        .log-info { color: var(--success); border-left-color: var(--success); }
+        .log-error { color: var(--error); border-left-color: var(--error); }
+        .log-pause { color: var(--warning); border-left-color: var(--warning); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>MOVISION SIMULATOR</h1>
+    <p class="subtitle">웹 블루투스를 이용한 주행 시뮬레이터 (일시정지 기능)</p>
+
+    <div class="input-group" style="margin-bottom: 1.5rem;">
+        <label>로그 파일 선택 (merged_log.txt)</label>
+        <input type="file" id="fileInput" accept=".txt">
+    </div>
+
+    <div class="config-grid">
+        <div class="input-group">
+            <label>시작 행 (Line)</label>
+            <input type="number" id="startLine" value="1" min="1">
+        </div>
+        <div class="input-group">
+            <label>간격 (ms)</label>
+            <input type="number" id="interval" value="50" min="10">
+        </div>
+    </div>
+
+    <div class="actions">
+        <button id="btnConnect">HUD 연결 및 시작</button>
+        <button id="btnPause">일시정지</button>
+        <button id="btnStop">전송 중단</button>
+    </div>
+
+    <div class="progress-bar"><div id="progressInner"></div></div>
+
+    <div class="status-panel" id="logPanel">파일을 선택하고 연결 버튼을 눌러주세요.</div>
+
+    <div class="stats">
+        <span id="statLine">준비됨</span>
+        <span id="statMode">연결됨: <span id="connectedState" style="color:#e74c3c">아니오</span></span>
+    </div>
+</div>
+
+<script>
+    let bluetoothDevice = null;
+    let characteristic = null;
+    let isRunning = false;
+    let isPaused = false;
+    let logLines = [];
+
+    const HUD_SERVICE_UUID = "0000ffea-0000-1000-8000-00805f9b34fb";
+    const HUD_CHAR_WRITE_UUID = "0000fff2-0000-1000-8000-00805f9b34fb";
+
+    const logPanel = document.getElementById('logPanel');
+    const startLineInput = document.getElementById('startLine');
+    const intervalInput = document.getElementById('interval');
+    const btnConnect = document.getElementById('btnConnect');
+    const btnPause = document.getElementById('btnPause');
+    const btnStop = document.getElementById('btnStop');
+    const fileInput = document.getElementById('fileInput');
+    const progressInner = document.getElementById('progressInner');
+    const connectedState = document.getElementById('connectedState');
+
+    function addLog(msg, type = '') {
+        const div = document.createElement('div');
+        div.className = 'log-item' + (type ? ' log-' + type : '');
+        div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        logPanel.appendChild(div);
+        
+        if (logPanel.childNodes.length > 100) {
+            logPanel.removeChild(logPanel.firstChild);
+        }
+        logPanel.scrollTop = logPanel.scrollHeight;
+    }
+
+    fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            logLines = event.target.result.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            addLog(`파일 로드됨: ${logLines.length}개 행.`, 'info');
+        };
+        reader.readAsText(file);
+    };
+
+    async function onConnect() {
+        if (logLines.length === 0) { alert("로그 파일을 선택해 주세요!"); return; }
+        try {
+            addLog("디바이스 스캔 중...");
+            bluetoothDevice = await navigator.bluetooth.requestDevice({
+                filters: [{ namePrefix: 'MOVISION' }, { namePrefix: 'Mando' }],
+                optionalServices: [HUD_SERVICE_UUID]
+            });
+
+            addLog(`연결 중...`, 'info');
+            const server = await bluetoothDevice.gatt.connect();
+            const service = await server.getPrimaryService(HUD_SERVICE_UUID);
+            characteristic = await service.getCharacteristic(HUD_CHAR_WRITE_UUID);
+
+            addLog("연결 성공! 전송 시작.", 'success');
+            connectedState.textContent = "예";
+            connectedState.style.color = "var(--success)";
+            
+            isRunning = true;
+            isPaused = false;
+            updateUIState();
+            startSimulation();
+
+            bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+        } catch (error) { addLog(`오류: ${error}`, 'error'); }
+    }
+
+    function onDisconnected() {
+        addLog("블루투스 연결 단절.", 'error');
+        connectedState.textContent = "아니오";
+        connectedState.style.color = "var(--error)";
+        isRunning = false;
+        isPaused = false;
+        updateUIState();
+    }
+
+    function updateUIState() {
+        if (isRunning) {
+            btnConnect.style.display = 'none';
+            btnPause.style.display = 'block';
+            btnStop.style.display = 'block';
+            
+            if (isPaused) {
+                btnPause.textContent = "재시작";
+                btnPause.classList.add('resume');
+            } else {
+                btnPause.textContent = "일시정지";
+                btnPause.classList.remove('resume');
+            }
+        } else {
+            btnConnect.style.display = 'block';
+            btnPause.style.display = 'none';
+            btnStop.style.display = 'none';
+        }
+    }
+
+    async function startSimulation() {
+        while (isRunning) {
+            const startLine = parseInt(startLineInput.value) || 1;
+            const slice = logLines.slice(startLine - 1);
+            if (slice.length === 0) break;
+
+            for (let i = 0; i < slice.length; i++) {
+                if (!isRunning) break;
+
+                // 일시정지 대기 (비동기 루프)
+                while (isPaused && isRunning) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+                if (!isRunning) break;
+
+                const line = slice[i];
+                const bytes = hexStringToBytes(line);
+                if (bytes.length > 0) {
+                    try {
+                        const hexStr = Array.from(bytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+                        addLog(`TX -> ${hexStr}`, 'tx');
+                        await characteristic.writeValue(bytes);
+                        
+                        const currentLine = startLine + i;
+                        document.getElementById('statLine').textContent = `행: ${currentLine} / ${logLines.length}`;
+                        progressInner.style.width = ((currentLine / logLines.length) * 100) + '%';
+                    } catch (e) {
+                        addLog(`전송 에러: ${e.message}`, 'error');
+                        if (!bluetoothDevice.gatt.connected) { onDisconnected(); break; }
+                    }
+                }
+                const interval = parseInt(intervalInput.value) || 50;
+                await new Promise(resolve => setTimeout(resolve, interval));
+            }
+
+            if (isRunning && !isPaused) {
+                addLog("사이클 완료. 다시 시작합니다.", 'info');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+        }
+        updateUIState();
+    }
+
+    function hexStringToBytes(hexString) {
+        const parts = hexString.trim().split(/\s+/);
+        const bytes = new Uint8Array(parts.length);
+        for (let i = 0; i < parts.length; i++) {
+            const val = parseInt(parts[i], 16);
+            if (isNaN(val)) return new Uint8Array(0);
+            bytes[i] = val;
+        }
+        return bytes;
+    }
+
+    btnConnect.onclick = onConnect;
+    
+    btnPause.onclick = () => {
+        isPaused = !isPaused;
+        if (isPaused) addLog("임시 정지됨.", 'pause');
+        else addLog("전송 재개됨.", 'success');
+        updateUIState();
+    };
+
+    btnStop.onclick = () => { 
+        isRunning = false; 
+        isPaused = false;
+        addLog("전송 완전히 중단됨.");
+        updateUIState();
+    };
+
+</script>
+</body>
+</html>

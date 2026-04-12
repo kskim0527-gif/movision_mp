@@ -10,7 +10,7 @@ string(TIMESTAMP PROJECT_VER "%y%m%d")
 message(STATUS "Project Build Version: ${PROJECT_VER}")
 
 # Define the project
-project(movision)
+project(movision_mp)
 
 # --- Automatic Version Generation ---
 # This script runs every time 'idf.py build' is called.

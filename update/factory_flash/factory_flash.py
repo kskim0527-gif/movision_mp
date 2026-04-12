@@ -34,9 +34,9 @@ def ensure_csv_exists():
         print(f"\n[NOTICE] {CSV_FILE} not found. Generating a sample file.")
         with open(CSV_FILE, 'w', newline='', encoding='utf-8-sig') as f:
             writer = csv.writer(f)
-            writer.writerow(['SERIAL_NUM', 'APP_REG_NUM', 'USED_TIME'])
-            writer.writerow(['DEV001', 'ABC01DEF', ''])
-            writer.writerow(['DEV002', 'XYZ98765', ''])
+            writer.writerow(['No', 'SERIAL_NUM', 'APP_REG_NUM', 'USED_TIME'])
+            writer.writerow(['1', 'DEV001', 'ABC01DEF', ''])
+            writer.writerow(['2', 'DEV002', 'XYZ98765', ''])
         print(f"-> Please fill in 'serial.csv' with the required serial numbers and run again.")
         sys.exit(0)
 
@@ -50,10 +50,11 @@ def get_next_unused_serial():
         rows.append(header)
         
         for i, row in enumerate(reader):
-            while len(row) < 3:
+            # No, SERIAL_NUM, APP_REG_NUM, USED_TIME (at least 4 columns)
+            while len(row) < 4:
                 row.append('')
             
-            used_time = row[2].strip()
+            used_time = row[3].strip()
             if not used_time and selected_index == -1:
                 selected_index = i + 1 
             
@@ -66,7 +67,7 @@ def get_next_unused_serial():
     return rows, selected_index
 
 def mark_as_used(rows, index):
-    rows[index][2] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    rows[index][3] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(CSV_FILE, 'w', newline='', encoding='utf-8-sig') as f:
         writer = csv.writer(f)
         writer.writerows(rows)
@@ -198,8 +199,8 @@ def main():
 
     while True:
         rows, target_idx = get_next_unused_serial()
-        target_serial = rows[target_idx][0]
-        target_reg = rows[target_idx][1]
+        target_serial = rows[target_idx][1]
+        target_reg = rows[target_idx][2]
 
         print(f"\n==============================================")
         print(f" [WAITING FOR DEVICE]")

@@ -5,7 +5,9 @@ from datetime import datetime
 
 def package(board_name="hd1"):
     version = datetime.now().strftime("%y%m%d")
-    update_root = r"C:\vscode\movition_ws\update"
+    # Get the directory where this script is located
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    update_root = os.path.join(current_dir, "update")
     
     # Custom naming logic as per user request
     if board_name == "movision":
@@ -16,7 +18,7 @@ def package(board_name="hd1"):
         folder_name = f"update_movision-{board_name}_v{version}"
         
     target_dir = os.path.join(update_root, folder_name)
-    build_dir = r"C:\vscode\movition_ws\build"
+    build_dir = os.path.join(current_dir, "build")
 
     if not os.path.exists(target_dir):
         os.makedirs(target_dir, exist_ok=True)
@@ -26,7 +28,7 @@ def package(board_name="hd1"):
         (os.path.join(build_dir, "bootloader", "bootloader.bin"), "bootloader.bin"),
         (os.path.join(build_dir, "partition_table", "partition-table.bin"), "partition-table.bin"),
         (os.path.join(build_dir, "ota_data_initial.bin"), "ota_data_initial.bin"),
-        (os.path.join(build_dir, "movision.bin"), "movision.bin"),
+        (os.path.join(build_dir, "movision_mp.bin"), "movision.bin"),
         (os.path.join(build_dir, "storage.bin"), "storage.bin"),
     ]
 

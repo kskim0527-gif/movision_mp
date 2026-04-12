@@ -55,8 +55,8 @@ static char s_img_base_dir[64] = "/littlefs/Photo"; // Default base dir
 
 // Extern from main.c
 extern void hud_send_notify_bytes(const uint8_t *data, uint16_t len);
-extern void save_packet_to_sdcard(const uint8_t *data, size_t len,
-                                  const char *prefix);
+extern void log_ble_packet(const uint8_t *data, size_t len,
+                             const char *prefix);
 extern void update_img_transfer_ui(int percent, bool finished);
 extern void load_image_from_sd(int direction); // Force load image
 
@@ -113,7 +113,7 @@ static void send_response(uint8_t cmd, uint16_t seq, uint8_t error_code) {
 
   if (len > 0) {
     hud_send_notify_bytes(resp, len);
-    save_packet_to_sdcard(resp, len, "TX");
+    log_ble_packet(resp, len, "TX");
   }
 }
 
@@ -129,7 +129,7 @@ static void send_status_report(void) {
   resp[6] = PROTOCOL_TAIL;
 
   hud_send_notify_bytes(resp, sizeof(resp));
-  save_packet_to_sdcard(resp, sizeof(resp), "TX");
+  log_ble_packet(resp, sizeof(resp), "TX");
 }
 
 static void handle_img_info(const uint8_t *data, size_t len) {
@@ -154,18 +154,8 @@ static void handle_img_info(const uint8_t *data, size_t len) {
     snprintf(s_ctx.file_path, sizeof(s_ctx.file_path), "%s/album_%d.tmp",
              s_img_base_dir, s_ctx.image_seq);
              
-    // 전송 시작 시 용량 확보를 위해 동일 이름의 기존 이미지들 사전 삭제
-    char old_path[128];
-    snprintf(old_path, sizeof(old_path), "%s/album_%d.png", s_img_base_dir, s_ctx.image_seq);
-    unlink(old_path);
-    snprintf(old_path, sizeof(old_path), "%s/album_%d.jpg", s_img_base_dir, s_ctx.image_seq);
-    unlink(old_path);
-    snprintf(old_path, sizeof(old_path), "%s/album_%d.jpeg", s_img_base_dir, s_ctx.image_seq);
-    unlink(old_path);
-    snprintf(old_path, sizeof(old_path), "%s/album_%d.gif", s_img_base_dir, s_ctx.image_seq);
-    unlink(old_path);
-    snprintf(old_path, sizeof(old_path), "%s/album_%d.bmp", s_img_base_dir, s_ctx.image_seq);
-    unlink(old_path);
+    // 전송 시작 시 임시 파일 생성 (기존 임시 파일이 있다면 삭제)
+    unlink(s_ctx.file_path);
   }
 
   if (s_ctx.file)
@@ -177,7 +167,10 @@ static void handle_img_info(const uint8_t *data, size_t len) {
     ESP_LOGI(TAG, "Starting download: %s, size: %lu", s_ctx.file_path,
              (unsigned long)s_ctx.total_size);
     update_img_transfer_ui(0, false);
+    
+    // INFO 수신 응답 전송 (ID=0x50, CMD=0x11)
     send_response(CMD_IMG_INFO_RES, 0, 0);
+    ESP_LOGI(TAG, "Sent INFO response (0x11)");
   } else {
     s_ctx.state = IMG_STATE_ERROR;
     ESP_LOGE(TAG, "Fail to open: %s (errno=%d)", s_ctx.file_path, errno);
@@ -190,7 +183,7 @@ static void handle_img_data(const uint8_t *data, size_t len) {
   uint16_t seq = (data[5] << 8) | data[6];
 
   if (s_ctx.state != IMG_STATE_RECEIVING || !s_ctx.file) {
-    // App may send data before info, must ACK for the app to continue
+    // 앱이 INFO 응답 전에 데이터를 먼저 보낼 수 있으므로, 매 블록 무조건 ACK
     send_response(CMD_IMG_RES_SEQ, seq, 0);
     return;
   }
@@ -206,7 +199,7 @@ static void handle_img_data(const uint8_t *data, size_t len) {
     s_ctx.current_size += payload_len;
     s_ctx.last_block_seq = seq;
     
-    // 프로토콜에 따라 앱의 안정적인 전송을 위해 5번째 블록마다 수신 응답(0x50 0x03) 전송
+    // 앱의 안정적인 전송 및 대기 방지를 위해 5번째 블록마다 수신 응답(0x03) 전송
     if (seq % 5 == 0) {
       send_response(CMD_IMG_RES_SEQ, seq, 0);
     }

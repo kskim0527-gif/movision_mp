@@ -40,7 +40,7 @@ static struct {
 
 // Extern functions defined in main.c
 extern void hud_send_notify_bytes(const uint8_t *data, uint16_t len);
-extern void save_packet_to_sdcard(const uint8_t *data, size_t len, const char *prefix);
+extern void log_ble_packet(const uint8_t *data, size_t len, const char *prefix);
 extern void update_ui_progress(int percent, const char *status);
 extern void note_ble_activity(void);
 
@@ -76,7 +76,7 @@ static void send_fw_response(uint8_t cmd, uint16_t seq, uint8_t error_code) {
     if (len > 0) {
         hud_send_notify_bytes(resp, (uint16_t)len);
         if (cmd == CMD_FW_REQ || cmd == CMD_FW_COMPLETE) {
-            save_packet_to_sdcard(resp, (size_t)len, "TX");
+            log_ble_packet(resp, (size_t)len, "TX");
         }
     }
 }
