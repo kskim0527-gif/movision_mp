@@ -128,13 +128,7 @@ static void fw_finish_task(void *pvParameters) {
         if (err == ESP_OK) {
             update_ui_progress(100, "업데이트 완료! 곧 재부팅합니다.");
             send_fw_response(CMD_FW_COMPLETE, 0, 0); 
-            
-            static const uint8_t time_req[] = {0x19, 0x4E, 0x0D, 0x01, 0x00, 0x2F}; 
-            for (int i = 0; i < 2; i++) {
-                vTaskDelay(pdMS_TO_TICKS(500));
-                hud_send_notify_bytes(time_req, sizeof(time_req));
-            }
-            
+            // time_req removed as requested
             vTaskDelay(pdMS_TO_TICKS(1500));
             ESP_LOGI(TAG, "Rebooting...");
             esp_restart();

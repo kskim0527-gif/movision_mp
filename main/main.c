@@ -501,8 +501,10 @@ static void save_nvs_settings(void) {
   static uint8_t last_clock = 0xFF;
   static uint8_t last_mode = 0xFF;
 
+  // [User Request] NVS 저장 시도 로그 추가 및 비교 로직 유지하되 로그로 상태 확인
   if (last_bright == s_brightness_level && last_album == s_album_option &&
       last_clock == s_clock_option && last_mode == (uint8_t)s_current_mode) {
+    // ESP_LOGD(TAG, "NVS Save skipped: same as last session");
     return; // No change
   }
 
@@ -513,22 +515,27 @@ static void save_nvs_settings(void) {
     nvs_set_u8(nvs, "album_opt", s_album_option);
     nvs_set_u8(nvs, "clock_opt", s_clock_option);
 
-    // [User Request] 특정 모드만 기억 (0:그외/기본, 1:시계, 2:앨범)
     uint8_t save_val = 0;
     if (s_current_mode == DISPLAY_MODE_CLOCK) save_val = 1;
     else if (s_current_mode == DISPLAY_MODE_ALBUM) save_val = 2;
     else save_val = 0;
 
     nvs_set_u8(nvs, "boot_mode", save_val);
-    nvs_commit(nvs);
+    err = nvs_commit(nvs);
     nvs_close(nvs);
 
-    last_bright = s_brightness_level;
-    last_album = s_album_option;
-    last_clock = s_clock_option;
-    last_mode = (uint8_t)s_current_mode;
-    ESP_LOGI(TAG, "NVS Settings Saved: Br=%d, Alb=%d, Clk=%d, ModeIdx=%d", last_bright,
-             last_album, last_clock, last_mode);
+    if (err == ESP_OK) {
+        last_bright = s_brightness_level;
+        last_album = s_album_option;
+        last_clock = s_clock_option;
+        last_mode = (uint8_t)s_current_mode;
+        ESP_LOGW(TAG, "NVS Settings SAVED: Br=%d, Alb=%d, Clk=%d, Mode=%d", 
+                 last_bright, last_album, last_clock, save_val);
+    } else {
+        ESP_LOGE(TAG, "NVS Commit FAILED: %s", esp_err_to_name(err));
+    }
+  } else {
+    ESP_LOGE(TAG, "NVS Open FAILED: %s", esp_err_to_name(err));
   }
 }
 
@@ -570,11 +577,12 @@ static void load_nvs_settings(void) {
     }
 
     nvs_close(nvs);
-    ESP_LOGI(TAG, "NVS Settings Loaded: Br=%d, Alb=%d, Clk=%d, SN=%s, Reg=%s",
-             s_brightness_level, s_album_option, s_clock_option, 
-             s_device_serial, s_app_reg_num);
+    ESP_LOGW(TAG, "################################################");
+    ESP_LOGW(TAG, "NVS LOADED: Br=%d, Alb=%d, Clk=%d, SN=%s",
+             s_brightness_level, s_album_option, s_clock_option, s_device_serial);
+    ESP_LOGW(TAG, "################################################");
   } else {
-    ESP_LOGI(TAG, "NVS empty, using defaults");
+    ESP_LOGE(TAG, "NVS empty or failed to open, using defaults");
     strcpy(s_device_serial, "NO_SN");
     strcpy(s_app_reg_num, "판매사에 문의하세요..");
   }
@@ -1033,14 +1041,8 @@ static void process_app_command(const uint8_t *data, size_t len) {
     return;
   }
 
-  // [User Request] Block non-time commands in non-guidance modes (ALBUM, CLOCK, etc)
-  // Exception: Allow Safety_DRV (0x02) even in non-guidance modes
-  if (s_current_mode != DISPLAY_MODE_GUIDE && 
-      s_current_mode != DISPLAY_MODE_BOOT) {
-    if (id != 0x4D || (commend != 0x09 && commend != 0x02)) {
-      return;
-    }
-  }
+  // [User Request] 안내 모드(GUIDE)가 아니더라도 백그라운드에서 데이터를 지속적으로 갱신하여 
+  // 사용자가 스와이프했을 때 최신 정보를 볼 수 있도록 전역 필터를 제거합니다.
 
   if (id != 0x4D)
     return;
@@ -1156,7 +1158,9 @@ static void process_app_command(const uint8_t *data, size_t len) {
 
   // 7. Clear Display
   if (commend == 0x05 && data_length == 0x01 && len >= 6) {
-    if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_STANDBY) {
+    if (s_current_mode == DISPLAY_MODE_CLOCK || s_current_mode == DISPLAY_MODE_ALBUM || s_current_mode == DISPLAY_MODE_SETTING) {
+      ESP_LOGI(TAG, "Specialty Mode (%d): Ignoring Clear Display command (0x05)", s_current_mode);
+    } else if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_STANDBY) {
       ESP_LOGI(TAG, "Standby Screen: Ignoring Clear Display command (0x05)");
     } else {
       uint8_t clear_data1 = data[4];
@@ -1209,7 +1213,15 @@ static void process_app_command(const uint8_t *data, size_t len) {
   if (commend == 0x07 && len >= 7 && data_length == 0x02) {
     uint8_t data1 = data[4];
     if (data1 <= 5) {
-      set_lcd_brightness(data1, true); // Level 0-5 mapping (data1 matches level)
+      if (data1 != s_brightness_level) {
+        set_lcd_brightness(data1, true); // Level 0-5 mapping (data1 matches level)
+        save_nvs_settings();             // [User Request] NVS 저장 추가
+      } else {
+        ESP_LOGI(TAG, "Brightness command received, but value same (%d). Syncing UI anyway.", data1);
+        LVGL_LOCK();
+        update_setting_ui_labels();
+        LVGL_UNLOCK();
+      }
     }
   }
   // 10. Mode Change via 0x0C Command
@@ -1232,9 +1244,14 @@ static void process_app_command(const uint8_t *data, size_t len) {
 
   // 11. Destination Arrived (목적지 도착) -> 속도계 화면으로 자동 전환
   if (commend == 0x0D && data_length == 0x01 && len >= 6) {
-    ESP_LOGI(TAG, "Destination arrived -> Switching to SPEEDOMETER");
-    s_guide_sub_mode = GUIDE_SUB_SPEEDOMETER;
-    switch_display_mode(DISPLAY_MODE_GUIDE);
+    if (s_current_mode == DISPLAY_MODE_BOOT || s_current_mode == DISPLAY_MODE_GUIDE) {
+        ESP_LOGI(TAG, "Destination arrived -> Switching to SPEEDOMETER");
+        s_guide_sub_mode = GUIDE_SUB_SPEEDOMETER;
+        switch_display_mode(DISPLAY_MODE_GUIDE);
+    } else {
+        ESP_LOGI(TAG, "Destination arrived received in specialty mode. Keeping current mode.");
+        s_guide_sub_mode = GUIDE_SUB_SPEEDOMETER; // 내부 상태만 갱신
+    }
   }
 
   // 12. Road Name (도로명 전송)
@@ -4033,8 +4050,10 @@ static void time_set(const uint8_t *data, size_t data_len) {
                   "update timer started");
   }
 
-  // Update brightness immediately based on new time
-  update_auto_brightness(true);
+  // Update brightness immediately based on new time (only if in Auto mode)
+  if (s_brightness_level == 0) {
+      update_auto_brightness(true);
+  }
 }
 
 // 목적지정보 함수
@@ -5660,7 +5679,7 @@ static esp_err_t lvgl_init(void) {
   // Now that a black frame is ready, turn ON display and set brightness
   esp_lcd_panel_disp_on_off(s_lcd_panel, true);
   vTaskDelay(pdMS_TO_TICKS(100));
-  set_lcd_brightness(0, true); // Set initial auto brightness
+  set_lcd_brightness(s_brightness_level, true); // [User Request] Use restored NVS level instead of hardcoded 0
 
   ESP_LOGI(TAG, "LVGL: Black screen rendered and panel active");
 
@@ -6408,7 +6427,9 @@ static void set_lcd_brightness(uint8_t level, bool notify) {
   }
 
   // Update Settings UI if it exists
+  LVGL_LOCK();
   update_setting_ui_labels();
+  LVGL_UNLOCK();
 
   ESP_LOGI(TAG, "Brightness level set to: %d (%s)", 
            level, 
@@ -8381,7 +8402,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
       s_hud_notify_enabled = ((s_cccd & 0x0001) != 0);
 
       // Send initial time sync request immediately when notifications are enabled
-      if (s_hud_notify_enabled && !was_enabled && !s_time_sync_requested) {
+      // [User Request] 시간이 이미 설정되어 있다면 요청 생략
+      if (s_hud_notify_enabled && !was_enabled && !s_time_sync_requested && !s_time_initialized) {
           static const uint8_t time_req[] = {0x19, 0x4E, 0x0D, 0x01, 0x00, 0x2F}; 
           hud_send_notify_bytes(time_req, sizeof(time_req));
           s_time_sync_requested = true;
@@ -8567,7 +8589,8 @@ static void ble_tx_task(void *arg) {
     }
 
     // Periodic Time Request (5s interval, max 3 times) when connected and notified
-    if (s_connected && s_hud_notify_enabled && s_time_req_count < 3) {
+    // [User Request] 시간이 이미 수신되었다면(s_time_initialized) 요청 중단
+    if (s_connected && s_hud_notify_enabled && !s_time_initialized && s_time_req_count < 3) {
         if (s_last_time_req_tick == 0 || (now - s_last_time_req_tick) >= pdMS_TO_TICKS(5000)) {
             static const uint8_t time_req[] = {0x19, 0x4E, 0x0D, 0x01, 0x00, 0x2F};
             hud_send_notify_bytes(time_req, sizeof(time_req));
@@ -10423,7 +10446,7 @@ void app_main(void) {
   // 2. Initialize LCD & LVGL (Moved before SD for Update UI)
   ESP_LOGI(TAG, "[LCD] Step 1: Initializing hardware panel...");
   esp_err_t ret = lcd_init_panel();
-  set_lcd_brightness(0, true);
+  set_lcd_brightness(s_brightness_level, true); // [User Request] Use restored NVS level
 
   if (ret != ESP_OK) {
     ESP_LOGE(TAG, "[LCD] Error: Failed to initialize panel");
@@ -10495,7 +10518,8 @@ void app_main(void) {
               lv_gif_set_loop_count(s_intro_image, 1);
               lv_scr_load(s_boot_screen); // Ensure boot screen is active for intro
               LVGL_UNLOCK();
-              set_lcd_brightness(5, true); // Turn on backlight for intro
+              // [User Request] 설정 메뉴의 밝기 값을 보존하기 위해 하드웨어 밝기만 직접 올립니다.
+              apply_hw_brightness(5); // Turn on backlight for intro only
               ESP_LOGI(TAG, "[DISPLAY] Backlight ON (Level 5)");
               intro_start_time = (uint32_t)(esp_timer_get_time() / 1000);
               intro_playing = true;
@@ -10629,6 +10653,9 @@ void app_main(void) {
   } else {
     ESP_LOGW(TAG, "System Boot: Intro GIF not found or not played.");
   }
+
+  // [User Request] 인트로 재생 완료 후 NVS 설정값으로 밝기 복구
+  set_lcd_brightness(s_brightness_level, true);
 
 
   // [Fix] 앱 연결 대기 전 부팅 화면(s_boot_screen)을 활성화하여 10초 후 설치 안내가 보이도록 함
