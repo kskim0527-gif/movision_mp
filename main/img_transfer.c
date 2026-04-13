@@ -59,6 +59,7 @@ extern void log_ble_packet(const uint8_t *data, size_t len,
                              const char *prefix);
 extern void update_img_transfer_ui(int percent, bool finished);
 extern void load_image_from_sd(int direction); // Force load image
+extern void update_album_option_from_ble(uint8_t mode);
 
 // State variables from main.c
 extern uint8_t s_album_option;
@@ -291,10 +292,10 @@ void process_img_command(const uint8_t *data, size_t len) {
     ESP_LOGI(TAG, "Deleted images for album_%d", data[5]);
   } else if (cmd == CMD_IMG_AUTO_MODE) {
     // 3.7.7 Auto Mode (0x06): 0: Auto, 1: Manual
+    // 문서 규격(1바이트 길이)에 따라 데이터 위치는 data[4] (19 50 06 01 [MODE] 2F)
     if (len >= 6) {
-      uint8_t mode = data[5];
-      s_album_option = (mode == 0) ? 0 : (s_current_image_index + 1);
-      ESP_LOGI(TAG, "Album Mode changed: %s", (mode == 0) ? "AUTO" : "MANUAL");
+      uint8_t mode = data[4];
+      update_album_option_from_ble(mode);
       send_status_report(); // Sync state to APP
     }
   } else if (cmd == CMD_IMG_STATUS_REQ) {
