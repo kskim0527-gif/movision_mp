@@ -248,6 +248,8 @@ static uint32_t s_ffea_conf_ok = 0;
 static uint32_t s_ffea_conf_fail = 0;
 static bool s_first_ffea_dump_done = false;
 static uint32_t s_ffea_seq = 0;
+static uint16_t s_sc_service_handle = 0; // 0x1801
+static uint16_t s_sc_handle = 0;         // 0x2A05
 
 // Custom service (0xFFEA)
 static uint16_t s_service_handle = 0;
@@ -276,6 +278,15 @@ static uint16_t s_dis_manuf_handle = 0;  // 0x2A29
 static uint16_t s_dis_model_handle = 0;  // 0x2A24
 static uint16_t s_dis_serial_handle = 0; // 0x2A25
 static uint16_t s_dis_pnp_handle = 0;    // 0x2A50
+ 
+ // ---------------------------------------------------------------------------
+ // Battery Service (0x180F) - Required for Android 16 auto-connect
+ // ---------------------------------------------------------------------------
+ static uint16_t s_batt_service_handle = 0;
+ static uint16_t s_batt_level_handle = 0;
+ static uint16_t s_batt_cccd_handle = 0;
+ static uint8_t s_batt_level = 100; // 100% default
+
 
 // Provisioning note:
 // Do NOT clone another real device's serial; use your own device's serial or a
@@ -294,22 +305,19 @@ static uint16_t s_hid_info_handle = 0;
 static uint16_t s_hid_ctrlpt_handle = 0;
 static uint16_t s_hid_report_in_handle = 0;
 static uint16_t s_hid_report_in_cccd_handle = 0;
-static uint16_t s_hid_report_in_ref_handle = 0;    // 0x2908
-static uint16_t s_hid_report_vendor_in_handle = 0; // 0x2A4D (vendor-ish)
-static uint16_t s_hid_report_vendor_in_cccd_handle = 0;
-static uint16_t s_hid_report_vendor_in_ref_handle = 0; // 0x2908
-static uint16_t s_hid_report_out_handle = 0;           // 0x2A4D (output)
-static uint16_t s_hid_report_out_ref_handle = 0;       // 0x2908
+static uint16_t s_hid_report_in_ref_handle = 0;    // 0x2908 (Index for ID 2)
+static uint16_t s_hid_report_out_handle = 0;       // 0x2A4D (ID 1)
+static uint16_t s_hid_report_out_ref_handle = 0;   // 0x2908
+static uint16_t s_hid_report_feat_handle = 0;      // 0x2A4D (ID 3)
+static uint16_t s_hid_report_feat_ref_handle = 0;  // 0x2908
+static uint16_t s_fff2_cccd_handle = 0;            // CCCD for FFF2 (Telecons req)
 
 static uint16_t s_hid_cccd = 0x0000;        // 0x0001 notify
-static uint16_t s_hid_vendor_cccd = 0x0000; // 0x0001 notify
 static uint8_t s_hid_protocol_mode =
     0x01; // 0x01=Report Protocol, 0x00=Boot Protocol
 static uint8_t s_hid_out_report = 0x00;
 // Keyboard-like HID input report (Report ID 1 + 8 bytes)
 static uint8_t s_hid_in_report[9] = {0x01}; // [ReportID=1][8-byte input report]
-// Vendor-like HID input report: 10-byte TBT packet
-static uint8_t s_hid_vendor_in_report[10] = {0};
 
 // Track last command the phone wrote (if any). Some apps "probe" by reading the
 // write-char and may fail if it is not readable.
@@ -344,12 +352,7 @@ static bool s_waiting_cccd_logged = false;
 static uint32_t s_hid_tx_count = 0;
 static uint32_t s_hid_tx_ok = 0;
 static uint32_t s_hid_tx_fail = 0;
-static uint32_t s_hid_vendor_tx_count = 0;
-static uint32_t s_hid_vendor_tx_ok = 0;
-static uint32_t s_hid_vendor_tx_fail = 0;
 static TickType_t s_last_hid_tx_tick = 0;
-static TickType_t s_last_hid_vendor_tx_tick = 0;
-static uint32_t s_hid_vendor_burst_left = 0;
 
 // "Feature 실행" 트리거(앱이 어떤 핸들에 write를 보내는지에 따라 켜짐)
 static bool s_feature_active = false;
@@ -5488,6 +5491,7 @@ static esp_err_t lcd_init_panel(void) {
   // transmit (queue) color failed" errors
   // Default is 10, increase to 30 for better performance during mode switching
   io_config.trans_queue_depth = 30;
+  io_config.pclk_hz = 20 * 1000 * 1000;
 
   ret = esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST, &io_config,
                                  &io_handle);
@@ -7431,28 +7435,41 @@ static const uint8_t s_hid_info_val[4] = {0x11, 0x01, 0x00,
 // prevent phone OS from registering as
 // keyboard
 static const uint8_t s_hid_report_map[] = {
-    0x06, 0x00,
-    0xFF, // Usage Page (Vendor-Defined
-          // 0xFF00)
-    0x09,
-    0x01, // Usage (Vendor-Defined 0x01)
-    0xA1,
-    0x01, // Collection (Application)
-    0x85,
-    0x01, //   Report ID (1)
-    0x95,
-    0x08, //   Report Count (8 bytes)
-    0x75,
-    0x08, //   Report Size (8 bits per byte)
-    0x15,
-    0x00, //   Logical Minimum (0)
-    0x26, 0xFF,
-    0x00, //   Logical Maximum (255)
-    0x81,
-    0x02, //   Input (Data,Var,Abs) ; 8-byte
-          //   vendor data
+    0x06, 0x00, 0xFF, // Usage Page (Vendor-Defined 0xFF00)
+    0x09, 0x01,       // Usage (Vendor-Defined 0x01)
+
+    0xA1, 0x01,       // Collection (Application)
+    
+    // Report ID 1: Output
+    0x85, 0x01,                    //   Report ID (1)
+    0x95, 0x08,                    //   Report Count (8)
+    0x75, 0x08,                    //   Report Size (8 bits)
+    0x15, 0x00,                    //   Logical Minimum (0)
+    0x26, 0xFF, 0x00,              //   Logical Maximum (255)
+    0x09, 0x01,                    //   Usage (Vendor Usage 1)
+    0x91, 0x02,                    //   Output (Data,Var,Abs)
+
+    // Report ID 2: Input (Notifiable)
+    0x85, 0x02,                    //   Report ID (2)
+    0x95, 0x08,                    //   Report Count (8)
+    0x75, 0x08,                    //   Report Size (8 bits)
+    0x15, 0x00,                    //   Logical Minimum (0)
+    0x26, 0xFF, 0x00,              //   Logical Maximum (255)
+    0x09, 0x02,                    //   Usage (Vendor Usage 2)
+    0x81, 0x02,                    //   Input (Data,Var,Abs)
+
+    // Report ID 3: Feature
+    0x85, 0x03,                    //   Report ID (3)
+    0x95, 0x08,                    //   Report Count (8)
+    0x75, 0x08,                    //   Report Size (8 bits)
+    0x15, 0x00,                    //   Logical Minimum (0)
+    0x26, 0xFF, 0x00,              //   Logical Maximum (255)
+    0x09, 0x03,                    //   Usage (Vendor Usage 3)
+    0xB1, 0x02,                    //   Feature (Data,Var,Abs)
+
     0xC0  // End Collection
 };
+
 
 // Stable buffers/UUIDs (avoid stack pointers
 // inside BLE callbacks)
@@ -7483,53 +7500,22 @@ static const uint8_t s_hud_svc_uuid128[16] = {
     0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
     0x00, 0x10, 0x00, 0x00, 0xea, 0xff, 0x00, 0x00};
 
+// Main Advertising Data (Simplified for fast discovery by Android 16)
+// Consolidated Advertising Data: Putting everything in the primary packet for Android 16 reliability
 static const uint8_t s_adv_raw[] = {
-    0x02,
-    0x01,
-    0x06, // Flags
-    // HID 16-bit (0x1812)
-    0x03,
-    0x03,
-    0x12,
-    0x18,
-    // HUD 128-bit
-    // (0000ffea-0000-1000-8000-00805f9b34fb)
-    0x11,
-    0x07,
-    0xfb,
-    0x34,
-    0x9b,
-    0x5f,
-    0x80,
-    0x00,
-    0x00,
-    0x80,
-    0x00,
-    0x10,
-    0x00,
-    0x00,
-    0xea,
-    0xff,
-    0x00,
-    0x00,
-    // Appearance (0x03C1) - HID Device
-    0x03,
-    0x19,
-    0xC1,
-    0x03,
-};
+    0x02, 0x01, 0x06,       // Flags
+    0x03, 0x19, 0xC0, 0x03, // Appearance: Generic HID (0x03C0) instead of Keyboard
+    0x07, 0x03, 0xEA, 0xFF, 0x12, 0x18, 0x0F, 0x18 // 16-bit UUIDs: HUD, HID, Battery
+}; // 15 bytes
 
-// Scan Response raw:
-// - Complete Local Name: 0E 09 "MOVISION HUD1"
-// (duplicated; some scanners only show name
-// from scan rsp)
+// Scan Response: Full Name "MOVISION HUD1" for the app search
 static const uint8_t s_scan_rsp_raw[] = {
-    0x0e, 0x09, 'M', 'O', 'V', 'I', 'S', 'I', 'O', 'N', ' ', 'H', 'U', 'D', '1',
-};
+    0x0e, 0x09, 'M', 'O', 'V', 'I', 'S', 'I', 'O', 'N', ' ', 'H', 'U', 'D', '1'
+}; // 15 bytes
 
 static esp_ble_adv_params_t s_adv_params = {
-    .adv_int_min = 0x20,
-    .adv_int_max = 0x40,
+    .adv_int_min = 0x00A0, // 100ms (Better for background scan compatibility)
+    .adv_int_max = 0x00F0, // 150ms
     .adv_type = ADV_TYPE_IND,
     .own_addr_type = BLE_ADDR_TYPE_PUBLIC,
     .channel_map = ADV_CHNL_ALL,
@@ -7537,20 +7523,23 @@ static esp_ble_adv_params_t s_adv_params = {
 };
 
 static void try_start_advertising(void) {
-  // Wait until both HUD + HID services are
-  // started before advertising, so the phone
-  // doesn't connect and cache an incomplete
-  // GATT database.
   if (!s_hud_service_started || !s_hid_service_started || !ota_ble_is_ready() ||
-      !s_adv_data_ready || !s_scan_rsp_ready || s_adv_active ||
-      s_adv_starting) {
+      !s_adv_data_ready || !s_scan_rsp_ready || s_adv_active || s_adv_starting || s_connected) {
     return;
   }
   s_adv_starting = true;
+
+  // Revert to ANY to fix connection rejection issues
+  s_adv_params.adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY;
+
   esp_err_t ret = esp_ble_gap_start_advertising(&s_adv_params);
   if (ret != ESP_OK) {
     s_adv_starting = false;
     ESP_LOGE(TAG, "start advertising failed: %s", esp_err_to_name(ret));
+  } else {
+    s_adv_active = true;
+    s_adv_starting = false;
+    ESP_LOGI(TAG, "Advertising started (Policy: ANY)");
   }
 }
 
@@ -7682,24 +7671,17 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event,
                param->ble_security.auth_cmpl.bd_addr[5],
                param->ble_security.auth_cmpl.key_type);
 
-      // Update connection parameters to 7.5ms~20ms immediately after auth complete
-      esp_ble_conn_update_params_t conn_params = {0};
-      memcpy(conn_params.bda, param->ble_security.auth_cmpl.bd_addr,
-             sizeof(esp_bd_addr_t));
-      conn_params.min_int = 0x06; // 7.5ms (Fastest possible)
-      conn_params.max_int = 0x10; // 20ms
-      conn_params.latency = 0;
-      conn_params.timeout = 400;  // 4s
-      esp_ble_gap_update_conn_params(&conn_params);
-      ESP_LOGI(TAG, "Requested 7.5ms connection params immediately after auth complete");
-
-      // Also request 2M PHY for improved throughput
-      esp_ble_gap_set_preferred_phy(param->ble_security.auth_cmpl.bd_addr, 
-                                    0, // 0 means use the follow masks
-                                    ESP_BLE_GAP_PHY_2M_PREF_MASK, 
-                                    ESP_BLE_GAP_PHY_2M_PREF_MASK, 
-                                    0);
-      ESP_LOGI(TAG, "Requested connection params update after auth complete");
+      // Delay connection parameters update to avoid collision with Android 16's internal GATT setup
+      // We will handle this in the profile handler's logic or a timer later.
+      // For now, let's keep it minimal and stable.
+      ESP_LOGI(TAG, "AUTH_CMPL SUCCESS - addr=%02x:%02x:%02x:%02x:%02x:%02x, key_type=%d",
+               param->ble_security.auth_cmpl.bd_addr[0], param->ble_security.auth_cmpl.bd_addr[1],
+               param->ble_security.auth_cmpl.bd_addr[2], param->ble_security.auth_cmpl.bd_addr[3],
+               param->ble_security.auth_cmpl.bd_addr[4], param->ble_security.auth_cmpl.bd_addr[5],
+               param->ble_security.auth_cmpl.key_type);
+      
+      // Moving these to a safer point or omitting to let OS decide initially
+      // s_auth_complete_time = xTaskGetTickCount(); 
     }
     // Service Changed Indication removed -
     // let app discover services naturally
@@ -7752,6 +7734,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
     s_service_handle = 0;
     s_hid_service_handle = 0;
     s_dis_service_handle = 0;
+    s_batt_service_handle = 0;
     s_dis_manuf_handle = 0;
     s_dis_model_handle = 0;
     s_dis_serial_handle = 0;
@@ -7761,49 +7744,41 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
     s_hid_ctrlpt_handle = 0;
     s_hid_report_in_handle = 0;
     s_hid_report_in_cccd_handle = 0;
+    s_hid_report_in_ref_handle = 0;
+    s_hid_report_out_handle = 0;
+    s_hid_report_out_ref_handle = 0;
+    s_hid_report_feat_handle = 0;
+    s_hid_report_feat_ref_handle = 0;
+    s_hid_proto_handle = 0;
+    s_fff2_cccd_handle = 0;
     s_hid_cccd = 0x0000;
 
-    // Create HID service (16-bit UUID 0x1812)
-    // FIRST. Matches working device layout
-    // where HID comes before HUD. Safety
-    // check: Only create if handle is 0
-    // (prevents duplicate creation)
-    if (s_hid_service_handle == 0) {
-      esp_gatt_srvc_id_t hid_sid = {0};
-      hid_sid.is_primary = true;
-      hid_sid.id.inst_id = 0;
-      hid_sid.id.uuid.len = ESP_UUID_LEN_16;
-      hid_sid.id.uuid.uuid.uuid16 = 0x1812;
-      ESP_ERROR_CHECK(esp_ble_gatts_create_service(gatts_if, &hid_sid, 16));
-      ESP_LOGI(TAG, "Requested HID service "
-                    "(0x1812) creation");
-    } else {
-      ESP_LOGW(TAG,
-               "HID service already exists "
-               "(handle=%u), skipping creation",
-               (unsigned)s_hid_service_handle);
+    // Match Tplay/Android 16 requirement: 1801(SC) -> 180A(DIS) -> 180F(BATT) -> HUD -> HID
+    // 00. Service Changed (Standard requirement for Android Cache trust)
+    if (s_sc_service_handle == 0) {
+      esp_gatt_srvc_id_t sid = {.is_primary = true, .id = {.inst_id = 0, .uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x1801}}}};
+      ESP_ERROR_CHECK(esp_ble_gatts_create_service(gatts_if, &sid, 4));
     }
-
-    // Create custom HUD service (128-bit UUID
-    // 0xFFEA-base) SECOND. Safety check: Only
-    // create if handle is 0 (prevents
-    // duplicate creation)
-    if (s_service_handle == 0) {
-      esp_gatt_srvc_id_t sid = {0};
-      sid.is_primary = true;
-      sid.id.inst_id = 1;
-      sid.id.uuid.len = ESP_UUID_LEN_128;
-      memcpy(sid.id.uuid.uuid.uuid128, s_hud_svc_uuid128, 16);
-      // handle count: service + 2 chars +
-      // cccd (enough: 10)
+    // 0. DIS Service (Standard requirement for HID Host)
+    if (s_dis_service_handle == 0) {
+      esp_gatt_srvc_id_t sid = {.is_primary = true, .id = {.inst_id = 0, .uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x180A}}}};
       ESP_ERROR_CHECK(esp_ble_gatts_create_service(gatts_if, &sid, 10));
-      ESP_LOGI(TAG, "Requested HUD service "
-                    "(0xFFEA) creation");
-    } else {
-      ESP_LOGW(TAG,
-               "HUD service already exists "
-               "(handle=%u), skipping creation",
-               (unsigned)s_service_handle);
+    }
+    // 1. Battery Service
+    if (s_batt_service_handle == 0) {
+      esp_gatt_srvc_id_t sid = {.is_primary = true, .id = {.inst_id = 0, .uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x180F}}}};
+      ESP_ERROR_CHECK(esp_ble_gatts_create_service(gatts_if, &sid, 10));
+    }
+    // 2. HUD Service
+    if (s_service_handle == 0) {
+      esp_gatt_srvc_id_t sid = {.is_primary = true, .id = {.inst_id = 1, .uuid = {.len = ESP_UUID_LEN_128}}};
+      memcpy(sid.id.uuid.uuid.uuid128, s_hud_svc_uuid128, 16);
+      ESP_ERROR_CHECK(esp_ble_gatts_create_service(gatts_if, &sid, 20));
+    }
+    // 3. HID Service
+    if (s_hid_service_handle == 0) {
+      esp_gatt_srvc_id_t sid = {.is_primary = true, .id = {.inst_id = 0, .uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x1812}}}};
+      ESP_ERROR_CHECK(esp_ble_gatts_create_service(gatts_if, &sid, 45)); 
     }
     break;
   }
@@ -7812,9 +7787,36 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
       ESP_LOGE(TAG, "create service failed: %d", param->create.status);
       break;
     }
-    // Check HID service FIRST (16-bit UUID)
-    // to match working device order
     if (param->create.service_id.id.uuid.len == ESP_UUID_LEN_16 &&
+        param->create.service_id.id.uuid.uuid.uuid16 == 0x1801) {
+      s_sc_service_handle = param->create.service_handle;
+      ESP_LOGI(TAG, "SC(1801) service created handle=%u", (unsigned)s_sc_service_handle);
+      esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A05}}; // Service Changed
+      esp_ble_gatts_add_char(s_sc_service_handle, &uuid, ESP_GATT_PERM_READ, ESP_GATT_CHAR_PROP_BIT_INDICATE, NULL, NULL);
+    } else if (param->create.service_id.id.uuid.len == ESP_UUID_LEN_16 &&
+               param->create.service_id.id.uuid.uuid.uuid16 == 0x180A) {
+      s_dis_service_handle = param->create.service_handle;
+      ESP_LOGI(TAG, "DIS service created handle=%u", (unsigned)s_dis_service_handle);
+
+      esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A29}}; // Manuf
+      esp_ble_gatts_add_char(s_dis_service_handle, &uuid, ESP_GATT_PERM_READ_ENCRYPTED, ESP_GATT_CHAR_PROP_BIT_READ, NULL, NULL);
+
+    } else if (param->create.service_id.id.uuid.len == ESP_UUID_LEN_16 &&
+               param->create.service_id.id.uuid.uuid.uuid16 == 0x180F) {
+      s_batt_service_handle = param->create.service_handle;
+      ESP_LOGI(TAG, "Battery service created handle=%u", (unsigned)s_batt_service_handle);
+
+      esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A19}};
+      esp_attr_value_t attr = {0};
+      attr.attr_max_len = 1;
+      attr.attr_len = 1;
+      attr.attr_value = &s_batt_level;
+      // Battery Level: Read, Notify (per Telecons req). Require Encryption!
+      ESP_ERROR_CHECK(esp_ble_gatts_add_char(
+          s_batt_service_handle, &uuid, ESP_GATT_PERM_READ_ENCRYPTED,
+          ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_NOTIFY, &attr, NULL));
+
+    } else if (param->create.service_id.id.uuid.len == ESP_UUID_LEN_16 &&
         param->create.service_id.id.uuid.uuid.uuid16 == 0x1812) {
       s_hid_service_handle = param->create.service_handle;
       ESP_LOGI(TAG, "HID service created handle=%u",
@@ -7883,217 +7885,183 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
         s_hid_info_handle = param->add_char.attr_handle;
         ESP_LOGI(TAG, "HID Info added handle=%u", (unsigned)s_hid_info_handle);
 
-        // Report Map (0x2A4B)
-        esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16,
-                              .uuid = {.uuid16 = 0x2A4B}};
+        esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A4E}}; // Protocol Mode
+        esp_attr_value_t attr = {0};
+        attr.attr_max_len = 1;
+        attr.attr_len = 1;
+        attr.attr_value = &s_hid_protocol_mode;
+        ESP_ERROR_CHECK(esp_ble_gatts_add_char(s_hid_service_handle, &uuid, ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE_ENCRYPTED,
+                                               ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE, &attr, NULL));
+      } else if (s_hid_proto_handle == 0) {
+        s_hid_proto_handle = param->add_char.attr_handle;
+        ESP_LOGI(TAG, "HID ProtoMode added handle=%u", (unsigned)s_hid_proto_handle);
+
+        esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A4B}}; // Report Map
         esp_attr_value_t attr = {0};
         attr.attr_max_len = sizeof(s_hid_report_map);
         attr.attr_len = sizeof(s_hid_report_map);
         attr.attr_value = (uint8_t *)s_hid_report_map;
-        // HID Report Map can be read without
-        // encryption (allows service
-        // discovery)
-        ESP_ERROR_CHECK(esp_ble_gatts_add_char(
-            s_hid_service_handle, &uuid, ESP_GATT_PERM_READ,
-            ESP_GATT_CHAR_PROP_BIT_READ, &attr, NULL));
+        ESP_ERROR_CHECK(esp_ble_gatts_add_char(s_hid_service_handle, &uuid, ESP_GATT_PERM_READ,
+                                               ESP_GATT_CHAR_PROP_BIT_READ, &attr, NULL));
       } else if (s_hid_report_map_handle == 0) {
         s_hid_report_map_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG, "HID ReportMap added handle=%u",
-                 (unsigned)s_hid_report_map_handle);
+        ESP_LOGI(TAG, "HID ReportMap added handle=%u", (unsigned)s_hid_report_map_handle);
 
-        // HID Control Point (0x2A4C)
-        esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16,
-                              .uuid = {.uuid16 = 0x2A4C}};
-        esp_attr_value_t attr = {0};
+        esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A4C}}; // Control Point
         static uint8_t ctrlpt = 0x00;
-        attr.attr_max_len = 1;
-        attr.attr_len = 1;
-        attr.attr_value = &ctrlpt;
-        // HID Control Point requires
-        // encryption for HID service
-        // compatibility
-        ESP_ERROR_CHECK(esp_ble_gatts_add_char(
-            s_hid_service_handle, &uuid, ESP_GATT_PERM_WRITE_ENCRYPTED,
-            ESP_GATT_CHAR_PROP_BIT_WRITE_NR | ESP_GATT_CHAR_PROP_BIT_WRITE,
-            &attr, NULL));
+        esp_attr_value_t attr = {.attr_max_len = 1, .attr_len = 1, .attr_value = &ctrlpt};
+        ESP_ERROR_CHECK(esp_ble_gatts_add_char(s_hid_service_handle, &uuid, ESP_GATT_PERM_WRITE_ENCRYPTED,
+                                               ESP_GATT_CHAR_PROP_BIT_WRITE_NR, &attr, NULL));
       } else if (s_hid_ctrlpt_handle == 0) {
         s_hid_ctrlpt_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG,
-                 "HID ControlPoint added "
-                 "handle=%u",
-                 (unsigned)s_hid_ctrlpt_handle);
+        ESP_LOGI(TAG, "HID CtrlPt added handle=%u", (unsigned)s_hid_ctrlpt_handle);
 
-        // Report (0x2A4D) - props 0x1E on
-        // working device (read + write +
-        // notify
-        // + indicate) Requires encryption for
-        // HID service compatibility
-        esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16,
-                              .uuid = {.uuid16 = 0x2A4D}};
-        esp_attr_value_t attr = {0};
-        attr.attr_max_len = sizeof(s_hid_in_report);
-        attr.attr_len = sizeof(s_hid_in_report);
-        attr.attr_value = s_hid_in_report;
-        ESP_ERROR_CHECK(esp_ble_gatts_add_char(
-            s_hid_service_handle, &uuid,
-            ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED,
-            ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE |
-                ESP_GATT_CHAR_PROP_BIT_NOTIFY | ESP_GATT_CHAR_PROP_BIT_INDICATE,
-            &attr, NULL));
+        // Report 1: Output (ID 1)
+        esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A4D}};
+        static uint8_t report1_val[8] = {0};
+        esp_attr_value_t attr = {.attr_max_len = 8, .attr_len = 8, .attr_value = report1_val};
+        ESP_ERROR_CHECK(esp_ble_gatts_add_char(s_hid_service_handle, &uuid, ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED,
+                                               ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE | ESP_GATT_CHAR_PROP_BIT_WRITE_NR, &attr, NULL));
+      } else if (s_hid_report_out_handle == 0) {
+        s_hid_report_out_handle = param->add_char.attr_handle;
+        ESP_LOGI(TAG, "HID Report1(Out) added handle=%u", (unsigned)s_hid_report_out_handle);
+
+        // Add Ref Descriptor for Report 1 (ID 1, Type Output=2)
+        esp_bt_uuid_t ref_uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2908}};
+        static uint8_t ref1_val[2] = {1, 2}; 
+        esp_attr_value_t ref_attr = {.attr_max_len = 2, .attr_len = 2, .attr_value = ref1_val};
+        ESP_ERROR_CHECK(esp_ble_gatts_add_char_descr(s_hid_service_handle, &ref_uuid, ESP_GATT_PERM_READ_ENCRYPTED, &ref_attr, NULL));
       } else if (s_hid_report_in_handle == 0) {
         s_hid_report_in_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG,
-                 "HID Report(2A4D) added "
-                 "handle=%u",
-                 (unsigned)s_hid_report_in_handle);
+        ESP_LOGI(TAG, "HID Report2(In) added handle=%u", (unsigned)s_hid_report_in_handle);
 
-        // CCCD for report (requires
-        // encryption for HID service)
-        esp_bt_uuid_t cccd_uuid = {.len = ESP_UUID_LEN_16,
-                                   .uuid = {.uuid16 = 0x2902}};
-        static uint8_t hid_cccd_init[2] = {0x00, 0x00};
-        esp_attr_value_t cccd_attr = {
-            .attr_max_len = 2,
-            .attr_len = 2,
-            .attr_value = hid_cccd_init,
-        };
-        ESP_ERROR_CHECK(esp_ble_gatts_add_char_descr(
-            s_hid_service_handle, &cccd_uuid,
-            ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED,
-            &cccd_attr, NULL));
-        // Service will be started in
-        // ADD_CHAR_DESCR_EVT after CCCD is
-        // added
+        esp_bt_uuid_t cccd_uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2902}};
+        static uint8_t cccd_init[2] = {0, 0};
+        esp_attr_value_t cccd_attr = {.attr_max_len = 2, .attr_len = 2, .attr_value = cccd_init};
+        ESP_ERROR_CHECK(esp_ble_gatts_add_char_descr(s_hid_service_handle, &cccd_uuid, ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED, &cccd_attr, NULL));
+      } else if (s_hid_report_feat_handle == 0) {
+        s_hid_report_feat_handle = param->add_char.attr_handle;
+        ESP_LOGI(TAG, "HID Report3(Feat) added handle=%u", (unsigned)s_hid_report_feat_handle);
+
+        esp_bt_uuid_t ref_uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2908}};
+        static uint8_t ref3_val[2] = {3, 3}; 
+        esp_attr_value_t ref_attr = {.attr_max_len = 2, .attr_len = 2, .attr_value = ref3_val};
+        ESP_ERROR_CHECK(esp_ble_gatts_add_char_descr(s_hid_service_handle, &ref_uuid, ESP_GATT_PERM_READ_ENCRYPTED, &ref_attr, NULL));
       }
+    } else if (param->add_char.service_handle == s_sc_service_handle) {
+      s_sc_handle = param->add_char.attr_handle;
+      ESP_LOGI(TAG, "SC(1801) Service Changed char added handle=%u", (unsigned)s_sc_handle);
+      esp_ble_gatts_start_service(s_sc_service_handle);
+
     } else if (param->add_char.service_handle == s_service_handle) {
       if (s_read_handle == 0) {
-        // ★ STEP 1: FFF1 (Read/Notify)
-        // characteristic added ★
+        // ★ STEP 1: FFF1 (Read/Notify) added
         s_read_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG,
-                 "★ FFF1 (Read/Notify) "
-                 "characteristic added "
-                 "handle=%u ★",
-                 (unsigned)s_read_handle);
-
-        // ★ STEP 2: CRITICAL - Add CCCD
-        // (0x2902) descriptor IMMEDIATELY
-        // after FFF1 ★ This ensures CCCD
-        // appears right below FFF1 in GATT
-        // table (not below FFF2) Must have
-        // WRITE permission for notification
-        // arrow icon (↑↑↑) to appear in nRF
-        // Connect
-        ESP_LOGI(TAG,
-                 "★ Requesting CCCD (0x2902) "
-                 "descriptor addition for FFF1 "
-                 "(handle=%u) ★",
-                 (unsigned)s_read_handle);
-        esp_err_t cccd_ret = esp_ble_gatts_add_char_descr(
-            s_service_handle, &s_cccd_uuid,
-            ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED,
-            &s_cccd_attr, NULL);
-        if (cccd_ret != ESP_OK) {
-          ESP_LOGE(TAG,
-                   "Failed to add CCCD "
-                   "descriptor: %s",
-                   esp_err_to_name(cccd_ret));
-        } else {
-          ESP_LOGI(TAG, "★ CCCD descriptor addition "
-                        "requested successfully ★");
-        }
-        // NOTE: Do NOT add FFF2 here - wait
-        // for ADD_CHAR_DESCR_EVT callback for
-        // CCCD first
+        ESP_LOGI(TAG, "★ FFF1 added handle=%u", (unsigned)s_read_handle);
+        // ★ STEP 2: Add CCCD for FFF1 ★
+        ESP_ERROR_CHECK(esp_ble_gatts_add_char_descr(s_service_handle, &s_cccd_uuid, ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED, &s_cccd_attr, NULL));
       } else if (s_write_handle == 0) {
-        // ★ STEP 5: FFF2 (Write)
-        // characteristic added after CCCD ★
+        // ★ STEP 5: FFF2 (Write/Notify) added
         s_write_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG,
-                 "★ FFF2 (Write) characteristic "
-                 "added handle=%u (after CCCD "
-                 "handle=%u) ★",
-                 (unsigned)s_write_handle, (unsigned)s_cccd_handle);
-        // Both characteristics and CCCD are
-        // now added - can start service
-        if (s_read_handle && s_write_handle && s_cccd_handle != 0) {
-          ESP_ERROR_CHECK(esp_ble_gatts_start_service(s_service_handle));
-          // s_hud_service_started will be set
-          // in START_EVT
-          try_start_advertising();
-        }
+        ESP_LOGI(TAG, "★ FFF2 added handle=%u", (unsigned)s_write_handle);
+        // ★ STEP 6: Add CCCD for FFF2 ★
+        esp_bt_uuid_t cccd_uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2902}};
+        static uint8_t fff2_cccd_init[2] = {0, 0};
+        esp_attr_value_t cccd_attr = {.attr_max_len = 2, .attr_len = 2, .attr_value = fff2_cccd_init};
+        ESP_ERROR_CHECK(esp_ble_gatts_add_char_descr(s_service_handle, &cccd_uuid, ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED, &cccd_attr, NULL));
+      }
+    } else if (param->add_char.service_handle == s_batt_service_handle) {
+      if (s_batt_level_handle == 0) {
+        s_batt_level_handle = param->add_char.attr_handle;
+        ESP_LOGI(TAG, "Battery Level added handle=%u", (unsigned)s_batt_level_handle);
+        // Add CCCD for Battery Level (Notify support)
+        esp_bt_uuid_t cccd_uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2902}};
+        static uint8_t batt_cccd_init[2] = {0x00, 0x00};
+        esp_attr_value_t cccd_attr = {.attr_max_len = 2, .attr_len = 2, .attr_value = batt_cccd_init};
+        ESP_ERROR_CHECK(esp_ble_gatts_add_char_descr(s_batt_service_handle, &cccd_uuid, ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED, &cccd_attr, NULL));
       }
     } else if (param->add_char.service_handle == s_dis_service_handle) {
-      if (s_dis_manuf_handle == 0) {
+      if (param->add_char.char_uuid.uuid.uuid16 == 0x2A29) { // Manufacturer Name
         s_dis_manuf_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG,
-                 "DIS ManufacturerName added "
-                 "handle=%u",
-                 (unsigned)s_dis_manuf_handle);
-      } else if (s_dis_model_handle == 0) {
+        ESP_LOGI(TAG, "DIS Manuf added handle=%u", (unsigned)s_dis_manuf_handle);
+        esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A24}}; // Model Number
+        esp_ble_gatts_add_char(s_dis_service_handle, &uuid, ESP_GATT_PERM_READ_ENCRYPTED, ESP_GATT_CHAR_PROP_BIT_READ, NULL, NULL);
+      } else if (param->add_char.char_uuid.uuid.uuid16 == 0x2A24) { // Model Number
         s_dis_model_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG, "DIS ModelNumber added handle=%u",
-                 (unsigned)s_dis_model_handle);
-      } else if (s_dis_serial_handle == 0) {
-        s_dis_serial_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG,
-                 "DIS SerialNumber added "
-                 "handle=%u",
-                 (unsigned)s_dis_serial_handle);
-      } else if (s_dis_pnp_handle == 0) {
+        ESP_LOGI(TAG, "DIS Model added handle=%u", (unsigned)s_dis_model_handle);
+        esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A50}}; // PnPID
+        esp_ble_gatts_add_char(s_dis_service_handle, &uuid, ESP_GATT_PERM_READ_ENCRYPTED, ESP_GATT_CHAR_PROP_BIT_READ, NULL, NULL);
+      } else if (param->add_char.char_uuid.uuid.uuid16 == 0x2A50) { // PnPID
         s_dis_pnp_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG, "DIS PnPID handle=%u", (unsigned)s_dis_pnp_handle);
-        ESP_ERROR_CHECK(esp_ble_gatts_start_service(s_dis_service_handle));
+        ESP_LOGI(TAG, "DIS PnPID added handle=%u", (unsigned)s_dis_pnp_handle);
+        esp_ble_gatts_start_service(s_dis_service_handle);
       }
     }
     break;
   }
   case ESP_GATTS_ADD_CHAR_DESCR_EVT:
     if (param->add_char_descr.service_handle == s_service_handle) {
-      // ★ STEP 3: CCCD descriptor for FFF1
-      // successfully added ★
-      s_cccd_handle = param->add_char_descr.attr_handle;
-      ESP_LOGI(TAG,
-               "★ CCCD (0x2902) descriptor for "
-               "FFF1 added handle=%u (should be "
-               "right after FFF1 handle=%u) ★",
-               (unsigned)s_cccd_handle, (unsigned)s_read_handle);
+      if (s_cccd_handle == 0) {
+        // ★ STEP 3: CCCD for FFF1 added
+        s_cccd_handle = param->add_char_descr.attr_handle;
+        ESP_LOGI(TAG, "★ CCCD for FFF1 added handle=%u", (unsigned)s_cccd_handle);
 
-      // ★ STEP 4: NOW add FFF2 (Write)
-      // characteristic after CCCD is added ★
-      // This ensures correct GATT table
-      // order: FFF1 -> CCCD (0x2902) -> FFF2
-      if (s_read_handle != 0 && s_write_handle == 0) {
-        ESP_LOGI(TAG, "★ Requesting FFF2 (Write) "
-                      "characteristic addition "
-                      "after CCCD ★");
-        esp_attr_value_t write_attr = {0};
-        write_attr.attr_max_len = 64;
-        write_attr.attr_len = sizeof(s_init_write_val);
-        write_attr.attr_value = s_init_write_val;
-
-        // Requires encryption
-        ESP_ERROR_CHECK(esp_ble_gatts_add_char(
-            s_service_handle, &s_write_uuid, ESP_GATT_PERM_WRITE_ENCRYPTED,
-            ESP_GATT_CHAR_PROP_BIT_WRITE | ESP_GATT_CHAR_PROP_BIT_WRITE_NR,
-            &write_attr, NULL));
-        ESP_LOGI(TAG, "Requested FFF2 (Write) "
-                      "characteristic addition "
-                      "after CCCD");
+        // ★ STEP 4: Add FFF2 (Write/Notify) ★
+        if (s_read_handle != 0 && s_write_handle == 0) {
+          esp_attr_value_t write_attr = {.attr_max_len = 64, .attr_len = sizeof(s_init_write_val), .attr_value = s_init_write_val};
+          // Match Tplay: WRITABLE, NOTIFIABLE (Prop: Write | Notify)
+          ESP_ERROR_CHECK(esp_ble_gatts_add_char(s_service_handle, &s_write_uuid, ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE,
+                                                 ESP_GATT_CHAR_PROP_BIT_WRITE | ESP_GATT_CHAR_PROP_BIT_NOTIFY, &write_attr, NULL));
+        }
+      } else if (s_fff2_cccd_handle == 0) {
+        s_fff2_cccd_handle = param->add_char_descr.attr_handle;
+        ESP_LOGI(TAG, "★ CCCD for FFF2 added handle=%u", (unsigned)s_fff2_cccd_handle);
+        // HUD Complete
+        ESP_ERROR_CHECK(esp_ble_gatts_start_service(s_service_handle));
+      }
+    } else if (param->add_char_descr.service_handle == s_batt_service_handle) {
+      if (s_batt_cccd_handle == 0) {
+        s_batt_cccd_handle = param->add_char_descr.attr_handle;
+        ESP_LOGI(TAG, "Battery CCCD added handle=%u", (unsigned)s_batt_cccd_handle);
+        ESP_ERROR_CHECK(esp_ble_gatts_start_service(s_batt_service_handle));
       }
     } else if (param->add_char_descr.service_handle == s_hid_service_handle) {
-      if (s_hid_report_in_cccd_handle == 0) {
-        s_hid_report_in_cccd_handle = param->add_char_descr.attr_handle;
-        ESP_LOGI(TAG,
-                 "HID CCCD(Report) added "
-                 "handle=%u",
-                 (unsigned)s_hid_report_in_cccd_handle);
+      // HID sequential descriptors
+      if (s_hid_report_out_handle != 0 && s_hid_report_out_ref_handle == 0 && s_hid_report_in_handle == 0) {
+          s_hid_report_out_ref_handle = param->add_char_descr.attr_handle;
+          ESP_LOGI(TAG, "HID Report1 Ref added handle=%u", (unsigned)s_hid_report_out_ref_handle);
 
-        // All HID attributes created -> start
-        // HID service (no Boot Keyboard Input
-        // - matches working device)
-        ESP_ERROR_CHECK(esp_ble_gatts_start_service(s_hid_service_handle));
-        try_start_advertising();
+          // Now add Report 2 (In, ID 2)
+          esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A4D}};
+          esp_attr_value_t attr = {.attr_max_len = sizeof(s_hid_in_report), .attr_len = sizeof(s_hid_in_report), .attr_value = s_hid_in_report};
+          // Match Tplay: READABLE, NOTIFIABLE
+          ESP_ERROR_CHECK(esp_ble_gatts_add_char(s_hid_service_handle, &uuid, ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE,
+                                                 ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_NOTIFY, &attr, NULL));
+      } else if (s_hid_report_in_handle != 0 && s_hid_report_in_cccd_handle == 0) {
+          s_hid_report_in_cccd_handle = param->add_char_descr.attr_handle;
+          ESP_LOGI(TAG, "HID Report2 CCCD added handle=%u", (unsigned)s_hid_report_in_cccd_handle);
+
+          // Now add Ref Descriptor for Report 2 (ID 2, Type Input=1)
+          esp_bt_uuid_t ref_uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2908}};
+          static uint8_t ref2_val[2] = {2, 1}; 
+          esp_attr_value_t ref_attr = {.attr_max_len = 2, .attr_len = 2, .attr_value = ref2_val};
+          ESP_ERROR_CHECK(esp_ble_gatts_add_char_descr(s_hid_service_handle, &ref_uuid, ESP_GATT_PERM_READ_ENCRYPTED, &ref_attr, NULL));
+      } else if (s_hid_report_in_ref_handle == 0) {
+          s_hid_report_in_ref_handle = param->add_char_descr.attr_handle;
+          ESP_LOGI(TAG, "HID Report2 Ref added handle=%u", (unsigned)s_hid_report_in_ref_handle);
+
+          // Now add Report 3 (Feature, ID 3)
+          esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A4D}};
+          static uint8_t report3_val[8] = {0};
+          esp_attr_value_t attr = {.attr_max_len = 8, .attr_len = 8, .attr_value = report3_val};
+          ESP_ERROR_CHECK(esp_ble_gatts_add_char(s_hid_service_handle, &uuid, ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED,
+                                                 ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE, &attr, NULL));
+      } else if (s_hid_report_feat_ref_handle == 0) {
+          s_hid_report_feat_ref_handle = param->add_char_descr.attr_handle;
+          ESP_LOGI(TAG, "HID Report3 Ref added handle=%u", (unsigned)s_hid_report_feat_ref_handle);
+
+          // HID Complete
+          ESP_ERROR_CHECK(esp_ble_gatts_start_service(s_hid_service_handle));
       }
     }
     break;
@@ -8104,6 +8072,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
     } else if (param->start.service_handle == s_hid_service_handle) {
       s_hid_service_started = (param->start.status == ESP_GATT_OK);
       ESP_LOGI(TAG, "HID service started=%d", s_hid_service_started ? 1 : 0);
+    } else if (param->start.service_handle == s_batt_service_handle) {
+      ESP_LOGI(TAG, "Battery service started=%d", (param->start.status == ESP_GATT_OK) ? 1 : 0);
     } else if (param->start.service_handle == s_dis_service_handle) {
       ESP_LOGI(TAG, "DIS service started=%d",
                (param->start.status == ESP_GATT_OK) ? 1 : 0);
@@ -8148,12 +8118,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
     s_tx_count = s_tx_ok = s_tx_fail = 0;
     s_first_ffea_dump_done = false;
     s_hid_cccd = 0x0000;
-    s_hid_vendor_cccd = 0x0000;
     s_hid_tx_count = s_hid_tx_ok = s_hid_tx_fail = 0;
-    s_hid_vendor_tx_count = s_hid_vendor_tx_ok = s_hid_vendor_tx_fail = 0;
     s_last_hid_tx_tick = 0;
-    s_last_hid_vendor_tx_tick = 0;
-    s_hid_vendor_burst_left = 0;
 
     // Force encryption (required for notification enable)
     // This starts the auth process leading to AUTH_CMPL_EVT
@@ -8182,10 +8148,6 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
     s_last_ble_activity_tick = 0;
     s_client_started = false;
     s_hid_cccd = 0x0000;
-    s_hid_vendor_cccd = 0x0000;
-    s_hid_vendor_tx_count = s_hid_vendor_tx_ok = s_hid_vendor_tx_fail = 0;
-    s_last_hid_vendor_tx_tick = 0;
-    s_hid_vendor_burst_left = 0;
     s_feature_active = false;
     s_feature_active_tick = 0;
     s_rssi_value = -128;      // RSSI 값 초기화
@@ -8271,72 +8233,36 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
       ESP_LOGI(TAG, "READ_EVT HID Report(IN) handle=%u", (unsigned)h);
       send_read_rsp(gatts_if, param, s_hid_in_report, sizeof(s_hid_in_report));
     } else if (h == s_hid_report_in_cccd_handle) {
-      uint8_t v[2] = {(uint8_t)(s_hid_cccd & 0xFF),
-                      (uint8_t)((s_hid_cccd >> 8) & 0xFF)};
-      ESP_LOGI(TAG,
-               "READ_EVT HID CCCD(IN) "
-               "handle=%u val=0x%04x",
-               (unsigned)h, (unsigned)s_hid_cccd);
+      uint8_t v[2] = {(uint8_t)(s_hid_cccd & 0xFF), (uint8_t)((s_hid_cccd >> 8) & 0xFF)};
       send_read_rsp(gatts_if, param, v, sizeof(v));
     } else if (h == s_hid_report_in_ref_handle) {
-      static const uint8_t ref[2] = {0x01, 0x01};
-      ESP_LOGI(TAG,
-               "READ_EVT HID ReportRef(IN) "
-               "handle=%u",
-               (unsigned)h);
-      send_read_rsp(gatts_if, param, ref, sizeof(ref));
-    } else if (h == s_hid_report_vendor_in_handle) {
-      ESP_LOGI(TAG,
-               "READ_EVT HID Report(VENDOR "
-               "IN) handle=%u",
-               (unsigned)h);
-      send_read_rsp(gatts_if, param, s_hid_vendor_in_report,
-                    sizeof(s_hid_vendor_in_report));
-    } else if (h == s_hid_report_vendor_in_cccd_handle) {
-      uint8_t v[2] = {(uint8_t)(s_hid_vendor_cccd & 0xFF),
-                      (uint8_t)((s_hid_vendor_cccd >> 8) & 0xFF)};
-      ESP_LOGI(TAG,
-               "READ_EVT HID CCCD(VENDOR IN) "
-               "handle=%u val=0x%04x",
-               (unsigned)h, (unsigned)s_hid_vendor_cccd);
-      send_read_rsp(gatts_if, param, v, sizeof(v));
-    } else if (h == s_hid_report_vendor_in_ref_handle) {
-      // Report Reference must match the
-      // Report ID declared in the Report Map
-      // (0x19) + Input(1)
-      static const uint8_t ref[2] = {0x19, 0x01};
-      ESP_LOGI(TAG,
-               "READ_EVT HID ReportRef(VENDOR IN) "
-               "handle=%u ref=[0x%02X,0x%02X]",
-               (unsigned)h, ref[0], ref[1]);
+      static const uint8_t ref[2] = {0x02, 0x01}; // ID 2, Type Input
       send_read_rsp(gatts_if, param, ref, sizeof(ref));
     } else if (h == s_hid_report_out_handle) {
-      uint8_t out_report[2] = {0x01, s_hid_out_report};
-      ESP_LOGI(TAG,
-               "READ_EVT HID Report(OUT) "
-               "handle=%u val=%u",
-               (unsigned)h, (unsigned)s_hid_out_report);
-      send_read_rsp(gatts_if, param, out_report, sizeof(out_report));
+      static uint8_t zero[8] = {0};
+      send_read_rsp(gatts_if, param, zero, 8);
     } else if (h == s_hid_report_out_ref_handle) {
-      static const uint8_t ref[2] = {0x01, 0x02};
-      ESP_LOGI(TAG,
-               "READ_EVT HID ReportRef(OUT) "
-               "handle=%u",
-               (unsigned)h);
+      static const uint8_t ref[2] = {0x01, 0x02}; // ID 1, Type Output
       send_read_rsp(gatts_if, param, ref, sizeof(ref));
+    } else if (h == s_hid_report_feat_handle) {
+      static uint8_t zero[8] = {0};
+      send_read_rsp(gatts_if, param, zero, 8);
+    } else if (h == s_hid_report_feat_ref_handle) {
+      static const uint8_t ref[2] = {0x03, 0x03}; // ID 3, Type Feature
+      send_read_rsp(gatts_if, param, ref, sizeof(ref));
+    } else if (h == s_batt_level_handle) {
+      ESP_LOGI(TAG, "READ_EVT Battery Level: %d%%", s_batt_level);
+      send_read_rsp(gatts_if, param, &s_batt_level, 1);
+    } else if (h == s_batt_cccd_handle) {
+      uint8_t v[2] = {0, 0}; // s_batt_cccd logic placeholder
+      send_read_rsp(gatts_if, param, v, 2);
     } else if (h == s_dis_manuf_handle) {
-      static const uint8_t manuf[] = "MOVISION";
-      ESP_LOGI(TAG,
-               "READ_EVT DIS "
-               "ManufacturerName handle=%u (MOVISION)",
-               (unsigned)h);
+      static const uint8_t manuf[] = "GOODWILL";
+      ESP_LOGI(TAG, "READ_EVT DIS ManufacturerName handle=%u (GOODWILL)", (unsigned)h);
       send_read_rsp(gatts_if, param, manuf, sizeof(manuf) - 1);
     } else if (h == s_dis_model_handle) {
-      static const uint8_t model[] = "HUD1";
-      ESP_LOGI(TAG,
-               "READ_EVT DIS ModelNumber "
-               "handle=%u",
-               (unsigned)h);
+      static const uint8_t model[] = "MOVISION HUD1";
+      ESP_LOGI(TAG, "READ_EVT DIS ModelNumber handle=%u (MOVISION HUD1)", (unsigned)h);
       send_read_rsp(gatts_if, param, model, sizeof(model) - 1);
     } else if (h == s_dis_serial_handle) {
       ESP_LOGI(TAG,
@@ -8397,35 +8323,22 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
     break;
   }
   case ESP_GATTS_WRITE_EVT:
-    if (event == ESP_GATTS_WRITE_EVT) {
-      ESP_LOGI("BLE_DIAG", "GATT Write Event: handle=%u, len=%u", 
-               (unsigned)param->write.handle, (unsigned)param->write.len);
-    }
     note_ble_activity();
 
-    // FFF2 채널에서 들어오는 데이터만
-    // 터미널에 출력
     if (param->write.handle == s_write_handle) {
-      // 고빈도 로그 제거하여 SD 카드 부하
-      // 방지 ESP_LOGI(TAG, "[FFF2 채널]
-      // 앱->ESP32 데이터 (%u bytes):",
-      // (unsigned)param->write.len);
-      // dump_bytes_hex("  ",
-      // param->write.value, param->write.len,
-      // 64);
-    }
-    if (!s_client_started) {
-      s_client_started = true;
-      ESP_LOGI(TAG,
-               "client_started: first WRITE "
-               "(handle=%u)",
-               (unsigned)param->write.handle);
+      // FFF2 Channel logging
+      ESP_LOGI(TAG, "[FFF2 RX] len=%u", (unsigned)param->write.len);
+    } else if (param->write.handle == s_cccd_handle) {
+      ESP_LOGI(TAG, "[FFF1 CCCD] write len=%u val=%02X%02X", (unsigned)param->write.len, param->write.value[0], (param->write.len > 1 ? param->write.value[1] : 0));
+    } else {
+      ESP_LOGI(TAG, "WRITE_EVT handle=%u len=%u", (unsigned)param->write.handle, (unsigned)param->write.len);
     }
 
-    // Heuristic: many apps send a write when
-    // "기능 실행" is pressed. Use it as a
-    // trigger to start/refresh our
-    // feature-active window.
+    if (!s_client_started) {
+      s_client_started = true;
+      ESP_LOGI(TAG, "client_started: first WRITE (handle=%u)", (unsigned)param->write.handle);
+    }
+
     if (param->write.handle == s_write_handle ||
         param->write.handle == s_hid_ctrlpt_handle ||
         param->write.handle == s_hid_report_out_handle ||
@@ -8433,147 +8346,98 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
       if (!s_feature_active) {
         s_feature_active = true;
         s_feature_active_tick = xTaskGetTickCount();
-        ESP_LOGI(TAG,
-                 "feature_active=1 (trigger "
-                 "handle=%u)",
-                 (unsigned)param->write.handle);
+        ESP_LOGI(TAG, "feature_active=1 (trigger handle=%u)", (unsigned)param->write.handle);
       } else {
         s_feature_active_tick = xTaskGetTickCount();
       }
     }
 
-    if (param->write.handle == s_hid_report_in_cccd_handle &&
-        param->write.len >= 2) {
-      s_hid_cccd =
-          (uint16_t)(param->write.value[0] | (param->write.value[1] << 8));
+    if (param->write.handle == s_hid_report_in_cccd_handle && param->write.len >= 2) {
+      s_hid_cccd = (uint16_t)(param->write.value[0] | (param->write.value[1] << 8));
       ESP_LOGI(TAG, "HID_CCCD=0x%04x", (unsigned)s_hid_cccd);
     }
-    if (param->write.handle == s_hid_report_vendor_in_cccd_handle &&
-        param->write.len >= 2) {
-      s_hid_vendor_cccd =
-          (uint16_t)(param->write.value[0] | (param->write.value[1] << 8));
-      ESP_LOGI(TAG, "HID_VENDOR_CCCD=0x%04x", (unsigned)s_hid_vendor_cccd);
-      // Start vendor streaming immediately
-      // when subscribed. Some app builds
-      // never open HUD/FFF1, and instead rely
-      // on this HID vendor channel.
-      if ((s_hid_vendor_cccd & 0x0001) != 0) {
-        s_hid_vendor_burst_left = 20;  // 20 * 50ms = ~1s burst
-        s_last_hid_vendor_tx_tick = 0; // send immediately
-        ESP_LOGI(TAG,
-                 "HID_VENDOR burst start (on "
-                 "CCCD enable): %u packets",
-                 (unsigned)s_hid_vendor_burst_left);
-      } else {
-        s_hid_vendor_burst_left = 0;
-      }
-    }
+    
     if (param->write.handle == s_hid_proto_handle && param->write.len >= 1) {
       s_hid_protocol_mode = param->write.value[0];
-      // Protocol mode 설정은 앱 메시지로
-      // 출력하지 않음 (내부 설정)
     }
-    if (param->write.handle == s_hid_report_out_handle &&
-        param->write.len >= 2) {
-      // [ReportID=1][LEDs]
+
+    if (param->write.handle == s_hid_report_out_handle && param->write.len >= 2) {
       s_hid_out_report = param->write.value[1];
-      // Some app builds may tunnel vendor
-      // commands via HID output.
     }
+
     if (param->write.handle == s_cccd_handle && param->write.len >= 2) {
       s_cccd = (uint16_t)(param->write.value[0] | (param->write.value[1] << 8));
-      ESP_LOGI(TAG, "CCCD=0x%04x", s_cccd);
+      ESP_LOGI(TAG, "FFEA CCCD=0x%04x", s_cccd);
       s_waiting_cccd_logged = false;
       bool was_enabled = s_hud_notify_enabled;
       s_hud_notify_enabled = ((s_cccd & 0x0001) != 0);
 
-      // Send initial time sync request immediately when notifications are enabled
-      // [User Request] 시간이 이미 설정되어 있다면 요청 생략
-      if (s_hud_notify_enabled && !was_enabled && !s_time_sync_requested && !s_time_initialized) {
-          static const uint8_t time_req[] = {0x19, 0x4E, 0x0D, 0x01, 0x00, 0x2F}; 
-          hud_send_notify_bytes(time_req, sizeof(time_req));
-          s_time_sync_requested = true;
-          ESP_LOGI(TAG, "Sent initial time sync request immediately on CCCD enable");
+      // Trigger automatic handshake: Send time sync request when NOTIFY is enabled
+      if (s_hud_notify_enabled && !was_enabled) {
+          ESP_LOGI(TAG, "Notifications enabled on FFF1. Triggering handshake...");
+          if (!s_time_initialized) {
+              static const uint8_t time_req[] = {0x19, 0x4E, 0x0D, 0x01, 0x00, 0x2F}; 
+              hud_send_notify_bytes(time_req, sizeof(time_req));
+              s_time_sync_requested = true;
+              ESP_LOGI(TAG, ">>> Sent Time Sync Request (Automatic Handshake)");
+          }
+          // Optionally send a version request too if needed
       }
     }
-      if (param->write.handle == s_write_handle) {
-        // Always log raw fragments to terminal as requested (may slow down data transfer)
-        // ESP_LOGI(TAG, "[RX Fragment] App -> HUD (%u bytes)", (unsigned)param->write.len);
-        // ESP_LOG_BUFFER_HEX(TAG, param->write.value, param->write.len);
 
-        // Packet Reassembly Logic
-        for (uint16_t i = 0; i < param->write.len; i++) {
-            uint8_t byte = param->write.value[i];
-            
-            // New packet starts with 0x19 (only if idle OR at very start of a fragment)
-            // This prevents resetting when 0x19 appears inside binary data
-            if (byte == 0x19 && s_rx_expected_len == 0) {
-                s_rx_pos = 0;
-                s_rx_expected_len = 0;
+    if (param->write.handle == s_write_handle) {
+      for (uint16_t i = 0; i < param->write.len; i++) {
+        uint8_t byte = param->write.value[i];
+        if (byte == 0x19 && s_rx_expected_len == 0) {
+          s_rx_pos = 0;
+          s_rx_expected_len = 0;
+        }
+        if (s_rx_pos < sizeof(s_rx_buffer)) {
+          s_rx_buffer[s_rx_pos++] = byte;
+          if (s_rx_expected_len == 0) {
+            if (s_rx_pos == 4 && s_rx_buffer[0] == 0x19) {
+              uint8_t id = s_rx_buffer[1];
+              uint8_t cmd = s_rx_buffer[2];
+              if (id == 0x4D || (id == 0x50 && cmd == 0x06)) {
+                s_rx_expected_len = s_rx_buffer[3] + 5;
+              }
+            } else if (s_rx_pos == 5 && s_rx_buffer[0] == 0x19) {
+              uint8_t id = s_rx_buffer[1];
+              uint8_t cmd = s_rx_buffer[2];
+              if (id == 0x4F || (id == 0x50 && cmd != 0x06)) {
+                uint16_t dlen = (s_rx_buffer[3] << 8) | s_rx_buffer[4];
+                s_rx_expected_len = dlen + 6;
+              }
             }
-            
-            if (s_rx_pos < sizeof(s_rx_buffer)) {
-                s_rx_buffer[s_rx_pos++] = byte;
-                
-                // Try to determine expected length
-                if (s_rx_expected_len == 0) {
-                    if (s_rx_pos == 4 && s_rx_buffer[0] == 0x19) {
-                        uint8_t id = s_rx_buffer[1];
-                        uint8_t cmd = s_rx_buffer[2];
-                        // 0x4D 또는 0x50 06(앨범 자동 설정)은 1바이트 길이 형식 (19 ID CMD LEN:1 DATA... 2F)
-                        if (id == 0x4D || (id == 0x50 && cmd == 0x06)) {
-                            s_rx_expected_len = s_rx_buffer[3] + 5;
-                        }
-                    } else if (s_rx_pos == 5 && s_rx_buffer[0] == 0x19) {
-                        uint8_t id = s_rx_buffer[1];
-                        uint8_t cmd = s_rx_buffer[2];
-                        // 0x4F 또는 나머지 0x50(앨범 06 제외)은 2바이트 길이 형식 (19 ID CMD LEN:2 DATA... 2F)
-                        if (id == 0x4F || (id == 0x50 && cmd != 0x06)) {
-                            uint16_t dlen = (s_rx_buffer[3] << 8) | s_rx_buffer[4];
-                            s_rx_expected_len = dlen + 6;
-                        }
-                    }
-                }
-                
-                // If we have a full packet, process it
-                if (s_rx_expected_len > 0 && s_rx_pos == s_rx_expected_len) {
-                    if (s_rx_buffer[s_rx_pos - 1] == 0x2F) {
-                        // 펌웨어 데이터(0x4F 03)나 이미지 데이터(0x50) 등의 벌크 데이터는 SD 카드 로그에서 제외 (속도 향상)
-                        uint8_t mid = s_rx_buffer[1];
-                        uint8_t mcmd = s_rx_buffer[2];
-                        bool is_bulk = (mid == 0x4F && mcmd == 0x03) || (mid == 0x50 && mcmd != 0x02);
-                        
-                        if (!is_bulk) {
-                            log_ble_packet(s_rx_buffer, s_rx_pos, "RX");
-                        }
-                        process_app_command(s_rx_buffer, s_rx_pos);
-                    } else {
-                        ESP_LOGW(TAG, "Full packet received but tail is not 0x2F (0x%02X)", s_rx_buffer[s_rx_pos-1]);
-                    }
-                    s_rx_pos = 0;
-                    s_rx_expected_len = 0; // State back to IDLE
-                }
-            } else {
-                // Buffer overflow
-                ESP_LOGE(TAG, "RX buffer overflow!");
-                s_rx_pos = 0;
-                s_rx_expected_len = 0;
+          }
+          if (s_rx_expected_len > 0 && s_rx_pos == s_rx_expected_len) {
+            if (s_rx_buffer[s_rx_pos - 1] == 0x2F) {
+              uint8_t mid = s_rx_buffer[1];
+              uint8_t mcmd = s_rx_buffer[2];
+              bool is_bulk = (mid == 0x4F && mcmd == 0x03) || (mid == 0x50 && mcmd != 0x02);
+              if (!is_bulk) {
+                log_ble_packet(s_rx_buffer, s_rx_pos, "RX");
+              }
+              process_app_command(s_rx_buffer, s_rx_pos);
             }
+            s_rx_pos = 0;
+            s_rx_expected_len = 0;
+          }
+        } else {
+          s_rx_pos = 0;
+          s_rx_expected_len = 0;
         }
       }
+    }
+
     if (param->write.handle != s_cccd_handle &&
         param->write.handle != s_write_handle &&
+        param->write.handle != s_fff2_cccd_handle &&
         param->write.handle != s_hid_report_in_cccd_handle &&
-        param->write.handle != s_hid_report_vendor_in_cccd_handle &&
         param->write.handle != s_hid_proto_handle &&
         param->write.handle != s_hid_report_out_handle &&
         param->write.handle != s_hid_ctrlpt_handle) {
-      ESP_LOGW(TAG,
-               "WRITE_EVT handle=%u len=%u "
-               "need_rsp=%u (unhandled)",
-               (unsigned)param->write.handle, (unsigned)param->write.len,
-               (unsigned)param->write.need_rsp);
-      // Unhandled write already dumped above
+      ESP_LOGW(TAG, "WRITE_EVT handle=%u len=%u (unhandled)", (unsigned)param->write.handle, (unsigned)param->write.len);
     }
     send_write_rsp_if_needed(gatts_if, param);
     break;
@@ -8783,20 +8647,20 @@ static esp_err_t init_ble(void) {
   s_cccd_attr.attr_len = 2;
   s_cccd_attr.attr_value = s_cccd_init;
 
-  esp_ble_auth_req_t auth_req = ESP_LE_AUTH_BOND;
-  esp_ble_io_cap_t iocap = ESP_IO_CAP_NONE;
+  esp_ble_auth_req_t auth_req = ESP_LE_AUTH_REQ_SC_BOND; 
+  esp_ble_io_cap_t iocap = ESP_IO_CAP_NONE; 
   uint8_t key_size = 16;
-  uint8_t init_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
-  uint8_t rsp_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
-  esp_ble_gap_set_security_param(ESP_BLE_SM_AUTHEN_REQ_MODE, &auth_req,
-                                 sizeof(auth_req));
-  esp_ble_gap_set_security_param(ESP_BLE_SM_IOCAP_MODE, &iocap, sizeof(iocap));
-  esp_ble_gap_set_security_param(ESP_BLE_SM_MAX_KEY_SIZE, &key_size,
-                                 sizeof(key_size));
-  esp_ble_gap_set_security_param(ESP_BLE_SM_SET_INIT_KEY, &init_key,
-                                 sizeof(init_key));
-  esp_ble_gap_set_security_param(ESP_BLE_SM_SET_RSP_KEY, &rsp_key,
-                                 sizeof(rsp_key));
+  uint8_t init_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK | ESP_BLE_CSR_KEY_MASK;
+  uint8_t rsp_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK | ESP_BLE_CSR_KEY_MASK;
+  
+  esp_ble_gap_set_security_param(ESP_BLE_SM_AUTHEN_REQ_MODE, &auth_req, sizeof(uint8_t));
+  esp_ble_gap_set_security_param(ESP_BLE_SM_IOCAP_MODE, &iocap, sizeof(uint8_t));
+  esp_ble_gap_set_security_param(ESP_BLE_SM_MAX_KEY_SIZE, &key_size, sizeof(uint8_t));
+  esp_ble_gap_set_security_param(ESP_BLE_SM_SET_INIT_KEY, &init_key, sizeof(uint8_t));
+  esp_ble_gap_set_security_param(ESP_BLE_SM_SET_RSP_KEY, &rsp_key, sizeof(uint8_t));
+
+  // Enable local privacy for Android 16 compatibility (IRK exchange)
+  esp_ble_gap_config_local_privacy(true);
 
   ESP_ERROR_CHECK(esp_ble_gap_register_callback(gap_event_handler));
   ESP_ERROR_CHECK(esp_ble_gatts_register_callback(gatts_event_handler));
