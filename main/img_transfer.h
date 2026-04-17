@@ -23,6 +23,11 @@ void img_transfer_init(void);
  */
 void process_img_command(const uint8_t *data, size_t len);
 
+/**
+ * @brief Check for transfer deadlocks and send watchdog ACKs
+ */
+void img_transfer_check_timeout(void);
+
 #ifdef __cplusplus
 }
 #endif

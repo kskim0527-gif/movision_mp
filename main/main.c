@@ -716,8 +716,7 @@ static char s_image_files[MAX_IMAGE_FILES][280] EXT_RAM_BSS_ATTR; // Image paths
 int s_image_count = 0;
 int s_current_image_index = 0;
 bool s_img_transfer_finished_flag = false; // 이미지 전송 완료 비동기 처리용
-volatile uint32_t s_restart_pending_tick = 0;       // 0: idle, >0: tick when 0x04 sent
-bool s_restart_msg_shown = false;
+bool s_img_transfer_active = false;        // 이미지 전송 중 여부
 static uint32_t s_album_auto_timer = 0;
 
 static lv_obj_t *s_intro_image = NULL; // 부팅 인트로 이미지 객체
@@ -6182,7 +6181,8 @@ static void update_display_mode_ui(display_mode_t mode) {
     if (s_boot_date_label) lv_obj_add_flag(s_boot_date_label, LV_OBJ_FLAG_HIDDEN);
 
     // 10초 타임아웃이 지났고 앱 연결 전이라면 안내 라벨 표시
-    if (s_boot_reg_shown && !s_connected && !s_hud_seen_first_cmd) {
+    // [Fix] iOS 자동 재연결 대응: s_connected 대신 실제 앱 명령 수신 여부로만 판단
+    if (s_boot_reg_shown && !s_hud_seen_first_cmd) {
       if (s_boot_reg_title_label) lv_obj_clear_flag(s_boot_reg_title_label, LV_OBJ_FLAG_HIDDEN);
       if (s_boot_reg_val_label) lv_obj_clear_flag(s_boot_reg_val_label, LV_OBJ_FLAG_HIDDEN);
       if (s_boot_install_title_label) lv_obj_clear_flag(s_boot_install_title_label, LV_OBJ_FLAG_HIDDEN);
@@ -7167,7 +7167,8 @@ static void lvgl_handler_task(void *arg) {
 
   while (1) {
     // 0. [Fix] 10초 타임아웃 처리: 연결되지 않았을 때 설치 안내 UI 표시 (강제 모드 전환은 하지 않음)
-    if (!boot_timeout_triggered && !s_connected && !s_hud_seen_first_cmd) {
+    // [Fix] iOS 자동 재연결 대응: BLE 연결 유무와 관계없이 앱 명령 미수신 시 타임아웃 처리
+    if (!boot_timeout_triggered && !s_hud_seen_first_cmd) {
       if ((xTaskGetTickCount() - boot_start_tick) > pdMS_TO_TICKS(10000)) {
         ESP_LOGI(TAG, "BOOT Timeout: No connection after 10s. Showing registration info...");
         // s_hud_seen_first_cmd = true; // [제거] 더 이상 강제로 루프를 깨지 않음
@@ -8770,7 +8771,8 @@ static void clock_timer_cb(lv_timer_t *timer) {
     return;
 
   // Handle Boot Registration display logic
-  if (s_current_mode == DISPLAY_MODE_BOOT && !s_connected && !s_hud_seen_first_cmd) {
+  // [Fix] iOS 자동 재연결 대응: 앱 명령 수신 전까지 설치 안내 타이머 유지
+  if (s_current_mode == DISPLAY_MODE_BOOT && !s_hud_seen_first_cmd) {
     if (!s_boot_reg_shown) {
       s_boot_reg_timer_sec++;
       if (s_boot_reg_timer_sec >= 10) {
@@ -10243,7 +10245,9 @@ static void delayed_reboot_task(void *pvParameter) {
       // note_ble_activity()가 업데이트하는 마지막 수신 시간을 기준으로 2초(2000ms) 경과 확인
       uint32_t elapsed_ms = (current_tick - s_last_ble_activity_tick) * portTICK_PERIOD_MS;
       
-      if (elapsed_ms >= 2000) {
+      // 이미지 전송 중에는 2초 비활성 체크를 skip하지만, 타이머 값은 여기서 보지 않고 
+      // note_ble_activity()가 호출되는 한 안전함.
+      if (!s_img_transfer_active && elapsed_ms >= 2000) {
           ESP_LOGW(TAG, "No activity for 2.0s. Showing restart message...");
           show_restart_msg();
           
@@ -10263,7 +10267,7 @@ void start_reboot_task(void) {
   static bool reboot_started = false;
   if (!reboot_started) {
     reboot_started = true;
-    xTaskCreate(delayed_reboot_task, "reboot_task", 4096, NULL, 5, NULL);
+    xTaskCreate(delayed_reboot_task, "reboot_task", 4096, NULL, 1, NULL);
   }
 }
 
@@ -10615,9 +10619,10 @@ void app_main(void) {
   LVGL_UNLOCK();
 
   // 1.5. 앱 연결 대기 루프 (최대 10초 타임아웃은 lvgl_handler_task에서 처리됨)
-  if (!s_connected && !s_hud_seen_first_cmd) {
-    ESP_LOGI(TAG, "Intro playback finished. Waiting for App connection before moving from BOOT mode...");
-    while (!s_connected && !s_hud_seen_first_cmd) {
+  // [Fix] iOS 자동 재연결 대응: BLE 연결이 아닌 실제 앱 명령(0x4D) 수신까지 대기
+  if (!s_hud_seen_first_cmd) {
+    ESP_LOGI(TAG, "Intro playback finished. Waiting for App command before moving from BOOT mode...");
+    while (!s_hud_seen_first_cmd) {
       vTaskDelay(pdMS_TO_TICKS(100));
     }
   }
@@ -10752,7 +10757,7 @@ void app_main(void) {
     }
 
     // 1. 앨범 자동 갱신 (10초)
-    if (s_album_option == 0 && s_current_mode == DISPLAY_MODE_ALBUM) {
+    if (s_album_option == 0 && s_current_mode == DISPLAY_MODE_ALBUM && !s_img_transfer_active) {
       if (++s_album_auto_timer >= 10) {
         // s_album_auto_timer = 0; // load_image_from_sd internally resets this
         load_image_from_sd(1); // Next
@@ -10775,7 +10780,8 @@ void app_main(void) {
     }
 
     update_auto_brightness(false);
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    img_transfer_check_timeout(); // 이미지 전송 데드락 체크
+    vTaskDelay(pdMS_TO_TICKS(100)); // 0.1초 반응성
   }
 }
 

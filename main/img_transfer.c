@@ -48,6 +48,7 @@ typedef struct {
   FILE *file;
   char file_path[128];
   uint8_t last_percent;
+  uint32_t last_block_time; // Last block received time (ms)
 } img_transfer_ctx_t;
 
 static img_transfer_ctx_t s_ctx;
@@ -60,12 +61,14 @@ extern void log_ble_packet(const uint8_t *data, size_t len,
 extern void update_img_transfer_ui(int percent, bool finished);
 extern void load_image_from_sd(int direction); // Force load image
 extern void update_album_option_from_ble(uint8_t mode);
+extern void note_ble_activity(void);
 
 // State variables from main.c
 extern uint8_t s_album_option;
 extern int s_current_image_index;
 extern int s_image_count;
 extern bool s_img_transfer_finished_flag;
+extern bool s_img_transfer_active;
 extern void start_reboot_task(void);
 
 void img_transfer_init(void) {
@@ -165,6 +168,7 @@ static void handle_img_info(const uint8_t *data, size_t len) {
 
   if (s_ctx.file) {
     s_ctx.state = IMG_STATE_RECEIVING;
+    s_img_transfer_active = true; // 전송 중 상태 표시
     ESP_LOGI(TAG, "Starting download: %s, size: %lu", s_ctx.file_path,
              (unsigned long)s_ctx.total_size);
     update_img_transfer_ui(0, false);
@@ -172,6 +176,7 @@ static void handle_img_info(const uint8_t *data, size_t len) {
     // INFO 수신 응답 전송 (ID=0x50, CMD=0x11)
     send_response(CMD_IMG_INFO_RES, 0, 0);
     ESP_LOGI(TAG, "Sent INFO response (0x11)");
+    s_ctx.last_block_time = (uint32_t)(esp_timer_get_time() / 1000);
   } else {
     s_ctx.state = IMG_STATE_ERROR;
     ESP_LOGE(TAG, "Fail to open: %s (errno=%d)", s_ctx.file_path, errno);
@@ -182,10 +187,13 @@ static void handle_img_data(const uint8_t *data, size_t len) {
   if (len < 7)
     return;
   uint16_t seq = (data[5] << 8) | data[6];
+  s_ctx.last_block_time = (uint32_t)(esp_timer_get_time() / 1000);
+
+  // 이미지 블록 수신 시 BLE 활동 갱신 (reboot task의 비활성 타이머 방지)
+  note_ble_activity();
 
   if (s_ctx.state != IMG_STATE_RECEIVING || !s_ctx.file) {
-    // 앱이 INFO 응답 전에 데이터를 먼저 보낼 수 있으므로, 매 블록 무조건 ACK
-    send_response(CMD_IMG_RES_SEQ, seq, 0);
+    // 아직 수신 상태 아님 — ACK 없이 무시
     return;
   }
 
@@ -200,8 +208,10 @@ static void handle_img_data(const uint8_t *data, size_t len) {
     s_ctx.current_size += payload_len;
     s_ctx.last_block_seq = seq;
     
-    // 앱의 안정적인 전송 및 대기 방지를 위해 5번째 블록마다 수신 응답(0x03) 전송
-    if (seq % 5 == 0) {
+    // 5블록마다 시퀀스 번호를 맞추어 ACK 전송 (seq 4, 9, 14, 19 ...)
+    if ((seq + 1) % 5 == 0) {
+      ESP_LOGI(TAG, "Progress: %lu / %lu bytes (block %u)", 
+               (unsigned long)s_ctx.current_size, (unsigned long)s_ctx.total_size, seq);
       send_response(CMD_IMG_RES_SEQ, seq, 0);
     }
 
@@ -248,6 +258,7 @@ static void handle_img_data(const uint8_t *data, size_t len) {
 
       // 상태 초기화
       s_ctx.state = IMG_STATE_IDLE;
+      s_img_transfer_active = false; // 전송 종료
       
       // UI 제거는 메인 루프에서 비동기로 수행하여 BLE 태스크가 빨리 리턴되게 함
       s_img_transfer_finished_flag = true;
@@ -255,10 +266,7 @@ static void handle_img_data(const uint8_t *data, size_t len) {
       // 앱에 완료 통보 (즉시 실행)
       send_response(CMD_IMG_RES_CMP, 0, 0);
 
-      // 독립된 재부팅 전용 태스크 시작 (정확히 2초 보장)
-      start_reboot_task();
-
-      ESP_LOGI(TAG, "Image session ended OK (0x04 sent). Fast reboot pending...");
+      ESP_LOGI(TAG, "Image session ended OK (0x04 sent).");
     }
   } else {
     // Write failed
@@ -313,5 +321,19 @@ void process_img_command(const uint8_t *data, size_t len) {
       }
       send_status_report();
     }
+  }
+}
+
+void img_transfer_check_timeout(void) {
+  if (s_ctx.state != IMG_STATE_RECEIVING || s_ctx.file == NULL)
+    return;
+
+  uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
+  if (now - s_ctx.last_block_time > 500) {
+    // 0.5초간 데이터 무소식 -> 마지막 블록 번호로 다시 ACK 전송
+    ESP_LOGW(TAG, "Transfer stuck at current size %lu / %lu (seq %u). Sending watchdog ACK...", 
+             (unsigned long)s_ctx.current_size, (unsigned long)s_ctx.total_size, s_ctx.last_block_seq);
+    send_response(CMD_IMG_RES_SEQ, s_ctx.last_block_seq, 0);
+    s_ctx.last_block_time = now; // 타이머 리셋
   }
 }
