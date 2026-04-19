@@ -7,6 +7,9 @@ import argparse
 import serial.tools.list_ports
 import esptool
 import esp_idf_nvs_partition_gen.nvs_partition_gen as nvs_gen
+import urllib.request
+import urllib.error
+import time
 
 # ==========================================
 # CONFIGURATION
@@ -28,6 +31,13 @@ BIN_MAP = {
     'movision.bin': '0x20000',
     'storage.bin': '0x3B2000'
 }
+
+# Set to False when using OneDrive/Dropbox Desktop Sync Apps
+CLOUD_SYNC_ENABLED = False 
+# GCS Public/Signed URL for download
+CLOUD_GET_URL  = "https://storage.googleapis.com/your-bucket-name/serial.csv" 
+# Cloud Function or Backend API URL for upload
+CLOUD_PUSH_URL = "https://your-cloud-api-endpoint.com/upload" 
 
 def ensure_csv_exists():
     if not os.path.exists(CSV_FILE):
@@ -68,9 +78,55 @@ def get_next_unused_serial():
 
 def mark_as_used(rows, index):
     rows[index][3] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(CSV_FILE, 'w', newline='', encoding='utf-8-sig') as f:
-        writer = csv.writer(f)
-        writer.writerows(rows)
+    
+    # [Fix] OneDrive/Cloud Desktop Sync apps can lock the file temporarily.
+    # We use a retry logic to prevent "PermissionError".
+    for attempt in range(5):
+        try:
+            with open(CSV_FILE, 'w', newline='', encoding='utf-8-sig') as f:
+                writer = csv.writer(f)
+                writer.writerows(rows)
+            print(f" -> [SUCCESS] Serial registry updated locally.")
+            break
+        except PermissionError:
+            print(f" -> [WAIT] File is locked by sync app. Retrying... ({attempt+1}/5)")
+            time.sleep(1)
+        except Exception as e:
+            print(f" -> [ERROR] Failed to update registry: {e}")
+            break
+
+    # If direct cloud sync is enabled, try uploading.
+    # (Usually skipped if CLOUD_SYNC_ENABLED = False for OneDrive setup)
+    if CLOUD_SYNC_ENABLED:
+        sync_upload_to_cloud()
+
+def sync_download_from_cloud():
+    if not CLOUD_SYNC_ENABLED or not CLOUD_GET_URL: return
+    print(f"\n[CLOUD] Downloading latest serial.csv from {CLOUD_GET_URL}...")
+    try:
+        req = urllib.request.Request(CLOUD_GET_URL)
+        with urllib.request.urlopen(req, timeout=5) as response:
+            with open(CSV_FILE, 'wb') as f:
+                f.write(response.read())
+        print(" -> [SUCCESS] Local serial.csv updated from cloud.")
+    except Exception as e:
+        print(f" -> [WARNING] Download failed: {e}. Proceeding with local file.")
+
+def sync_upload_to_cloud():
+    if not CLOUD_SYNC_ENABLED or not CLOUD_PUSH_URL: return
+    print(f"\n[CLOUD] Uploading updated serial.csv to cloud...")
+    try:
+        with open(CSV_FILE, 'rb') as f:
+            file_data = f.read()
+            req = urllib.request.Request(CLOUD_PUSH_URL, data=file_data, method='PUT')
+            req.add_header('Content-Type', 'text/csv')
+            with urllib.request.urlopen(req, timeout=10) as response:
+                if response.status in [200, 201, 204]:
+                    print(" -> [SUCCESS] Cloud data updated successfully.")
+                else:
+                    print(f" -> [ERROR] Upload failed (Status: {response.status})")
+    except Exception as e:
+        print(f" -> [ERROR] Cloud sync failed: {e}")
 
 def generate_nvs_csv(serial_num, app_reg_num):
     with open(NVS_CSV_FILE, 'w', newline='', encoding='utf-8') as f:
@@ -184,6 +240,8 @@ def main():
     args = parser.parse_args()
 
     ensure_csv_exists()
+    # [NEW] Download the latest SN list before starting
+    sync_download_from_cloud()
 
     print("\n==============================================")
     print("   Movition Factory Standalone Flash Tool     ")

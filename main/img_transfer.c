@@ -2,6 +2,7 @@
 #include "esp_log.h"
 #include "fw_update.h"
 #include "sdkconfig.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <dirent.h>
@@ -117,7 +118,6 @@ static void send_response(uint8_t cmd, uint16_t seq, uint8_t error_code) {
 
   if (len > 0) {
     hud_send_notify_bytes(resp, len);
-    log_ble_packet(resp, len, "TX");
   }
 }
 
@@ -133,7 +133,6 @@ static void send_status_report(void) {
   resp[6] = PROTOCOL_TAIL;
 
   hud_send_notify_bytes(resp, sizeof(resp));
-  log_ble_packet(resp, sizeof(resp), "TX");
 }
 
 static void handle_img_info(const uint8_t *data, size_t len) {
@@ -208,10 +207,12 @@ static void handle_img_data(const uint8_t *data, size_t len) {
     s_ctx.current_size += payload_len;
     s_ctx.last_block_seq = seq;
     
-    // 5블록마다 시퀀스 번호를 맞추어 ACK 전송 (seq 4, 9, 14, 19 ...)
-    if ((seq + 1) % 5 == 0) {
-      ESP_LOGI(TAG, "Progress: %lu / %lu bytes (block %u)", 
-               (unsigned long)s_ctx.current_size, (unsigned long)s_ctx.total_size, seq);
+    // 5블록마다 또는 전송 완료 직전(마지막 5블록 정도)에는 매번 ACK 전송
+    bool near_end = (s_ctx.total_size - s_ctx.current_size < 2500);
+    if (((seq + 1) % 5 == 0) || near_end) {
+      ESP_LOGI(TAG, "Progress: %lu / %lu bytes (block %u)%s", 
+               (unsigned long)s_ctx.current_size, (unsigned long)s_ctx.total_size, seq,
+               near_end ? " [Near End]" : "");
       send_response(CMD_IMG_RES_SEQ, seq, 0);
     }
 
@@ -252,9 +253,21 @@ static void handle_img_data(const uint8_t *data, size_t len) {
         
         char final_path[128];
         snprintf(final_path, sizeof(final_path), "%s/album_%d%s", s_img_base_dir, s_ctx.image_seq, ext);
-        rename(s_ctx.file_path, final_path);
-        ESP_LOGI(TAG, "File saved with proper extension: %s", final_path);
-      }
+        
+        // 기존 파일이 열려있어서 rename이 실패하는 것을 방지하기 위해 먼저 삭제 시도
+        char old_path[128];
+        const char *extensions[] = {".png", ".jpg", ".jpeg", ".gif", ".bmp"};
+        for (int i = 0; i < 5; i++) {
+            snprintf(old_path, sizeof(old_path), "%s/album_%d%s", s_img_base_dir, s_ctx.image_seq, extensions[i]);
+            unlink(old_path);
+        }
+
+        if (rename(s_ctx.file_path, final_path) == 0) {
+            ESP_LOGI(TAG, "File saved with proper extension: %s", final_path);
+        } else {
+            ESP_LOGE(TAG, "Failed to rename %s to %s (errno=%d)", s_ctx.file_path, final_path, errno);
+        }
+    }
 
       // 상태 초기화
       s_ctx.state = IMG_STATE_IDLE;
@@ -266,7 +279,10 @@ static void handle_img_data(const uint8_t *data, size_t len) {
       // 앱에 완료 통보 (즉시 실행)
       send_response(CMD_IMG_RES_CMP, 0, 0);
 
-      ESP_LOGI(TAG, "Image session ended OK (0x04 sent).");
+      // 독립된 재부팅 전용 태스크 시작
+      start_reboot_task();
+
+      ESP_LOGI(TAG, "Image session ended OK (0x04 sent). Reboot pending...");
     }
   } else {
     // Write failed
@@ -329,7 +345,7 @@ void img_transfer_check_timeout(void) {
     return;
 
   uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
-  if (now - s_ctx.last_block_time > 500) {
+  if (now - s_ctx.last_block_time > 1000) {
     // 0.5초간 데이터 무소식 -> 마지막 블록 번호로 다시 ACK 전송
     ESP_LOGW(TAG, "Transfer stuck at current size %lu / %lu (seq %u). Sending watchdog ACK...", 
              (unsigned long)s_ctx.current_size, (unsigned long)s_ctx.total_size, s_ctx.last_block_seq);

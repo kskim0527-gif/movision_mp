@@ -19,13 +19,15 @@ static const char *TAG = "FW_UPDATE";
 #define CMD_FW_DATA     0x03 // Update Data (App -> HUD)
 #define CMD_FW_DATA_ACK 0x04 // Update Data ACK (HUD -> App)
 #define CMD_FW_COMPLETE 0x05 // Update Complete (HUD -> App)
+#define CMD_FW_CANCEL   0x06 // Update Cancel (App -> HUD)
 
 typedef enum {
     FW_STATE_IDLE = 0,
     FW_STATE_PREPARING,
     FW_STATE_UPDATING,
     FW_STATE_FINISHED,
-    FW_STATE_ERROR
+    FW_STATE_ERROR,
+    FW_STATE_CANCELLED
 } fw_state_t;
 
 static struct {
@@ -36,7 +38,21 @@ static struct {
     esp_ota_handle_t update_handle;
     const esp_partition_t *update_partition;
     uint8_t last_percent;
+    uint16_t expected_crc;
+    uint16_t current_crc;
 } s_fw_ctx;
+
+// Standard CRC16-CCITT (0x1021)
+static uint16_t crc16_ccitt(const uint8_t *data, size_t len, uint16_t crc) {
+    while (len--) {
+        crc ^= (uint16_t)*data++ << 8;
+        for (int i = 0; i < 8; i++) {
+            if (crc & 0x8000) crc = (crc << 1) ^ 0x1021;
+            else crc <<= 1;
+        }
+    }
+    return crc;
+}
 
 // Extern functions defined in main.c
 extern void hud_send_notify_bytes(const uint8_t *data, uint16_t len);
@@ -75,9 +91,6 @@ static void send_fw_response(uint8_t cmd, uint16_t seq, uint8_t error_code) {
     
     if (len > 0) {
         hud_send_notify_bytes(resp, (uint16_t)len);
-        if (cmd == CMD_FW_REQ || cmd == CMD_FW_COMPLETE) {
-            log_ble_packet(resp, (size_t)len, "TX");
-        }
     }
 }
 
@@ -120,21 +133,24 @@ static void fw_start_task(void *pvParameters) {
 // 펌웨어 업데이트 마무리 태스크 (해시 검사 및 재부팅)
 static void fw_finish_task(void *pvParameters) {
     ESP_LOGI(TAG, "FW Finalizing Task Starting...");
-    vTaskDelay(pdMS_TO_TICKS(1000)); // 마지막 ACK 전송 시간을 벌어줌
+    vTaskDelay(pdMS_TO_TICKS(1000)); 
+
+    // [User Request] Skip explicit CRC check, just log for info
+    ESP_LOGI(TAG, "CRC Check Skipped (Exp: 0x%04X, Calc: 0x%04X). Proceeding with size match.", 
+             s_fw_ctx.expected_crc, s_fw_ctx.current_crc);
 
     esp_err_t err = esp_ota_end(s_fw_ctx.update_handle);
     if (err == ESP_OK) {
         err = esp_ota_set_boot_partition(s_fw_ctx.update_partition);
         if (err == ESP_OK) {
             update_ui_progress(100, "업데이트 완료! 곧 재부팅합니다.");
-            send_fw_response(CMD_FW_COMPLETE, 0, 0); 
-            // time_req removed as requested
+            send_fw_response(CMD_FW_COMPLETE, 0, 0); // 0: No Error (Complete)
             vTaskDelay(pdMS_TO_TICKS(1500));
             ESP_LOGI(TAG, "Rebooting...");
             esp_restart();
         } else {
             ESP_LOGE(TAG, "esp_ota_set_boot_partition failed: %s", esp_err_to_name(err));
-            send_fw_response(CMD_FW_COMPLETE, 0, 2);
+            send_fw_response(CMD_FW_COMPLETE, 0, 1);
         }
     } else {
         ESP_LOGE(TAG, "esp_ota_end failed: %s", esp_err_to_name(err));
@@ -150,11 +166,20 @@ void fw_update_init(void) {
 }
 
 static void handle_fw_info(const uint8_t *data, size_t len) {
-    if (len < 16) return;
-    // 패킷 규격: [Header:1][ID:1][CMD:1][LEN:2][Version:6][Size:4][Tail:1]
-    // 파일 크기는 고정 위치(index 11~14)에서 파싱
+    if (len < 18) return;
+    // 패킷 규격(v1.10): [H:1][ID:1][CMD:1][LEN:2][Version:6][Size:4][Type:1][CRC:2][T:1]
+    
+    // 파일 크기 (index 11~14)
     s_fw_ctx.total_size = (uint32_t)((data[11] << 24) | (data[12] << 16) | 
                                      (data[13] << 8) | data[14]);
+    
+    // 업데이트 타입 (index 15) - 0:일반, 1:강제, 2:일반(압축), 3:강제(압축)
+    uint8_t update_type = data[15];
+    ESP_LOGI(TAG, "FW Info: Size=%lu, Type=%u", (unsigned long)s_fw_ctx.total_size, update_type);
+
+    // CRC16 (index 16~17)
+    s_fw_ctx.expected_crc = (uint16_t)((data[16] << 8) | data[17]);
+    s_fw_ctx.current_crc = 0; // Reset for new transfer
     
     s_fw_ctx.current_size = 0;
     s_fw_ctx.last_seq = 0xFFFF;
@@ -172,7 +197,7 @@ static void handle_fw_info(const uint8_t *data, size_t len) {
     extern void hud_request_fast_conn(void);
     hud_request_fast_conn();
 
-    // 준비 작업(플래시 삭제)을 전용 태스크로 분리 (BLE 블로킹 방지)
+    // 준비 작업(플래시 삭제)을 전용 태스크로 분리
     xTaskCreate(fw_start_task, "fw_start", 4096, NULL, 5, NULL);
 }
 
@@ -184,6 +209,9 @@ static void handle_fw_data(const uint8_t *data, size_t len) {
     
     if (s_fw_ctx.state != FW_STATE_UPDATING || s_fw_ctx.update_handle == 0) return;
     
+    // 누적 CRC 계산
+    s_fw_ctx.current_crc = crc16_ccitt(&data[7], payload_len, s_fw_ctx.current_crc);
+
     esp_err_t err = esp_ota_write(s_fw_ctx.update_handle, &data[7], payload_len);
     if (err == ESP_OK) {
         s_fw_ctx.current_size += payload_len;
@@ -219,6 +247,15 @@ void process_fw_update_command(const uint8_t *data, size_t len) {
     if (len < 5) return;
     if (data[0] != PROTOCOL_HEADER || data[1] != PROTOCOL_ID_FW) return;
     
+    // 수신 패킷 로그 출력 (v1.10 규격 반영, RX 표시)
+    char hex_buf[40];
+    size_t log_len = (len > 10) ? 10 : len;
+    int pos = 0;
+    for (int i = 0; i < log_len; i++) {
+        pos += sprintf(&hex_buf[pos], "%02X ", data[i]);
+    }
+    ESP_LOGW("BLE_ONLY", "PKT_LOG [RX] %s%s", hex_buf, (len > 10) ? "..." : "");
+
     uint8_t cmd = data[2];
     switch (cmd) {
         case CMD_FW_INFO:
@@ -226,6 +263,12 @@ void process_fw_update_command(const uint8_t *data, size_t len) {
             break;
         case CMD_FW_DATA:
             handle_fw_data(data, len);
+            break;
+        case CMD_FW_CANCEL:
+            ESP_LOGW(TAG, "Update Cancelled by APP. Reason: %u", (len > 5) ? data[5] : 0);
+            s_fw_ctx.state = FW_STATE_CANCELLED;
+            update_ui_progress(s_fw_ctx.last_percent, "사용자에 의해 취소됨");
+            // 추가적인 정리 로직 (예: reboot 또는 idle 전환)
             break;
         default:
             break;

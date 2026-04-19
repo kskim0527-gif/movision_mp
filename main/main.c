@@ -15,8 +15,11 @@
 #include "esp_app_desc.h" // For firmware version
 #include "esp_err.h"
 #include "esp_log.h"
+#include "esp_mac.h"
 #include "esp_ota_ops.h"
 #include "esp_system.h"
+#include "esp_random.h"
+#include "nvs.h"
 #include "nvs_flash.h"
 
 #include "driver/gpio.h"       // IWYU pragma: keep (GPIO_NUM_* pin macros)
@@ -27,12 +30,20 @@
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_sh8601.h"
 
-#include "esp_bt.h"
-#include "esp_bt_defs.h"
-#include "esp_bt_main.h"
-#include "esp_gap_ble_api.h"
-#include "esp_gatt_common_api.h"
-#include "esp_gatts_api.h"
+// Bluetooth (NimBLE)
+#include "host/ble_hs.h"
+#include "host/util/util.h"
+#include "nimble/nimble_port.h"
+#include "nimble/nimble_port_freertos.h"
+#include "services/gap/ble_svc_gap.h"
+#include "services/gatt/ble_svc_gatt.h"
+#include "services/ans/ble_svc_ans.h"
+#include "services/bas/ble_svc_bas.h"
+#include "services/hid/ble_svc_hid.h"
+#include "store/config/ble_store_config.h"
+
+// Forward declaration for NimBLE storage helper (contained in library but sometimes missing header)
+void ble_store_config_init(void);
 
 #include "esp_timer.h"
 #include "esp_wifi.h"
@@ -90,6 +101,10 @@ extern void lv_fs_posix_init(void);
 #include "ota_ble.h"
 #include "ota_sd.h"
 #include "ota_wifi.h"
+
+// [Diagnostic] Dump all NVS entries to verify persistence (bonding keys, etc.)
+// NVS diagnostic functions removed
+
 #include "src/extra/libs/gif/lv_gif.h"
 #include "esp_phy_cert_test.h"
 
@@ -197,9 +212,15 @@ static QueueHandle_t s_road_name_update_queue =
 static TaskHandle_t s_lvgl_task_handle = NULL;
 static TaskHandle_t s_button_task_handle = NULL;
 static TaskHandle_t s_monitor_task_handle = NULL;
-// static TaskHandle_t s_virt_drive_task_handle = NULL; // Removed
+static TaskHandle_t s_virt_drive_task_handle = NULL;
 static TaskHandle_t s_ble_tx_task_handle = NULL;
 static TaskHandle_t s_lcd_task_handle = NULL;
+static bool s_virt_drive_active = false;
+static int s_secret_swipe_count = 0;
+static uint32_t s_secret_swipe_start_tick = 0;
+
+// Forward Declarations
+void toggle_virtual_drive(bool enable);
 
 // BOOT button (GPIO0) for mode switching
 #define BOOT_BUTTON_GPIO GPIO_NUM_0
@@ -230,104 +251,81 @@ static TaskHandle_t s_lcd_task_handle = NULL;
 // Document: TBT(Turn By Turn) uses Command=0x01, DataLen=0x05
 #define CMD_TBT_DATA 0x01
 
-static uint16_t s_conn_id = 0;
-static esp_gatt_if_t s_gatts_if = ESP_GATT_IF_NONE;
+static uint16_t s_conn_handle = BLE_HS_CONN_HANDLE_NONE;
 static bool s_connected = false;
-
 static uint16_t s_mtu = 23;
-static uint16_t s_cccd = 0x0000; // 0x0001 notify, 0x0002 indicate (FFEA)
-static esp_bd_addr_t s_peer_bda = {0};
-static bool s_peer_bda_valid = false;
 
-static TickType_t s_connect_tick = 0;
-static TickType_t s_last_time_req_tick = 0;
-static uint8_t s_time_req_count = 0;
-// static uint32_t s_ffea_probe_ok = 0;
-// static uint32_t s_ffea_probe_fail = 0;
-static uint32_t s_ffea_conf_ok = 0;
-static uint32_t s_ffea_conf_fail = 0;
-static bool s_first_ffea_dump_done = false;
-static uint32_t s_ffea_seq = 0;
-static uint16_t s_sc_service_handle = 0; // 0x1801
-static uint16_t s_sc_handle = 0;         // 0x2A05
+// static bool s_peer_bda_valid = false;
+// static uint8_t s_peer_bda[6];
+// static int8_t s_rssi_value = -127;
+// static bool s_rssi_read_once = false;
+// HUD Service (FFF0) Handles
+static uint16_t s_hud_char_ready_handle;
+static uint16_t s_hud_char_write_handle;
 
-// Custom service (0xFFEA)
-static uint16_t s_service_handle = 0;
-static uint16_t s_read_handle = 0;
-static uint16_t s_write_handle = 0;
-static uint16_t s_cccd_handle = 0;
 
-// App handshake observed on working device:
-// - when app subscribes to FFF1 notifications (CCCD=1), device sends a time
-// sync request:
-//   4E 0D 01 00 2F
+static bool s_need_fast_conn = false;
+static bool s_time_initialized = false;
+static bool s_boot_clock_trigger = false;
 static bool s_hud_notify_enabled = false;
-static bool s_time_sync_requested = false;
-static bool s_boot_clock_trigger =
-    false; // 부팅 시 시계 화면 전환 트리거 // 앱 연결 후 시간 요청 여부 플래그
+static int s_time_req_count = 0;
+static TickType_t s_last_time_req_tick = 0;
+
 static bool s_hud_seen_first_cmd = false;
-static bool s_force_hud_notify = false; // Let app explicitly enable HUD CCCD
-                                        // (matches working device behavior)
+static bool s_app_communicated = false; // [New] Set to true when ANY app command received
+static TickType_t s_boot_tick = 0;      // [New] System startup tick for 20s monitor
 
 // ---------------------------------------------------------------------------
 // Device Information Service (DIS) 0x180A (helps some apps accept the device as
 // "real hardware")
 // ---------------------------------------------------------------------------
-static uint16_t s_dis_service_handle = 0;
-static uint16_t s_dis_manuf_handle = 0;  // 0x2A29
-static uint16_t s_dis_model_handle = 0;  // 0x2A24
-static uint16_t s_dis_serial_handle = 0; // 0x2A25
-static uint16_t s_dis_pnp_handle = 0;    // 0x2A50
+// Device Information Handles (Managed by NimBLE unified callback)
  
- // ---------------------------------------------------------------------------
- // Battery Service (0x180F) - Required for Android 16 auto-connect
- // ---------------------------------------------------------------------------
- static uint16_t s_batt_service_handle = 0;
- static uint16_t s_batt_level_handle = 0;
- static uint16_t s_batt_cccd_handle = 0;
- static uint8_t s_batt_level = 100; // 100% default
+ // Battery Handles
+ static uint16_t s_batt_level_handle;
+ static uint8_t s_batt_level = 100;
 
 
-// Provisioning note:
-// Do NOT clone another real device's serial; use your own device's serial or a
-// test serial.
-static char s_device_serial[64] = "NO_SN";
-static char s_app_reg_num[64] = "판매사에 문의하세요..";
-// ---------------------------------------------------------------------------
 // HID over GATT (HOGP) - minimal service 0x1812
 // ---------------------------------------------------------------------------
 
-static uint16_t s_hid_service_handle = 0;
-static uint16_t s_hid_proto_handle =
-    0; // 0x2A4E (kept for compatibility with existing flow)
-static uint16_t s_hid_report_map_handle = 0;
-static uint16_t s_hid_info_handle = 0;
-static uint16_t s_hid_ctrlpt_handle = 0;
-static uint16_t s_hid_report_in_handle = 0;
-static uint16_t s_hid_report_in_cccd_handle = 0;
-static uint16_t s_hid_report_in_ref_handle = 0;    // 0x2908 (Index for ID 2)
-static uint16_t s_hid_report_out_handle = 0;       // 0x2A4D (ID 1)
-static uint16_t s_hid_report_out_ref_handle = 0;   // 0x2908
-static uint16_t s_hid_report_feat_handle = 0;      // 0x2A4D (ID 3)
-static uint16_t s_hid_report_feat_ref_handle = 0;  // 0x2908
-static uint16_t s_fff2_cccd_handle = 0;            // CCCD for FFF2 (Telecons req)
-
-static uint16_t s_hid_cccd = 0x0000;        // 0x0001 notify
-static uint8_t s_hid_protocol_mode =
-    0x01; // 0x01=Report Protocol, 0x00=Boot Protocol
-static uint8_t s_hid_out_report = 0x00;
-// Keyboard-like HID input report (Report ID 1 + 8 bytes)
-static uint8_t s_hid_in_report[9] = {0x01}; // [ReportID=1][8-byte input report]
-
-// Track last command the phone wrote (if any). Some apps "probe" by reading the
-// write-char and may fail if it is not readable.
-// static uint8_t s_last_write[64] = {0};
-static uint16_t s_last_write_len = 0;
-
+// HID Handles
+static uint16_t s_hid_char_rpt_in_handle;
+static uint16_t s_hid_cccd = 0;
+// Device Information
+static char s_device_serial[64] = "NO_SN";
+static char s_app_reg_num[64] = "판매사에 문의하세요..";
+// HID Reporting state (NimBLE)
+static uint8_t s_hid_in_report[8] = {0x00}; // Reset to zeros
 // BLE RX Reassembly Buffer (for packets split by MTU)
 static uint8_t s_rx_buffer[2048] = {0};
 static uint16_t s_rx_pos = 0;
 static uint16_t s_rx_expected_len = 0;
+
+// Thread-safe Command Queue for BLE
+typedef struct {
+    uint8_t data[256];
+    uint16_t len;
+} ble_cmd_t;
+static QueueHandle_t s_ble_cmd_queue = NULL;
+static TaskHandle_t s_ble_cmd_task_handle = NULL;
+
+// Forward declaration
+static void process_app_command(const uint8_t *data, size_t len);
+
+// Dedicated task for processing BLE commands safely
+static void ble_cmd_handler_task(void *pvParameters) {
+    ble_cmd_t cmd;
+    ESP_LOGI("BLE_CMD", "BLE Command Handler Task Started");
+    while (1) {
+        if (xQueueReceive(s_ble_cmd_queue, &cmd, portMAX_DELAY) == pdPASS) {
+            // Process command in a safe context with LVGL protection
+            LVGL_LOCK();
+            process_app_command(cmd.data, cmd.len);
+            LVGL_UNLOCK();
+        }
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Packet logging to SD card
@@ -335,31 +333,30 @@ static uint16_t s_rx_expected_len = 0;
 #define LOG_FILE_BASE_DIR "/sdcard"
 #define PACKET_LOG_BUFFER_SIZE (128 * 1024) // 128KB buffer in RAM
 
-static bool s_adv_data_ready = false;
-static bool s_scan_rsp_ready = false;
-static bool s_hud_service_started = false;
-static bool s_hid_service_started = false;
-static bool s_adv_active = false;
-static bool s_adv_starting = false;
-static bool s_waiting_mtu_logged = false;
+// static bool s_adv_data_ready = false;
+// static bool s_scan_rsp_ready = false;
+// static bool s_hud_service_started = false;
+// static bool s_hid_service_started = false;
+// static bool s_adv_active = false;
+// static bool s_adv_starting = false;
+// static bool s_waiting_mtu_logged = false;
 
-static uint32_t s_tx_count = 0;
+// static uint32_t s_tx_count = 0;
 static uint32_t s_tx_ok = 0;   // Exported for hud_send_notify_bytes
 static uint32_t s_tx_fail = 0; // Exported for hud_send_notify_bytes
-static TickType_t s_last_status_tick = 0;
-static bool s_waiting_cccd_logged = false;
+// static TickType_t s_last_status_tick = 0;
+// static bool s_waiting_cccd_logged = false;
 
-static uint32_t s_hid_tx_count = 0;
-static uint32_t s_hid_tx_ok = 0;
-static uint32_t s_hid_tx_fail = 0;
-static TickType_t s_last_hid_tx_tick = 0;
+// static uint32_t s_hid_tx_count = 0;
+// static uint32_t s_hid_tx_ok = 0;
+// static uint32_t s_hid_tx_fail = 0;
+// static TickType_t s_last_hid_tx_tick = 0;
 
-// "Feature 실행" 트리거(앱이 어떤 핸들에 write를 보내는지에 따라 켜짐)
-static bool s_feature_active = false;
-static TickType_t s_feature_active_tick = 0;
+// static bool s_feature_active = false;
+// static TickType_t s_feature_active_tick = 0;
 
 // Forward declarations
-static void try_start_advertising(void);
+// static void try_start_advertising(void); // Removed: declared but never defined
 static esp_err_t load_image_data_csv(void);
 static void monitor_buffers_and_queues(void);
 static void check_task_heartbeats(void);
@@ -367,6 +364,8 @@ static void monitor_system_health(void);
 // static void update_heartbeat_ble(void); // Removed conflicting static
 // declaration
 static void buffer_queue_monitor_task(void *arg);
+void hud_request_fast_conn(uint16_t conn_handle); 
+static void ble_mp_advertise(void);
 
 // ---------------------------------------------------------------------------
 // LCD (SH8601, 466x466) - draw white border once after boot
@@ -501,6 +500,10 @@ static void show_restart_msg(void);
 
 // ==================== NVS Settings Storage ====================
 void save_nvs_settings(void) {
+  // [User Request] Do not save to NVS during Virtual Drive mode
+  if (s_virt_drive_active) {
+      return;
+  }
   static uint8_t last_bright = 0xFF;
   static uint8_t last_album = 0xFF;
   static uint8_t last_clock = 0xFF;
@@ -706,18 +709,15 @@ static lv_obj_t *s_speed_mark_unit_label =
 static lv_obj_t *s_black_screen_overlay =
     NULL; // 전체 화면 검정색 오버레이 (화면 지우기용)
 static esp_timer_handle_t s_time_update_timer = NULL; // 시간 업데이트 타이머
-static bool s_time_initialized = false;               // 시간 초기화 여부
 static bool s_logging_enabled = false; // 시간 데이터 수신 후 로깅 시작 플래그
-static int8_t s_rssi_value =
-    -128; // 블루투스 RSSI 값 (dBm), 초기값: -128 (읽지 않음)
-static bool s_rssi_read_once = false; // RSSI 값이 한 번이라도 읽혔는지 여부
 #define MAX_IMAGE_FILES 200
 static char s_image_files[MAX_IMAGE_FILES][280] EXT_RAM_BSS_ATTR; // Image paths
 int s_image_count = 0;
 int s_current_image_index = 0;
 bool s_img_transfer_finished_flag = false; // 이미지 전송 완료 비동기 처리용
 bool s_img_transfer_active = false;        // 이미지 전송 중 여부
-static uint32_t s_album_auto_timer = 0;
+static int s_auto_clock_offset = -1;  // 부팅 시 결정된 앨범/시계 로테이션 오프셋
+static int s_album_auto_timer = 0;
 
 static lv_obj_t *s_intro_image = NULL; // 부팅 인트로 이미지 객체
 
@@ -763,9 +763,9 @@ static size_t s_safety_data_count = 0;
 
 // Current BLE data values for image matching (data2, data3, data4 from HUD TX
 // packet)
-static uint8_t s_current_data2 = 0; // HUD TX packet data[5]
-static uint8_t s_current_data3 = 0; // HUD TX packet data[6]
-static uint8_t s_current_data4 = 0; // HUD TX packet data[7]
+// static uint8_t s_current_data2 = 0; // HUD TX packet data[5]
+// static uint8_t s_current_data3 = 0; // HUD TX packet data[6]
+// static uint8_t s_current_data4 = 0; // HUD TX packet data[7]
 
 // Current displayed image path (to avoid reloading same image)
 static char s_current_image_path[128] = {0};        // TBT 방향표시 이미지 경로
@@ -1050,8 +1050,9 @@ static void process_app_command(const uint8_t *data, size_t len) {
 
   if (id != 0x4D)
     return;
-
-  // 첫 유효 명령 수신 표시 (인트로 폴링 루프 조기 종료용)
+  
+  // 첫 유효 명령 수신 표시 (인트로 폴링 루프 조기 종료 및 부팅 타이머 중지용)
+  s_app_communicated = true; 
   if (!s_hud_seen_first_cmd) {
     s_hud_seen_first_cmd = true;
     // [User Request] 앱 연결 후 첫 패킷 수신 시, 외곽 링을 회색(0x02)으로 초기화 (GPS 수신 전 상태)
@@ -1063,6 +1064,20 @@ static void process_app_command(const uint8_t *data, size_t len) {
       s_is_manual_mode_switch = true; // 부팅 시 복원은 잠금을 우회하여 적용
       switch_display_mode(s_nvs_restored_mode);
       s_is_manual_mode_switch = false;
+
+      // [Protocol 3.4.3~5] Initial Sync Requests to APP
+      uint8_t sync_req_time[] = {0x19, 0x4E, 0x0D, 0x01, 0x00, 0x2F};
+      uint8_t sync_req_mode[] = {0x19, 0x4E, 0x11, 0x01, 0x00, 0x2F};
+      uint8_t sync_req_gps[]  = {0x19, 0x4E, 0x12, 0x01, 0x00, 0x2F};
+      
+      ESP_LOGI(TAG, "Sending Initial Sync Requests (Time, Mode, GPS) with 300ms pacing...");
+      hud_send_notify_bytes(sync_req_time, sizeof(sync_req_time));
+      vTaskDelay(pdMS_TO_TICKS(300));
+      
+      hud_send_notify_bytes(sync_req_mode, sizeof(sync_req_mode));
+      vTaskDelay(pdMS_TO_TICKS(300));
+      
+      hud_send_notify_bytes(sync_req_gps, sizeof(sync_req_gps));
     }
   }
 
@@ -1077,9 +1092,9 @@ static void process_app_command(const uint8_t *data, size_t len) {
     if (data_length == 0x02 && len >= 7) {
       uint8_t data1 = data[4];       // data1
       uint8_t speed_data2 = data[5]; // data2
-      // [Auto-Switch] BOOT 모드 또는 시계 화면에서 데이터 수신 시 속도계로 전환
-      if (s_current_mode == DISPLAY_MODE_BOOT || (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_STANDBY)) {
-        ESP_LOGI(TAG, "Active command (Speed) received. Auto-switching to SPEEDOMETER.");
+      // [Auto-Switch] ONLY from BOOT mode. Other modes like CLOCK/ALBUM stay visual but update background.
+      if (s_current_mode == DISPLAY_MODE_BOOT) {
+        ESP_LOGI(TAG, "Active command (Speed) received. Auto-switching from BOOT to SPEEDOMETER.");
         s_guide_sub_mode = GUIDE_SUB_SPEEDOMETER;
         switch_display_mode(DISPLAY_MODE_GUIDE);
         
@@ -1087,6 +1102,7 @@ static void process_app_command(const uint8_t *data, size_t len) {
         ESP_LOGI(TAG, "Initializing outer ring to Grey on first speed packet.");
         request_circle_update(start, id, 0x04, 0x01, 0x02); 
       }
+      
       if (data1 == 0x00) {
         speed_mark(start, id, commend, data_length, data1, speed_data2);
       } else if (data1 == 0x01) {
@@ -1101,18 +1117,19 @@ static void process_app_command(const uint8_t *data, size_t len) {
     uint8_t data1 = data[4];
     uint8_t data2 = data[5];
 
-    if (s_current_mode == DISPLAY_MODE_BOOT || (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_STANDBY)) {
-        // [Priority] TBT alone during standby defaults to SPEEDOMETER
-        ESP_LOGI(TAG, "TBT command received. Auto-switching to SPEEDOMETER.");
+    // [Auto-Switch] ONLY from BOOT mode.
+    if (s_current_mode == DISPLAY_MODE_BOOT) {
+        ESP_LOGI(TAG, "TBT command received. Auto-switching from BOOT to SPEEDOMETER.");
         s_guide_sub_mode = GUIDE_SUB_SPEEDOMETER;
         switch_display_mode(DISPLAY_MODE_GUIDE);
-      }
-      uint8_t tbt_data3 = (len >= 7) ? data[6] : 0;
-      uint8_t tbt_data4 = (len >= 8) ? data[7] : 0;
-      uint8_t tbt_data5 = (len >= 9) ? data[8] : 0;
+    }
+    
+    uint8_t tbt_data3 = (len >= 7) ? data[6] : 0;
+    uint8_t tbt_data4 = (len >= 8) ? data[7] : 0;
+    uint8_t tbt_data5 = (len >= 9) ? data[8] : 0;
 
-      display_tbt_direction(start, id, commend, data_length, data1, data2,
-                            tbt_data3, tbt_data4, tbt_data5);
+    display_tbt_direction(start, id, commend, data_length, data1, data2,
+                          tbt_data3, tbt_data4, tbt_data5);
     }
 
   // 4. Safety_DRV
@@ -1124,11 +1141,13 @@ static void process_app_command(const uint8_t *data, size_t len) {
     uint8_t safety_data5 = data[8];
     uint8_t safety_data6 = data[9];
 
-    if (s_current_mode == DISPLAY_MODE_BOOT || (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_STANDBY)) {
-      ESP_LOGI(TAG, "Safety command received. Auto-switching to SPEEDOMETER.");
-      s_guide_sub_mode = GUIDE_SUB_SPEEDOMETER;
-      switch_display_mode(DISPLAY_MODE_GUIDE);
+    // [Auto-Switch] ONLY from BOOT mode.
+    if (s_current_mode == DISPLAY_MODE_BOOT) {
+        ESP_LOGI(TAG, "Safety command received. Auto-switching from BOOT to SPEEDOMETER.");
+        s_guide_sub_mode = GUIDE_SUB_SPEEDOMETER;
+        switch_display_mode(DISPLAY_MODE_GUIDE);
     }
+    
     safety_drive(start, id, commend, data_length, safety_data1, safety_data2,
                  safety_data3, safety_data4, safety_data5, safety_data6);
   }
@@ -1183,7 +1202,6 @@ static void process_app_command(const uint8_t *data, size_t len) {
       uint8_t resp[7] = {
           0x19, 0x4E, 0x0B, 0x02, s_brightness_level, s_brightness_level, 0x2F};
       hud_send_notify_bytes(resp, sizeof(resp));
-      log_ble_packet(resp, sizeof(resp), "TX");
     } else if (data[4] == 0x03) {
       // (2) Firmware Info Query -> 버전 응답만 전송 (STANDBY 전환 없음)
       // Cmd: 19 4D 06 01 03 2F -> Resp: 19 4E 0C 0A [HUD1] [YYMMDD] 2F
@@ -1208,7 +1226,6 @@ static void process_app_command(const uint8_t *data, size_t len) {
       resp[14] = 0x2F; // Tail
 
       hud_send_notify_bytes(resp, sizeof(resp));
-      log_ble_packet(resp, sizeof(resp), "TX");
 
       ESP_LOGI(TAG, "Firmware Info Resp: Model=HUD1, Ver=%.6s",
                app_desc->version);
@@ -1277,12 +1294,109 @@ static void process_app_command(const uint8_t *data, size_t len) {
 
 
 
-// Virtual Drive Task
-// Removed virtual_drive_task
+// Helper to convert hex char to int
+static int hex_char_to_int(char c) {
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+  return -1;
+}
 
+// Virtual Drive Task (Replays data from log file)
+static void virtual_drive_task(void *arg) {
+  FILE *f = NULL;
+  char line[256];
+  uint8_t buffer[128];
+  ESP_LOGI("VIRT", "Virtual Drive Task Started (Log Replay Mode)");
+
+  while (1) {
+    if (s_virt_drive_active && !s_connected) {
+      if (f == NULL) {
+        const char *log_search_paths[] = {
+            "/littlefs/flash_data/merged_log.txt",
+            "/littlefs/merged_log.txt",
+            "/littlefs/Flash_Data/merged_log.txt",
+            "/sdcard/merged_log.txt"
+        };
+        
+        for (int i = 0; i < 4; i++) {
+            // Check LittleFS mount status before opening
+            if (strncmp(log_search_paths[i], "/littlefs/", 10) == 0 && !s_littlefs_mounted) continue;
+            
+            f = fopen(log_search_paths[i], "r");
+            if (f) {
+                ESP_LOGI("VIRT", "Opened Log: %s", log_search_paths[i]);
+                break;
+            }
+        }
+
+        if (f == NULL) {
+          ESP_LOGW("VIRT", "Log file not found. Disabling Virtual Drive.");
+          s_virt_drive_active = false;
+          vTaskDelay(pdMS_TO_TICKS(1000));
+          continue;
+        }
+      }
+
+      if (fgets(line, sizeof(line), f) != NULL) {
+        size_t len = 0;
+        size_t line_len = strlen(line);
+        for (size_t i = 0; i < line_len; i++) {
+          if (line[i] == ' ' || line[i] == '\r' || line[i] == '\n') continue;
+          if (i + 1 < line_len) {
+            int hi = hex_char_to_int(line[i]);
+            int lo = hex_char_to_int(line[i + 1]);
+            if (hi >= 0 && lo >= 0) {
+              if (len < sizeof(buffer)) {
+                buffer[len++] = (uint8_t)((hi << 4) | lo);
+                i++;
+              } else break;
+            }
+          }
+        }
+        if (len > 0) process_app_command(buffer, len);
+      } else {
+        fseek(f, 0, SEEK_SET);
+      }
+      vTaskDelay(pdMS_TO_TICKS(100)); 
+    } else {
+      if (f != NULL) { fclose(f); f = NULL; ESP_LOGI("VIRT", "Log file closed"); }
+      vTaskDelay(pdMS_TO_TICKS(500));
+    }
+  }
+}
 
 // Toggle Virtual Drive Mode
-// Removed toggle_virtual_drive
+void toggle_virtual_drive(bool enable) {
+    if (enable && !s_virt_drive_active) {
+        s_virt_drive_active = true;
+        if (s_virt_drive_task_handle == NULL) {
+            xTaskCreate(virtual_drive_task, "virt_drive", 8192, NULL, 5, &s_virt_drive_task_handle);
+        }
+        ESP_LOGW("VIRT", "Virtual Drive Mode ENABLED (Endless Replay, No NVS save, No Touch)");
+        s_guide_sub_mode = GUIDE_SUB_SPEEDOMETER;
+        
+        // [User Request] Ensure outer ring is visible in Virtual Drive mode
+        LVGL_LOCK();
+        ensure_circle_ring_created();
+        if (s_circle_ring) {
+            // Initialize to Grey (0x02) directly
+            lv_obj_set_style_border_color(s_circle_ring, lv_color_hex(0x808080), 0);
+            lv_obj_set_style_border_width(s_circle_ring, 5, 0);
+            lv_obj_set_size(s_circle_ring, 463, 463);
+            lv_obj_center(s_circle_ring);
+            lv_obj_clear_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_invalidate(s_circle_ring);
+        }
+        LVGL_UNLOCK();
+
+        // Use a direct mode switch that avoids NVS save by the guard in save_nvs_settings
+        switch_display_mode(DISPLAY_MODE_GUIDE);
+    } else if (!enable && s_virt_drive_active) {
+        s_virt_drive_active = false;
+        ESP_LOGW("VIRT", "Virtual Drive Mode DISABLED");
+    }
+}
 
 
 // Parse CSV file and load image data mappings
@@ -2186,7 +2300,8 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
   }
 
   // 연결이 끊겼을 때는 앱으로부터의 정보를 무시함 (잔상 방지)
-  if (!s_connected) {
+  // [User Request] 가상 운행 모드에서는 연결이 없어도 업데이트 허용
+  if (!s_connected && !s_virt_drive_active) {
       return;
   }
 
@@ -2575,10 +2690,10 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
       lv_obj_set_size(s_circle_ring, 463, 463);           // GPS diameter = 463
       lv_obj_center(s_circle_ring);
 
-      // GPS 링을 숨기는 모드이거나 연결이 끊겼을 때, 과속 경고 점멸 중이 아닐 때만 숨김
-      if ((s_current_mode != DISPLAY_MODE_GUIDE || !s_connected) && s_safety_ring_timer == NULL) {
+      // GPS 링을 숨기는 모드이거나 연결이 끊겼을 때(단, 가상 모드 제외), 과속 경고 점멸 중이 아닐 때만 숨김
+      if ((s_current_mode != DISPLAY_MODE_GUIDE || (!s_connected && !s_virt_drive_active)) && s_safety_ring_timer == NULL) {
         lv_obj_add_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
-      } else if (s_connected) {
+      } else if (s_connected || s_virt_drive_active) {
         lv_obj_clear_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
       }
       lv_obj_invalidate(s_circle_ring);
@@ -2886,9 +3001,13 @@ static void update_circle_display(uint8_t start, uint8_t id, uint8_t commend,
       lv_obj_add_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
     return;
   }
-  // CLOCK/CLOCK2/ALBUM/SETTING/VIRTUAL_DRIVE: GPS 링(GPS 상태) 숨김
+  // Ensure object exists first
+  ensure_circle_ring_created();
+
+  // CLOCK/CLOCK2/ALBUM/SETTING: GPS 링(GPS 상태) 숨김
   // 연결이 끊겼거나 Safety 빨강 점멸 타이머 실행 중이면 건드리지 않음
-  if (s_current_mode != DISPLAY_MODE_GUIDE || !s_connected) {
+  // [User Request] 가상 운행 모드(DISPLAY_MODE_GUIDE + virt_active)에서는 허용
+  if (s_current_mode != DISPLAY_MODE_GUIDE || (!s_connected && !s_virt_drive_active)) {
     if (s_safety_ring_timer == NULL && s_circle_ring != NULL) {
       lv_obj_add_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
     }
@@ -2909,9 +3028,6 @@ static void update_circle_display(uint8_t start, uint8_t id, uint8_t commend,
     ESP_LOGW(TAG, "circle_dwg: Invalid command format");
     return;
   }
-
-  // Use existing ring object or create it
-  ensure_circle_ring_created();
 
   // Set border color based on data1
   s_last_gps_status = data1;
@@ -3655,7 +3771,8 @@ static void update_speed_label(uint8_t data1, uint8_t speed) {
   // Remove generic drawing from here, move explicitly to SPEEDOMETER mode
   // condition.
   hide_black_screen_overlay();
-  if (!s_connected) return;
+  // [User Request] 가상 운행 모드에서는 연결이 없어도 업데이트 허용
+  if (!s_connected && !s_virt_drive_active) return;
 
   if (s_current_mode != DISPLAY_MODE_GUIDE &&
       s_current_mode != DISPLAY_MODE_CLOCK)
@@ -4225,7 +4342,8 @@ static void request_destination_update(uint8_t data1, uint8_t data2,
 
 
 static void update_road_name_label(const char *road_name) {
-  if (!s_connected) return;
+  // [User Request] 가상 운행 모드에서는 연결이 없어도 업데이트 허용
+  if (!s_connected && !s_virt_drive_active) return;
 
   if (s_road_name_label == NULL) {
     ESP_LOGW(TAG, "Road Name: s_road_name_label is NULL!");
@@ -4438,7 +4556,8 @@ static void update_destination_info(uint8_t data1, uint8_t data2, uint8_t data3,
   // Hide black screen overlay if visible
   hide_black_screen_overlay();
 
-  if (!s_connected) return;
+  // [User Request] 가상 운행 모드에서는 연결이 없어도 업데이트 허용
+  if (!s_connected && !s_virt_drive_active) return;
 
   // Check if labels exist
   if (s_dest_time_value_label == NULL || s_dest_time_hour_unit_label == NULL ||
@@ -5101,107 +5220,9 @@ static const sh8601_lcd_init_cmd_t s_lcd_init_cmds[] = {
 // indication TX.
 #define BLE_ACTIVITY_WINDOW_MS (3000)
 static TickType_t s_last_ble_activity_tick = 0;
-static bool s_client_started = false; // Exported for
-                                      // hud_send_notify_bytes - becomes
-                                      // true once we have real traffic
-                                      // or we start TX
+// static bool s_client_started = false; // Legacy residue
 
-void note_ble_activity(void) {
-  s_last_ble_activity_tick = xTaskGetTickCount();
-  update_heartbeat_ble(); // BLE 활동 시
-                          // 하트비트 업데이트
-}
-
-void hud_send_notify_bytes(const uint8_t *data, uint16_t len) {
-  if (!s_connected || s_gatts_if == ESP_GATT_IF_NONE || s_read_handle == 0) {
-    return;
-  }
-
-  // 50 03, 4F 03, 4F 04 패킷은 개별 로그에서 제외 (노이즈 방지)
-  bool is_bulk_res = false;
-  if (len >= 3 && data[0] == 0x19) {
-      if ((data[1] == 0x50 || data[1] == 0x4F) && (data[2] == 0x03 || data[2] == 0x04)) {
-          is_bulk_res = true;
-      }
-  }
-
-  // Force notification for firmware update packets (ID=0x4F) and image transfer packets (ID=0x50) 
-  // to ensure completion messages are delivered even if CCCD wasn't fully enabled by the app's OTA mode.
-  bool force_this_packet = false;
-  if (len >= 2 && data[0] == 0x19) {
-      if (data[1] == 0x4F || data[1] == 0x50) {
-          force_this_packet = true;
-      }
-  }
-
-  if (!s_hud_notify_enabled && !s_force_hud_notify && !force_this_packet) {
-    return;
-  }
-
-  if (!data || len == 0) {
-    ESP_LOGW(TAG, "HUD notify skipped: data=%p len=%u", data, len);
-    return;
-  }
-
-  if (!is_bulk_res) {
-    ESP_LOGI(TAG, "[TX] HUD -> App (%u bytes)%s", (unsigned)len, force_this_packet ? " [FORCED]" : "");
-    ESP_LOG_BUFFER_HEX(TAG, data, len);
-  }
-  // Parse HUD TX data (10-byte format: 0x19
-  // 0x4D cmd dlen data1 data2 data3 data4
-  // data5 0x2F) Extract data2, data3, data4
-  // for image matching when sending to app
-  // via FFF1
-  if (len == 10 && data[0] == PROTOCOL_HEADER && data[1] == PROTOCOL_ID &&
-      data[9] == 0x2F) {
-    // Protocol: 0x19 0x4D cmd dlen data1
-    // data2 data3 data4 data5 0x2F Extract
-    // data2, data3, data4 for image matching
-    // when sending to app via FFF1
-    s_current_data2 = data[5]; // data2
-    s_current_data3 = data[6]; // data3
-    s_current_data4 = data[7]; // data4
-
-    ESP_LOGI(TAG,
-             "HUD TX (FFF1): data2=0x%02X "
-             "data3=0x%02X data4=0x%02X, CSV "
-             "entries=%zu, HUD mode=%d, "
-             "s_hud_image=%p",
-             s_current_data2, s_current_data3, s_current_data4,
-             s_image_data_count, (s_current_mode == DISPLAY_MODE_GUIDE),
-             s_hud_image);
-
-    // HUD TX data processing (previously removed logic)
-  }
-
-  // 시간 업데이트 요청(0x0D)인 경우에만 예외적으로 로그 기록 (나머지 리턴
-  // 메시지는 제외)
-  if (len >= 3 && (data[1] == 0x4D || data[1] == 0x4E) && data[2] == 0x0D) {
-    log_ble_packet(data, len, "TX");
-  }
-
-  esp_err_t ret = esp_ble_gatts_send_indicate(
-      s_gatts_if, s_conn_id, s_read_handle, len, (uint8_t *)data, false);
-  if (ret != ESP_OK) {
-    ESP_LOGW(TAG, "HUD notify failed: %s", esp_err_to_name(ret));
-    // Update TX failure count if called from
-    // ble_tx_task (10-byte HUD TX packets)
-    if (len == 10 && data[0] == PROTOCOL_HEADER && data[1] == PROTOCOL_ID) {
-      s_tx_fail++;
-    }
-  } else {
-    note_ble_activity();
-    // Update TX success count if called from
-    // ble_tx_task (10-byte HUD TX packets)
-    if (len == 10 && data[0] == PROTOCOL_HEADER && data[1] == PROTOCOL_ID) {
-      s_tx_ok++;
-      if (!s_client_started) {
-        s_client_started = true;
-        ESP_LOGI(TAG, "client_started: first TX");
-      }
-    }
-  }
-}
+// Deleted legacy Bluedroid notification logic residue
 
 void log_ble_packet(const uint8_t *data, size_t len, const char *prefix) {
     if (data == NULL || len < 2 || data[0] != 0x19 || data[len - 1] != 0x2F) {
@@ -5229,7 +5250,10 @@ void log_ble_packet(const uint8_t *data, size_t len, const char *prefix) {
             case 0x0C: desc = (len >= 5 && data[4] == 0x01) ? "(내비기능 시작)" : (len >= 5 && data[4] == 0x00) ? "(속도계 모드 시작)" : "(모델명과 펌웨어 버전 송신)"; break;
             case 0x0D: desc = (data[1] == 0x4E || data[1] == 0x4D) ? "시간 업데이트 요청(TX)" : "목적지 도착 알림(RX)"; break;
             case 0x0E: desc = "도로명 정보(Road Name)"; break;
+            case 0xFF: desc = "Keep-Alive Heartbeat (TX)"; break;
         }
+    } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x59) {
+        desc = "설정/동기화 데이터(0x59)";
     } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x50) {
         uint8_t mcmd = data[2];
         switch (mcmd) {
@@ -5266,17 +5290,18 @@ void log_ble_packet(const uint8_t *data, size_t len, const char *prefix) {
     }
 
     if (xSemaphoreTake(s_pkt_log_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-        // 0x4F 03(펌웨어) 및 0x50 02(이미지 데이터) 이외의 0x50 계열은 벌크 데이터로 간주
-        bool is_bulk_data = (id == 0x4F && cmd == 0x03) || (id == 0x50 && cmd != 0x02);
+        // [MOD] Silence only very heavy binary data flows if requested, 
+        // but now explicitly enabling 0x50 for tracking
+        bool is_bulk_data = (id == 0x4F && cmd == 0x03); 
         
         static char hex_str[800];
         memset(hex_str, 0, sizeof(hex_str));
         int pos = 0;
         
-        // 19 50 02 패킷은 앞부분 10바이트만 출력
+        // 0x50 02(IMAGE DATA) and 0x4F 03(FW DATA) get 10-byte truncation
         size_t limit = len - 1;
         bool truncated = false;
-        if (id == 0x50 && cmd == 0x02 && len > 11) {
+        if (((id == 0x50 && cmd == 0x02) || (id == 0x4F && cmd == 0x03)) && len > 11) {
             limit = 11; // index 1 ~ 10 (10 bytes)
             truncated = true;
         }
@@ -5288,7 +5313,7 @@ void log_ble_packet(const uint8_t *data, size_t len, const char *prefix) {
             strcat(hex_str, "... ");
         }
 
-        if (!is_bulk_data) {
+        if (!is_bulk_data || (id == 0x50 && cmd == 0x02)) { // Show image data even if bulk
             ESP_LOGW(TAG, "PKT_LOG [%02d:%02d:%02d] [%s] %s// %s", 
                      timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, 
                      (prefix ? prefix : "??"), hex_str, desc);
@@ -6152,30 +6177,23 @@ static esp_err_t lvgl_init(void) {
 
 
 static void update_display_mode_ui(display_mode_t mode) {
-  // Determine if we are in a "functioning" state (App connected)
-  bool is_active_state = s_connected;
+  // Determine if we are in a "functioning" state (App connected or Virtual Drive)
+  bool is_active_state = s_connected || s_virt_drive_active;
 
-  // Logo Show-Once Logic
-  if (is_active_state) {
-    if (s_intro_image) lv_obj_add_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
-  } else {
-    if (s_current_mode == DISPLAY_MODE_BOOT) {
-      if (s_intro_image) {
-        lv_obj_clear_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_move_foreground(s_intro_image);
-      }
+  // [Fix] Intro Image Overlap Bug:
+  // Hide intro image if we are not in BOOT mode, OR if connected, OR if QR Registration is shown.
+  if (s_intro_image) {
+    if (mode == DISPLAY_MODE_BOOT && !is_active_state && !s_boot_reg_shown) {
+      lv_obj_clear_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_move_foreground(s_intro_image);
     } else {
-      if (s_intro_image) lv_obj_add_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_add_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
     }
   }
 
   switch (mode) {
   case DISPLAY_MODE_BOOT:
     if (lv_scr_act() != s_boot_screen) lv_scr_load(s_boot_screen);
-    if (s_intro_image) {
-      lv_obj_clear_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_move_foreground(s_intro_image);
-    }
     // [Fix] BOOT 모드에서는 시계와 날짜를 절대 표시하지 않음 (로고 전용)
     if (s_boot_time_label) lv_obj_add_flag(s_boot_time_label, LV_OBJ_FLAG_HIDDEN);
     if (s_boot_date_label) lv_obj_add_flag(s_boot_date_label, LV_OBJ_FLAG_HIDDEN);
@@ -6192,6 +6210,7 @@ static void update_display_mode_ui(display_mode_t mode) {
       if (s_boot_reg_val_label) lv_obj_add_flag(s_boot_reg_val_label, LV_OBJ_FLAG_HIDDEN);
       if (s_boot_install_title_label) lv_obj_add_flag(s_boot_install_title_label, LV_OBJ_FLAG_HIDDEN);
       if (s_boot_install_sub_label) lv_obj_add_flag(s_boot_install_sub_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_install_qr) lv_obj_add_flag(s_boot_install_qr, LV_OBJ_FLAG_HIDDEN);
     }
     break;
 
@@ -6241,21 +6260,33 @@ static void update_display_mode_ui(display_mode_t mode) {
       if (s_boot_reg_val_label) lv_obj_add_flag(s_boot_reg_val_label, LV_OBJ_FLAG_HIDDEN);
       if (s_boot_install_title_label) lv_obj_add_flag(s_boot_install_title_label, LV_OBJ_FLAG_HIDDEN);
       if (s_boot_install_sub_label) lv_obj_add_flag(s_boot_install_sub_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_install_qr) lv_obj_add_flag(s_boot_install_qr, LV_OBJ_FLAG_HIDDEN);
     }
     break;
 
-  case DISPLAY_MODE_CLOCK:
+    case DISPLAY_MODE_CLOCK:
     {
       bool use_clock2 = (s_clock_option == 1);
       if (s_clock_option == 2) {
+        // [User Request] 재부팅 시마다 스타일이 바뀔 수 있도록 랜덤 오프셋 적용
+        if (s_auto_clock_offset == -1) {
+          s_auto_clock_offset = (int)(esp_random() % 2);
+        }
+        
         time_t now; struct tm t; time(&now); localtime_r(&now, &t);
-        use_clock2 = (t.tm_hour % 2 == 0);
+        // 오프셋을 더해 시간 기반 전환의 기준점을 부팅 시마다 다르게 설정
+        use_clock2 = ((t.tm_hour + s_auto_clock_offset) % 2 == 0);
       }
       if (!use_clock2) {
         lv_scr_load(s_clock_screen);
       } else {
         lv_scr_load(s_clock2_screen);
       }
+      
+      // Load current time immediately to avoid invisible hands on startup
+      time_t now; struct tm t; time(&now); localtime_r(&now, &t);
+      if (!use_clock2) draw_analog_clock(t.tm_hour, t.tm_min, t.tm_sec);
+      else draw_analog_clock2(t.tm_hour, t.tm_min, t.tm_sec);
     }
     align_avr_speed_labels();
     break;
@@ -6391,13 +6422,14 @@ static void switch_display_mode(display_mode_t new_mode) {
     s_guide_sub_mode = GUIDE_SUB_STANDBY;
   }
 
-  // == [User Request] Block external switches while in specialized modes ==
-  if (!s_is_manual_mode_switch) {
+  // == [User Request] Block ALL external switches while in specialized modes ==
+  // Only manual (touch) interaction is allowed to exit these modes once entered.
+  if (!s_is_manual_mode_switch && s_current_mode != DISPLAY_MODE_BOOT) {
     if (s_current_mode == DISPLAY_MODE_CLOCK || 
         s_current_mode == DISPLAY_MODE_ALBUM ||
         s_current_mode == DISPLAY_MODE_SETTING) {
-      if (new_mode == DISPLAY_MODE_GUIDE) {
-        ESP_LOGI(TAG, "Mode switch blocked: Current mode locked. Swipe to exit.");
+      if (new_mode != s_current_mode) {
+        ESP_LOGI(TAG, "Mode switch blocked: Current mode (%d) locked. Manual interaction required.", s_current_mode);
         return;
       }
     }
@@ -6516,7 +6548,6 @@ static void set_lcd_brightness(uint8_t level, bool notify) {
   if (notify && s_connected && s_hud_notify_enabled) {
     uint8_t resp[7] = {0x19, 0x4E, 0x0B, 0x02, level, level, 0x2F};
     hud_send_notify_bytes(resp, sizeof(resp));
-    log_ble_packet(resp, sizeof(resp), "TX");
   }
 
   // Update Settings UI if it exists
@@ -6980,7 +7011,7 @@ static void monitor_system_health(void) {
       btc_task_handle};
   // stack_sizes should match the values used in xTaskCreate
   const UBaseType_t stack_sizes[] = {
-      9216, 4096, 4096, 6144, 4096, CONFIG_BT_BTC_TASK_STACK_SIZE};
+      9216, 4096, 4096, 6144, 4096, 4096};
 
   for (int i = 0; i < 6; i++) {
     if (task_handles[i] != NULL) {
@@ -7166,16 +7197,26 @@ static void lvgl_handler_task(void *arg) {
   bool boot_timeout_triggered = false;
 
   while (1) {
-    // 0. [Fix] 10초 타임아웃 처리: 연결되지 않았을 때 설치 안내 UI 표시 (강제 모드 전환은 하지 않음)
-    // [Fix] iOS 자동 재연결 대응: BLE 연결 유무와 관계없이 앱 명령 미수신 시 타임아웃 처리
-    if (!boot_timeout_triggered && !s_hud_seen_first_cmd) {
+    // [Fix] 20초 타임아웃 처리: 앱 응답이 없을 때 BOOT 모드 내에서 설치 안내 UI만 표시
+    if (!boot_timeout_triggered && !s_app_communicated) {
       if ((xTaskGetTickCount() - boot_start_tick) > pdMS_TO_TICKS(10000)) {
-        ESP_LOGI(TAG, "BOOT Timeout: No connection after 10s. Showing registration info...");
-        // s_hud_seen_first_cmd = true; // [제거] 더 이상 강제로 루프를 깨지 않음
-        boot_timeout_triggered = true; // 플래그를 세워 이 블록이 반복 실행되지 않게 함
-        // UI 갱신은 lvgl_handler_task의 하단부나 별도 로직에서 처리됨
+        ESP_LOGI(TAG, "BOOT Timeout: No app communication after 10s. Showing QR/Registration UI.");
+        boot_timeout_triggered = true;
+        
+        // [Action] Show installation UI elements (Manual trigger within current BOOT mode)
+        LVGL_LOCK();
+        if (s_intro_image) lv_obj_add_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
+        if (s_boot_reg_title_label) lv_obj_clear_flag(s_boot_reg_title_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_boot_reg_val_label) lv_obj_clear_flag(s_boot_reg_val_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_boot_install_title_label) lv_obj_clear_flag(s_boot_install_title_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_boot_install_sub_label) lv_obj_clear_flag(s_boot_install_sub_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_boot_install_qr) lv_obj_clear_flag(s_boot_install_qr, LV_OBJ_FLAG_HIDDEN);
+        LVGL_UNLOCK();
       }
     }
+
+    // [Fix] Removed redundant auto-switch logic that was conflicting with NVS mode restoration.
+    // The switch to s_nvs_restored_mode is now handled exclusively in process_app_command.
 
     // 하트비트 업데이트 (루프 시작 시)
     update_heartbeat_lvgl();
@@ -7306,6 +7347,8 @@ static void lvgl_handler_task(void *arg) {
       ESP_LOGD(TAG, "LVGL: Destination update queue processed");
     }
 
+
+
     // Check for circle update requests from
     // other tasks
     if (s_circle_update_queue != NULL) {
@@ -7379,1297 +7422,660 @@ static void lcd_task(void *arg) {
   }
 }
 
-static void send_write_rsp_if_needed(esp_gatt_if_t gatts_if,
-                                     esp_ble_gatts_cb_param_t *param) {
-  if (!param->write.need_rsp) {
-    return;
-  }
-  esp_gatt_rsp_t rsp = {0};
-  rsp.attr_value.handle = param->write.handle;
-  rsp.attr_value.len = 0;
-  rsp.attr_value.offset = 0;
-  rsp.attr_value.auth_req = ESP_GATT_AUTH_REQ_NONE;
-  esp_err_t ret = esp_ble_gatts_send_response(
-      gatts_if, param->write.conn_id, param->write.trans_id, ESP_GATT_OK, &rsp);
-  if (ret != ESP_OK) {
-    ESP_LOGW(TAG, "send_response(write) failed: %s", esp_err_to_name(ret));
-  }
-}
+// Deleted legacy Bluedroid helper
 
-static void send_read_rsp(esp_gatt_if_t gatts_if,
-                          esp_ble_gatts_cb_param_t *param, const uint8_t *value,
-                          uint16_t value_len) {
-  esp_gatt_rsp_t rsp = {0};
-  rsp.attr_value.handle = param->read.handle;
-  uint16_t offset = (uint16_t)param->read.offset;
-  rsp.attr_value.offset = offset;
-  rsp.attr_value.auth_req = ESP_GATT_AUTH_REQ_NONE;
-  uint16_t max_len = (s_mtu > 0) ? (uint16_t)(s_mtu - 1) : 22;
-
-  if (offset >= value_len || value == NULL) {
-    rsp.attr_value.len = 0;
-  } else {
-    uint16_t remain = (uint16_t)(value_len - offset);
-    if (remain > max_len)
-      remain = max_len;
-    rsp.attr_value.len = remain;
-    memcpy(rsp.attr_value.value, value + offset, remain);
-  }
-  esp_err_t ret = esp_ble_gatts_send_response(
-      gatts_if, param->read.conn_id, param->read.trans_id, ESP_GATT_OK, &rsp);
-  if (ret != ESP_OK) {
-    ESP_LOGW(TAG, "send_response(read) failed: %s", esp_err_to_name(ret));
-  }
-}
 
 // ---------------------------------------------------------------------------
-// HID payloads (minimal keyboard-like device)
+// Utility Functions for BLE and UI Updates
 // ---------------------------------------------------------------------------
 
-static const uint8_t s_hid_info_val[4] = {0x11, 0x01, 0x00,
-                                          0x02}; // HID 1.11, country=0,
-                                                 // flags=remote wake
+// static uint32_t s_last_ble_activity_tick = 0; // Removed: duplicate of line 5056
 
-// Vendor-defined HID report map (Report ID 1,
-// 8-byte input report) Uses Vendor-Defined
-// Usage Page (0xFF00) instead of Keyboard to
-// prevent phone OS from registering as
-// keyboard
+void note_ble_activity(void) {
+    s_last_ble_activity_tick = xTaskGetTickCount();
+}
+
+// void log_ble_packet(...) removed: duplicate of line 5064
+
+void hud_send_notify_bytes(const uint8_t *data, uint16_t len) {
+    if (!s_connected || s_conn_handle == BLE_HS_CONN_HANDLE_NONE || !s_hud_notify_enabled) return;
+    
+    // [User Request] Standardized PKT_LOG for all TX packets
+    if (len >= 5 && data[0] == 0x19) {
+        uint8_t id = data[1];
+        uint8_t cmd = data[2];
+        const char *desc = "기타";
+        bool silent_data = false;
+
+        if (id == 0x4F) {
+            switch(cmd) {
+                case 0x01: desc = "F/W 업데이트 정보(INFO)"; break;
+                case 0x02: desc = "F/W 업데이트 요청(REQ)"; break;
+                case 0x03: desc = "F/W 업데이트 데이터(DATA)"; silent_data = true; break;
+                case 0x04: desc = "F/W 업데이트 데이터 응답(ACK)"; break;
+                case 0x05: desc = "F/W 업데이트 완료 통보(COMPLETE)"; break;
+                case 0x06: desc = "F/W 업데이트 취소(CANCEL)"; break;
+                default: desc = "F/W 업데이트 관련"; break;
+            }
+        } else if (id == 0x50) {
+            switch(cmd) {
+                case 0x11: desc = "이미지 전송 정보 응답(INFO_RES)"; break;
+                case 0x03: desc = "이미지 데이터 응답(ACK)"; break;
+                case 0x04: desc = "이미지 전송 완료 통보(COMPLETE)"; break;
+                case 0x07: desc = "이미지 상태 요청(TX)"; break;
+                default: desc = "이미지 전송 관련"; break;
+            }
+        } else if (id == 0x00 && cmd == 0x00) {
+            silent_data = true; // FW Keep-alive (Null packet)
+        } else {
+            switch(cmd) {
+                case 0x0D: desc = "시간 업데이트 요청"; break;
+                case 0x11: desc = "현재 안내 모드 요청"; break;
+                case 0x12: desc = "GPS 상태 요청"; break;
+                case 0x0B: desc = "밝기 설정값 통보"; break;
+                case 0x0C: desc = "모델명/버전 통보"; break;
+                case 0x04: desc = "하트비트/링 상태"; break;
+                case 0x02: desc = "배터리 레벨 통보"; break;
+                case 0x50: desc = "이미지 데이터"; silent_data = true; break;
+            }
+        }
+
+        if (!silent_data) {
+            char hex_buf[128] = {0};
+            int pos = 0;
+            size_t show_len = (len > 11) ? 11 : len; 
+            
+            for (int i = 1; i < len && i < show_len; i++) {
+                pos += snprintf(hex_buf + pos, sizeof(hex_buf) - pos, "%02X ", data[i]);
+            }
+            if (len > 11) strcat(hex_buf, "... ");
+
+            ESP_LOGW(TAG, "PKT_LOG [TX] %s// %s", hex_buf, desc);
+        }
+    }
+    
+    
+    struct os_mbuf *om = ble_hs_mbuf_from_flat(data, len);
+    if (om) {
+        int rc = ble_gattc_notify_custom(s_conn_handle, s_hud_char_ready_handle, om);
+        if (rc == 0) {
+            note_ble_activity();
+            if (len == 10 && data[1] == PROTOCOL_ID) s_tx_ok++;
+        } else {
+            if (len == 10 && data[1] == PROTOCOL_ID) s_tx_fail++;
+        }
+    }
+}
+
+// update_ui_progress is already defined around line 8764 now. 
+// We will ensure it stays there and remove duplicate here.
+// ---------------------------------------------------------------------------
+// NimBLE GATT Service Definitions (HID, HUD, Battery, DIS)
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// HID Report Map (Minimal Keyboard/Consumer Control)
+// ---------------------------------------------------------------------------
 static const uint8_t s_hid_report_map[] = {
-    0x06, 0x00, 0xFF, // Usage Page (Vendor-Defined 0xFF00)
-    0x09, 0x01,       // Usage (Vendor-Defined 0x01)
-
-    0xA1, 0x01,       // Collection (Application)
-    
-    // Report ID 1: Output
-    0x85, 0x01,                    //   Report ID (1)
-    0x95, 0x08,                    //   Report Count (8)
-    0x75, 0x08,                    //   Report Size (8 bits)
-    0x15, 0x00,                    //   Logical Minimum (0)
-    0x26, 0xFF, 0x00,              //   Logical Maximum (255)
-    0x09, 0x01,                    //   Usage (Vendor Usage 1)
-    0x91, 0x02,                    //   Output (Data,Var,Abs)
-
-    // Report ID 2: Input (Notifiable)
-    0x85, 0x02,                    //   Report ID (2)
-    0x95, 0x08,                    //   Report Count (8)
-    0x75, 0x08,                    //   Report Size (8 bits)
-    0x15, 0x00,                    //   Logical Minimum (0)
-    0x26, 0xFF, 0x00,              //   Logical Maximum (255)
-    0x09, 0x02,                    //   Usage (Vendor Usage 2)
-    0x81, 0x02,                    //   Input (Data,Var,Abs)
-
-    // Report ID 3: Feature
-    0x85, 0x03,                    //   Report ID (3)
-    0x95, 0x08,                    //   Report Count (8)
-    0x75, 0x08,                    //   Report Size (8 bits)
-    0x15, 0x00,                    //   Logical Minimum (0)
-    0x26, 0xFF, 0x00,              //   Logical Maximum (255)
-    0x09, 0x03,                    //   Usage (Vendor Usage 3)
-    0xB1, 0x02,                    //   Feature (Data,Var,Abs)
-
-    0xC0  // End Collection
+    0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
+    0x09, 0x06,                    // USAGE (Keyboard)
+    0xa1, 0x01,                    // COLLECTION (Application)
+    0x85, 0x01,                    //   REPORT_ID (1)
+    0x05, 0x07,                    //   USAGE_PAGE (Keyboard)
+    0x19, 0xe0,                    //   USAGE_MINIMUM (Keyboard LeftControl)
+    0x29, 0xe7,                    //   USAGE_MAXIMUM (Keyboard Right GUI)
+    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
+    0x25, 0x01,                    //   LOGICAL_MAXIMUM (1)
+    0x75, 0x01,                    //   REPORT_SIZE (1)
+    0x95, 0x08,                    //   REPORT_COUNT (8)
+    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
+    0x95, 0x01,                    //   REPORT_COUNT (1)
+    0x75, 0x08,                    //   REPORT_SIZE (8)
+    0x81, 0x03,                    //   INPUT (Cnst,Var,Abs)
+    0x95, 0x06,                    //   REPORT_COUNT (6)
+    0x75, 0x08,                    //   REPORT_SIZE (8)
+    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
+    0x25, 0x65,                    //   LOGICAL_MAXIMUM (101)
+    0x05, 0x07,                    //   USAGE_PAGE (Keyboard)
+    0x19, 0x00,                    //   USAGE_MINIMUM (Reserved)
+    0x29, 0x65,                    //   USAGE_MAXIMUM (Keyboard Application)
+    0x81, 0x00,                    //   INPUT (Data,Ary,Abs)
+    0xc0                           // END_COLLECTION
 };
 
+static int
+hid_on_access(uint16_t conn_handle, uint16_t attr_handle,
+              struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    uint16_t uuid16 = ble_uuid_u16(ctxt->chr->uuid);
 
-// Stable buffers/UUIDs (avoid stack pointers
-// inside BLE callbacks)
-static uint8_t s_init_read_val[20] = {0};
-static uint8_t s_init_write_val[1] = {0};
-static uint8_t s_cccd_init[2] = {0x00, 0x00};
-
-static esp_bt_uuid_t s_read_uuid = {0};
-static esp_bt_uuid_t s_write_uuid = {0};
-static esp_bt_uuid_t s_cccd_uuid = {0};
-static esp_attr_value_t s_cccd_attr = {0};
-
-// ---------------------------------------------------------------------------
-// Advertising
-// - Advertise the custom 128-bit service UUID
-// + device name
-// ---------------------------------------------------------------------------
-
-// ADV raw (keep the scan-filter UUID + name
-// in the primary ADV):
-// - Flags: 02 01 06
-// - Complete List of 16-bit Service UUIDs: 05
-// 03 12 18 EA FF  (0x1812 + 0xFFEA)
-// - Appearance: 03 19 C1 03 (0x03C1 HID
-// Device, per working device log)
-// - Complete Local Name: 0E 09 "MOVISION HUD1"
-static const uint8_t s_hud_svc_uuid128[16] = {
-    0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
-    0x00, 0x10, 0x00, 0x00, 0xea, 0xff, 0x00, 0x00};
-
-// Main Advertising Data (Simplified for fast discovery by Android 16)
-// Consolidated Advertising Data: Putting everything in the primary packet for Android 16 reliability
-static const uint8_t s_adv_raw[] = {
-    0x02, 0x01, 0x06,       // Flags
-    0x03, 0x19, 0xC0, 0x03, // Appearance: Generic HID (0x03C0) instead of Keyboard
-    0x07, 0x03, 0xEA, 0xFF, 0x12, 0x18, 0x0F, 0x18 // 16-bit UUIDs: HUD, HID, Battery
-}; // 15 bytes
-
-// Scan Response: Full Name "MOVISION HUD1" for the app search
-static const uint8_t s_scan_rsp_raw[] = {
-    0x0e, 0x09, 'M', 'O', 'V', 'I', 'S', 'I', 'O', 'N', ' ', 'H', 'U', 'D', '1'
-}; // 15 bytes
-
-static esp_ble_adv_params_t s_adv_params = {
-    .adv_int_min = 0x00A0, // 100ms (Better for background scan compatibility)
-    .adv_int_max = 0x00F0, // 150ms
-    .adv_type = ADV_TYPE_IND,
-    .own_addr_type = BLE_ADDR_TYPE_PUBLIC,
-    .channel_map = ADV_CHNL_ALL,
-    .adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY,
-};
-
-static void try_start_advertising(void) {
-  if (!s_hud_service_started || !s_hid_service_started || !ota_ble_is_ready() ||
-      !s_adv_data_ready || !s_scan_rsp_ready || s_adv_active || s_adv_starting || s_connected) {
-    return;
-  }
-  s_adv_starting = true;
-
-  // Revert to ANY to fix connection rejection issues
-  s_adv_params.adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY;
-
-  esp_err_t ret = esp_ble_gap_start_advertising(&s_adv_params);
-  if (ret != ESP_OK) {
-    s_adv_starting = false;
-    ESP_LOGE(TAG, "start advertising failed: %s", esp_err_to_name(ret));
-  } else {
-    s_adv_active = true;
-    s_adv_starting = false;
-    ESP_LOGI(TAG, "Advertising started (Policy: ANY)");
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Packet builder (TBT, 10 bytes total):
-//   Header(0x19) ID(0x4D) Cmd(0x01)
-//   DataLen(0x05) Payload(5B) Tail(0x2F)
-// Payload (5 bytes):
-//   [0] rotary (1=show, 0=hide)
-//   [1] tbt_dir (0=straight, ...)
-//   [2..4] remain_distance_m (24-bit,
-//   big-endian)
-// ---------------------------------------------------------------------------
-
-static uint8_t s_packet[16];
-
-static uint16_t build_frame10(uint8_t cmd, const uint8_t payload5[5]) {
-  // Always build a fixed 10-byte frame:
-  //   [0]=0x19 [1]=0x4D [2]=cmd [3]=0x05
-  //   [4..8]=payload(5B) [9]=0x2F
-  memset(s_packet, 0, sizeof(s_packet));
-
-  uint16_t off = 0;
-  s_packet[off++] = PROTOCOL_HEADER;
-  s_packet[off++] = PROTOCOL_ID;
-  s_packet[off++] = cmd;
-  s_packet[off++] = 0x05;
-  if (payload5) {
-    memcpy(&s_packet[off], payload5, 5);
-  }
-  off += 5;
-  s_packet[off++] = PROTOCOL_TAIL;
-  s_ffea_seq++;
-  return off;
-}
-
-static uint16_t build_tbt_packet(uint8_t rotary_show, uint8_t tbt_dir,
-                                 uint32_t remain_m) {
-  uint8_t payload[5] = {0};
-  payload[0] = rotary_show ? 0x01 : 0x00;
-  payload[1] = tbt_dir;
-  payload[2] = (uint8_t)((remain_m >> 16) & 0xFF);
-  payload[3] = (uint8_t)((remain_m >> 8) & 0xFF);
-  payload[4] = (uint8_t)(remain_m & 0xFF);
-  return build_frame10(CMD_TBT_DATA, payload);
-}
-
-// ---------------------------------------------------------------------------
-// Phone -> device commands (debug helpers)
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// GAP / GATTS
-// ---------------------------------------------------------------------------
-
-static void gap_event_handler(esp_gap_ble_cb_event_t event,
-                              esp_ble_gap_cb_param_t *param) {
-  switch (event) {
-  case ESP_GAP_BLE_ADV_DATA_SET_COMPLETE_EVT:
-  case ESP_GAP_BLE_ADV_DATA_RAW_SET_COMPLETE_EVT:
-    s_adv_data_ready = true;
-    ESP_LOGI(TAG, "ADV data set");
-    try_start_advertising();
-    break;
-  case ESP_GAP_BLE_SCAN_RSP_DATA_SET_COMPLETE_EVT:
-  case ESP_GAP_BLE_SCAN_RSP_DATA_RAW_SET_COMPLETE_EVT:
-    s_scan_rsp_ready = true;
-    ESP_LOGI(TAG, "ScanRsp data set");
-    try_start_advertising();
-    break;
-  case ESP_GAP_BLE_ADV_START_COMPLETE_EVT:
-    s_adv_starting = false;
-    if (param->adv_start_cmpl.status == ESP_BT_STATUS_SUCCESS) {
-      s_adv_active = true;
-      ESP_LOGI(TAG, "Advertising started");
-    } else {
-      ESP_LOGE(TAG, "Advertising start failed");
+    if (uuid16 == 0x2A4B) { // Report Map
+        os_mbuf_append(ctxt->om, s_hid_report_map, sizeof(s_hid_report_map));
+        return 0;
+    } else if (uuid16 == 0x2A4A) { // HID Info
+        uint8_t info[4] = {0x01, 0x01, 0x00, 0x03}; // bcdHID=1.1, country=0, flags=RemoteWake|NormallyConnectable
+        os_mbuf_append(ctxt->om, info, sizeof(info));
+        return 0;
+    } else if (uuid16 == 0x2A4E) { // Protocol Mode
+        uint8_t mode = 0x01; // Report Mode
+        os_mbuf_append(ctxt->om, &mode, 1);
+        return 0;
+    } else if (uuid16 == 0x2A4D) { // Report
+        os_mbuf_append(ctxt->om, s_hid_in_report, 8);
+        return 0;
     }
-    break;
-  case ESP_GAP_BLE_ADV_STOP_COMPLETE_EVT:
-    s_adv_starting = false;
-    s_adv_active = false;
-    break;
-  case ESP_GAP_BLE_SEC_REQ_EVT: {
-    esp_bd_addr_t bd_addr;
-    memcpy(bd_addr, param->ble_security.ble_req.bd_addr, sizeof(esp_bd_addr_t));
-    ESP_LOGI(TAG,
-             "SEC_REQ from "
-             "%02x:%02x:%02x:%02x:%02x:%02x "
-             "-> accepting",
-             bd_addr[0], bd_addr[1], bd_addr[2], bd_addr[3], bd_addr[4],
-             bd_addr[5]);
-    esp_err_t ret = esp_ble_gap_security_rsp(bd_addr, true);
+    return BLE_ATT_ERR_UNLIKELY;
+}
+
+static int
+dis_on_access(uint16_t conn_handle, uint16_t attr_handle,
+              struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    uint16_t uuid16 = ble_uuid_u16(ctxt->chr->uuid);
+    if (uuid16 == 0x2A29) {
+        os_mbuf_append(ctxt->om, "MOVISION", 8);
+        return 0;
+    } else if (uuid16 == 0x2A24) {
+        os_mbuf_append(ctxt->om, "HUD1-PRO", 8);
+        return 0;
+    }
+    return BLE_ATT_ERR_UNLIKELY;
+}
+
+static int
+hud_on_access(uint16_t conn_handle, uint16_t attr_handle,
+              struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    uint16_t uuid16 = ble_uuid_u16(ctxt->chr->uuid);
+
+    if (uuid16 == 0xFFF1 || uuid16 == 0xFFF2) { // HUD Command Channel (Primary or Secondary)
+        if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
+            // [Safety Removed] User requested to keep virtual drive running until power off.
+            // App packets will still be processed by process_app_command in background,
+            // but simulation will continue to inject data.
+            struct os_mbuf *om = ctxt->om;
+            while (om != NULL) {
+                const uint8_t *data = om->om_data;
+                uint16_t len = om->om_len;
+                
+                for (uint16_t i = 0; i < len; i++) {
+                    uint8_t byte = data[i];
+                    
+                    // New packet starts with 0x19 (only if idle or very start of fragment)
+                    if (byte == 0x19 && s_rx_expected_len == 0) {
+                        s_rx_pos = 0;
+                        s_rx_expected_len = 0;
+                    }
+                    
+                    if (s_rx_pos < sizeof(s_rx_buffer)) {
+                        s_rx_buffer[s_rx_pos++] = byte;
+                        
+                        // Determine expected length based on ID
+                        if (s_rx_expected_len == 0) {
+                            if (s_rx_pos == 4 && s_rx_buffer[0] == 0x19) {
+                                uint8_t id = s_rx_buffer[1];
+                                if (id == 0x4D) { // Standard format
+                                    s_rx_expected_len = s_rx_buffer[3] + 5;
+                                }
+                            } else if (s_rx_pos == 5 && s_rx_buffer[0] == 0x19) {
+                                uint8_t id = s_rx_buffer[1];
+                                if (id == 0x4F || id == 0x50) { // Large data format (FW/IMG)
+                                    uint16_t dlen = (s_rx_buffer[3] << 8) | s_rx_buffer[4];
+                                    s_rx_expected_len = dlen + 6;
+                                }
+                            }
+                        }
+                        
+                        // If we have a full packet, process it
+                        if (s_rx_expected_len > 0 && s_rx_pos == s_rx_expected_len) {
+                            s_app_communicated = true; // Mark as communicated on first valid packet
+                            if (s_rx_buffer[s_rx_pos - 1] == 0x2F) {
+                                // [Optimization] Fast-track for heavy data (ID 0x50, 0x4F)
+                                // [User Request] Ensure logging even in fast-track path
+                                if (s_rx_buffer[1] == 0x50 || s_rx_buffer[1] == 0x4F) {
+                                    log_ble_packet(s_rx_buffer, s_rx_pos, "RX");
+                                    LVGL_LOCK();
+                                    process_app_command(s_rx_buffer, s_rx_pos);
+                                    LVGL_UNLOCK();
+                                } else {
+                                    log_ble_packet(s_rx_buffer, s_rx_pos, "RX");
+                                    if (s_ble_cmd_queue) {
+                                        ble_cmd_t cmd;
+                                        cmd.len = (s_rx_pos > 256) ? 256 : s_rx_pos;
+                                        memcpy(cmd.data, s_rx_buffer, cmd.len);
+                                        xQueueSend(s_ble_cmd_queue, &cmd, 0);
+                                    } else {
+                                        process_app_command(s_rx_buffer, s_rx_pos);
+                                    }
+                                }
+                            } else {
+                                ESP_LOGW(TAG, "Full packet received but tail is not 0x2F (0x%02X)", s_rx_buffer[s_rx_pos-1]);
+                            }
+                            s_rx_pos = 0;
+                            s_rx_expected_len = 0;
+                        }
+                    } else {
+                        ESP_LOGE(TAG, "RX buffer overflow!");
+                        s_rx_pos = 0;
+                        s_rx_expected_len = 0;
+                    }
+                }
+                om = SLIST_NEXT(om, om_next);
+            }
+            return 0;
+        } else if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+            uint8_t dummy[1] = {0};
+            os_mbuf_append(ctxt->om, dummy, 1);
+            return 0;
+        }
+    } else if (uuid16 == 0x2A19) { // Battery Level
+        if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+            os_mbuf_append(ctxt->om, &s_batt_level, 1);
+            return 0;
+        }
+    }
+    return BLE_ATT_ERR_UNLIKELY;
+}
+
+// OTA Service UUIDs (128-bit)
+static const ble_uuid128_t s_ota_svc_uuid = 
+    BLE_UUID128_INIT(0x80, 0x32, 0x36, 0x36, 0x35, 0x37, 0x41, 0x0b, 0xab, 0x8c, 0xcc, 0x07, 0xfc, 0x96, 0x73, 0xce);
+static const ble_uuid128_t s_ota_ctrl_uuid = 
+    BLE_UUID128_INIT(0x80, 0x32, 0x36, 0x56, 0x35, 0x37, 0x41, 0x0b, 0xab, 0x8c, 0xcc, 0x07, 0xfc, 0x96, 0x73, 0xce);
+static const ble_uuid128_t s_ota_data_uuid = 
+    BLE_UUID128_INIT(0x80, 0x32, 0x36, 0x57, 0x35, 0x37, 0x41, 0x0b, 0xab, 0x8c, 0xcc, 0x07, 0xfc, 0x96, 0x73, 0xce);
+
+extern uint16_t s_ota_ctrl_handle;
+extern uint16_t s_ota_data_handle;
+extern int ota_on_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg);
+
+static const struct ble_gatt_svc_def s_nimble_svc_defs[] = {
+    {
+        // 1. HUD Service (FFF0)
+        .type = BLE_GATT_SVC_TYPE_PRIMARY,
+        .uuid = BLE_UUID16_DECLARE(0xFFF0),
+        .characteristics = (struct ble_gatt_chr_def[]) {{
+            .uuid = BLE_UUID16_DECLARE(0xFFF1), // Primary Data (Write/Notify)
+            .access_cb = hud_on_access,
+            .val_handle = &s_hud_char_ready_handle,
+            .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP | BLE_GATT_CHR_F_NOTIFY,
+        }, {
+            .uuid = BLE_UUID16_DECLARE(0xFFF2), // Secondary Command Channel (App Compatibility)
+            .access_cb = hud_on_access,
+            .val_handle = &s_hud_char_write_handle,
+            .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP,
+        }, {
+            0,
+        }},
+    },
+    {
+        // 2. Battery Service (180F)
+        .type = BLE_GATT_SVC_TYPE_PRIMARY,
+        .uuid = BLE_UUID16_DECLARE(0x180F),
+        .characteristics = (struct ble_gatt_chr_def[]) {{
+            .uuid = BLE_UUID16_DECLARE(0x2A19),
+            .access_cb = hud_on_access,
+            .val_handle = &s_batt_level_handle,
+            .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+        }, {
+            0,
+        }},
+    },
+    {
+        // 3. OTA Service (Integrated)
+        .type = BLE_GATT_SVC_TYPE_PRIMARY,
+        .uuid = &s_ota_svc_uuid.u,
+        .characteristics = (struct ble_gatt_chr_def[]) {{
+            .uuid = &s_ota_ctrl_uuid.u,
+            .access_cb = ota_on_access,
+            .val_handle = &s_ota_ctrl_handle,
+            .flags = BLE_GATT_CHR_F_WRITE,
+        }, {
+            .uuid = &s_ota_data_uuid.u,
+            .access_cb = ota_on_access,
+            .val_handle = &s_ota_data_handle,
+            .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP,
+        }, {
+            0,
+        }},
+    },
+    {
+        // 4. DIS Service (0x180A)
+        .type = BLE_GATT_SVC_TYPE_PRIMARY,
+        .uuid = BLE_UUID16_DECLARE(0x180A),
+        .characteristics = (struct ble_gatt_chr_def[]) {{
+            .uuid = BLE_UUID16_DECLARE(0x2A29), // Manufacturer
+            .access_cb = dis_on_access,
+            .flags = BLE_GATT_CHR_F_READ,
+        }, {
+            .uuid = BLE_UUID16_DECLARE(0x2A24), // Model
+            .access_cb = dis_on_access,
+            .flags = BLE_GATT_CHR_F_READ,
+        }, {
+            0,
+        }},
+    },
+    {
+        // 5. HID Service (0x1812)
+        .type = BLE_GATT_SVC_TYPE_PRIMARY,
+        .uuid = BLE_UUID16_DECLARE(0x1812),
+        .characteristics = (struct ble_gatt_chr_def[]) {{
+            .uuid = BLE_UUID16_DECLARE(0x2A4B), // Report Map
+            .access_cb = hid_on_access,
+            .flags = BLE_GATT_CHR_F_READ,
+        }, {
+            .uuid = BLE_UUID16_DECLARE(0x2A4A), // HID Info
+            .access_cb = hid_on_access,
+            .flags = BLE_GATT_CHR_F_READ,
+        }, {
+            .uuid = BLE_UUID16_DECLARE(0x2A4E), // Protocol Mode
+            .access_cb = hid_on_access,
+            .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE_NO_RSP,
+        }, {
+            .uuid = BLE_UUID16_DECLARE(0x2A4D), // Report
+            .access_cb = hid_on_access,
+            .val_handle = &s_hid_char_rpt_in_handle,
+            .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+            .descriptors = (struct ble_gatt_dsc_def[]) {{
+                .uuid = BLE_UUID16_DECLARE(0x2908), // Report Reference
+                .access_cb = hid_on_access, // Not implemented but needed for some OS
+                .att_flags = BLE_ATT_F_READ,
+            }, {
+                0,
+            }},
+        }, {
+            0,
+        }},
+    },
+    {
+        0, // No more services
+    },
+};
+
+// ---------------------------------------------------------------------------
+// NimBLE GAP Event Handler
+// ---------------------------------------------------------------------------
+
+static int
+ble_mp_gap_event(struct ble_gap_event *event, void *arg) {
+    int rc;
+    switch (event->type) {
+    case BLE_GAP_EVENT_CONNECT:
+        {
+            struct ble_gap_conn_desc desc;
+            ble_gap_conn_find(event->connect.conn_handle, &desc);
+            char addr_str[18];
+            snprintf(addr_str, sizeof(addr_str), "%02x:%02x:%02x:%02x:%02x:%02x",
+                     desc.peer_id_addr.val[5], desc.peer_id_addr.val[4], desc.peer_id_addr.val[3],
+                     desc.peer_id_addr.val[2], desc.peer_id_addr.val[1], desc.peer_id_addr.val[0]);
+            
+            ESP_LOGI(TAG, "Connected: status=%d handle=%d peer=%s", 
+                     event->connect.status, event->connect.conn_handle, addr_str);
+        }
+        if (event->connect.status == 0) {
+            s_conn_handle = event->connect.conn_handle;
+            s_connected = true;
+            s_need_fast_conn = true;
+        } else {
+            ble_mp_advertise();
+        }
+        return 0;
+
+    case BLE_GAP_EVENT_DISCONNECT:
+        ESP_LOGI(TAG, "Disconnected: reason=0x%02x", event->disconnect.reason);
+        s_connected = false;
+        s_conn_handle = BLE_HS_CONN_HANDLE_NONE;
+        s_hud_notify_enabled = false;
+
+        // Fallback to Guidance Standby on disconnect
+        s_guide_sub_mode = GUIDE_SUB_STANDBY;
+        switch_display_mode(DISPLAY_MODE_GUIDE);
+
+        ble_mp_advertise();
+        return 0;
+
+    case BLE_GAP_EVENT_MTU:
+        s_mtu = event->mtu.value;
+        ESP_LOGI(TAG, "MTU updated: %d", s_mtu);
+        return 0;
+
+    case BLE_GAP_EVENT_SUBSCRIBE:
+        if (event->subscribe.attr_handle == s_hud_char_ready_handle) {
+            s_hud_notify_enabled = event->subscribe.cur_notify;
+            ESP_LOGI(TAG, "HUD CCCD updated: %d", s_hud_notify_enabled);
+        } else if (event->subscribe.attr_handle == s_hid_char_rpt_in_handle) {
+            s_hid_cccd = event->subscribe.cur_notify;
+            ESP_LOGI(TAG, "HID CCCD updated: %d", s_hid_cccd);
+        }
+        return 0;
+
+    case BLE_GAP_EVENT_REPEAT_PAIRING:
+        /* Android 16 Re-pairing Fix: If the phone asks to pair again, its 
+         * bond info is likely stale or invalid. Delete our side so we can 
+         * genuinely re-sync and stay bonded permanently. */
+        struct ble_gap_conn_desc repeat_desc;
+        rc = ble_gap_conn_find(event->repeat_pairing.conn_handle, &repeat_desc);
+        if (rc == 0) {
+            ble_store_util_delete_peer(&repeat_desc.peer_id_addr);
+            ESP_LOGW(TAG, "Stale bond detected. Deleted old peer info for re-sync.");
+        }
+        return BLE_GAP_REPEAT_PAIRING_RETRY;
+
+    case BLE_GAP_EVENT_ENC_CHANGE:
+        ESP_LOGI(TAG, "Encryption changed: status=%d (%s)", 
+                 event->enc_change.status,
+                 (event->enc_change.status == 13) ? "HCI_ERR_PIN_OR_KEY_MISSING - HUD forgot the phone!" : "OK");
+        
+        // Check bond count after encryption success
+        if (event->enc_change.status == 0) {
+            int count_p = 0;
+            ble_store_util_count(BLE_STORE_OBJ_TYPE_PEER_SEC, &count_p);
+            ESP_LOGI(TAG, "Security established. Total bonded peers now: %d", count_p);
+        }
+        return 0;
+
+    case BLE_GAP_EVENT_PASSKEY_ACTION:
+        ESP_LOGI(TAG, "Passkey Action: type=%d", event->passkey.params.action);
+        if (event->passkey.params.action == BLE_SM_IOACT_DISP) {
+            struct ble_sm_io pk;
+            pk.action = event->passkey.params.action;
+            pk.passkey = 123456; // Default or random
+            ESP_LOGI(TAG, "Display Passkey: %06ld", pk.passkey);
+            rc = ble_sm_inject_io(event->passkey.conn_handle, &pk);
+            if (rc != 0) ESP_LOGE(TAG, "Error injecting passkey; rc=%d", rc);
+        }
+        return 0;
+    }
+    return 0;
+}
+
+static void ble_mp_advertise(void) {
+    struct ble_gap_adv_params adv_params;
+    struct ble_hs_adv_fields fields;
+    int rc;
+
+    // 1. Primary Advertising Data - HUD focused
+    memset(&fields, 0, sizeof fields);
+    
+    // Flags and Name
+    fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
+    fields.name = (uint8_t *)DEVICE_NAME;
+    fields.name_len = strlen(DEVICE_NAME);
+    fields.name_is_complete = 1;
+    
+    // CRITICAL: HUD Service UUID must be in the main packet for many Apps
+    fields.uuids16 = (ble_uuid16_t[]){
+        BLE_UUID16_INIT(0xFFF0)
+    };
+    fields.num_uuids16 = 1;
+    fields.uuids16_is_complete = 1;
+
+    // Appearance (Generic HID icon - avoids "Install Keyboard App" nag)
+    fields.appearance = 0x03C0; 
+    fields.appearance_is_present = 1;
+
+    rc = ble_gap_adv_set_fields(&fields);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Error setting adv fields; rc=%d", rc);
+        return;
+    }
+
+    // 2. Scan Response Data - HID Service ID for discovery
+    memset(&fields, 0, sizeof fields);
+    fields.uuids16 = (ble_uuid16_t[]){
+        BLE_UUID16_INIT(0x1812) 
+    };
+    fields.num_uuids16 = 1;
+    fields.uuids16_is_complete = 1;
+
+    rc = ble_gap_adv_rsp_set_fields(&fields);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Error setting scan rsp fields; rc=%d", rc);
+        return;
+    }
+
+    // 3. Start Advertising with aggressive intervals (for faster App pickup)
+    memset(&adv_params, 0, sizeof adv_params);
+    adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
+    adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
+    adv_params.itvl_min = 32; // 20ms
+    adv_params.itvl_max = 48; // 30ms
+
+    rc = ble_gap_adv_start(0, NULL, BLE_HS_FOREVER, &adv_params, ble_mp_gap_event, NULL);
+    if (rc != 0 && rc != BLE_HS_EALREADY) {
+        ESP_LOGE(TAG, "Error starting advertisement; rc=%d", rc);
+    } else if (rc == 0) {
+        ESP_LOGI(TAG, "Advertising started (HUD prioritized)");
+    }
+}
+
+void hud_request_fast_conn(uint16_t conn_handle) {
+    struct ble_gap_upd_params params = {
+        .itvl_min = 0x0018, // 30ms
+        .itvl_max = 0x0028, // 50ms
+        .latency = 2,
+        .supervision_timeout = 600, // 6s
+        .min_ce_len = 0,
+        .max_ce_len = 0,
+    };
+    ble_gap_update_params(conn_handle, &params);
+}
+
+static void ble_tx_task(void *pvParameters) {
+    while (1) {
+        if (s_connected && s_conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+            // Connection management
+            if (s_need_fast_conn) {
+                s_need_fast_conn = false;
+                hud_request_fast_conn(s_conn_handle);
+            }
+
+        }
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// NimBLE Host Setup and Initialization
+// ---------------------------------------------------------------------------
+
+static void ble_mp_on_reset(int reason) {
+    ESP_LOGI(TAG, "NimBLE Reset: reason=%d", reason);
+}
+
+static void ble_mp_on_sync(void) {
+    int rc;
+
+    // Suggest 512 MTU to peers
+    ble_att_set_preferred_mtu(512);
+
+    rc = ble_hs_util_ensure_addr(0);
+    if (rc != 0) return;
+
+    ble_mp_advertise();
+    
+    // [Fix] Check existing bond count to verify NVS persistence
+    int count_o = 0, count_p = 0;
+    ble_store_util_count(BLE_STORE_OBJ_TYPE_OUR_SEC, &count_o);
+    ble_store_util_count(BLE_STORE_OBJ_TYPE_PEER_SEC, &count_p);
+    ESP_LOGI(TAG, "NimBLE Sync: Bonds found in NVS: Our=%d, Peer=%d", count_o, count_p);
+    
+    ESP_LOGI(TAG, "NimBLE Sync Complete. Advertising started.");
+}
+
+static void ble_mp_host_task(void *param) {
+    ESP_LOGI(TAG, "NimBLE Host Task Started");
+    nimble_port_run();
+    nimble_port_freertos_deinit();
+}
+
+esp_err_t init_ble(void) {
+    esp_err_t ret;
+
+    // 1. Configure Host Global Settings BEFORE Init
+    ble_hs_cfg.sync_cb = ble_mp_on_sync;
+    ble_hs_cfg.reset_cb = ble_mp_on_reset;
+    ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
+    
+    // [Fix] Stable Identity + Modern Security (Android 16 Stability)
+    ble_hs_cfg.sm_io_cap = BLE_HS_IO_NO_INPUT_OUTPUT;
+    ble_hs_cfg.sm_bonding = 1;      
+    ble_hs_cfg.sm_mitm = 0;         // Just Works is more stable for HID without display
+    ble_hs_cfg.sm_sc = 1;           // Maintain Secure Connections for bond persistence
+    ble_hs_cfg.sm_our_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
+    ble_hs_cfg.sm_their_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
+
+    // [New] Enforce Identity Stability: Using Public Address by default
+    // We ensure identity persists via SM_PAIR_KEY_DIST_ID below.
+
+    // [Staleness Check] Ensure NimBLE is actually configured for persistence
+    // [Fix] Cleanup legacy Bluedroid namespace if it exists to avoid conflicts
+    nvs_handle_t h_clean;
+    if (nvs_open("bt_config.conf", NVS_READWRITE, &h_clean) == ESP_OK) {
+        nvs_erase_all(h_clean);
+        nvs_commit(h_clean);
+        nvs_close(h_clean);
+        ESP_LOGW(TAG, "Legacy Bluedroid NVS namespace cleaned.");
+    }
+
+    // 3. Storage Init (Bonding)
+    ble_store_config_init();
+
+    // 2. Core NimBLE Port Init
+    ret = nimble_port_init();
     if (ret != ESP_OK) {
-      ESP_LOGE(TAG, "SEC_REQ security_rsp failed: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "Failed to init nimble port: %d", ret);
+        return ret;
     }
-    break;
-  }
-  case ESP_GAP_BLE_AUTH_CMPL_EVT: {
-    ESP_LOGI(TAG,
-             "AUTH_CMPL success=%d (encryption "
-             "%s)",
-             param->ble_security.auth_cmpl.success ? 1 : 0,
-             param->ble_security.auth_cmpl.success ? "COMPLETE" : "FAILED");
-    if (!param->ble_security.auth_cmpl.success) {
-      ESP_LOGE(TAG,
-               "AUTH_CMPL FAILED - "
-               "addr=%02x:%02x:%02x:%02x:%"
-               "02x:%02x, "
-               "fail_reason=%d (0x%02x)",
-               param->ble_security.auth_cmpl.bd_addr[0],
-               param->ble_security.auth_cmpl.bd_addr[1],
-               param->ble_security.auth_cmpl.bd_addr[2],
-               param->ble_security.auth_cmpl.bd_addr[3],
-               param->ble_security.auth_cmpl.bd_addr[4],
-               param->ble_security.auth_cmpl.bd_addr[5],
-               param->ble_security.auth_cmpl.fail_reason,
-               param->ble_security.auth_cmpl.fail_reason);
-    } else {
-      ESP_LOGI(TAG,
-               "AUTH_CMPL SUCCESS - "
-               "addr=%02x:%02x:%02x:%02x:%"
-               "02x:%02x, key_type=%d",
-               param->ble_security.auth_cmpl.bd_addr[0],
-               param->ble_security.auth_cmpl.bd_addr[1],
-               param->ble_security.auth_cmpl.bd_addr[2],
-               param->ble_security.auth_cmpl.bd_addr[3],
-               param->ble_security.auth_cmpl.bd_addr[4],
-               param->ble_security.auth_cmpl.bd_addr[5],
-               param->ble_security.auth_cmpl.key_type);
 
-      // Delay connection parameters update to avoid collision with Android 16's internal GATT setup
-      // We will handle this in the profile handler's logic or a timer later.
-      // For now, let's keep it minimal and stable.
-      ESP_LOGI(TAG, "AUTH_CMPL SUCCESS - addr=%02x:%02x:%02x:%02x:%02x:%02x, key_type=%d",
-               param->ble_security.auth_cmpl.bd_addr[0], param->ble_security.auth_cmpl.bd_addr[1],
-               param->ble_security.auth_cmpl.bd_addr[2], param->ble_security.auth_cmpl.bd_addr[3],
-               param->ble_security.auth_cmpl.bd_addr[4], param->ble_security.auth_cmpl.bd_addr[5],
-               param->ble_security.auth_cmpl.key_type);
-      
-      // Moving these to a safer point or omitting to let OS decide initially
-      // s_auth_complete_time = xTaskGetTickCount(); 
-    }
-    // Service Changed Indication removed -
-    // let app discover services naturally
-    break;
-  }
-  case ESP_GAP_BLE_READ_RSSI_COMPLETE_EVT:
-    if (param->read_rssi_cmpl.status == ESP_BT_STATUS_SUCCESS) {
-      s_rssi_value = param->read_rssi_cmpl.rssi;
-      s_rssi_read_once = true;
-    }
-    break;
-  case ESP_GAP_BLE_PHY_UPDATE_COMPLETE_EVT:
-    ESP_LOGI(TAG, "PHY Update Complete: status=%d, tx_phy=%d, rx_phy=%d",
-             param->phy_update.status, param->phy_update.tx_phy,
-             param->phy_update.rx_phy);
-    break;
+    // [Fix] Log Static Identity based on MAC
+    uint8_t bt_addr[6];
+    esp_read_mac(bt_addr, ESP_MAC_BT);
+    ESP_LOGI(TAG, "Bluetooth Identity (MAC): %02X:%02X:%02X:%02X:%02X:%02X",
+             bt_addr[0], bt_addr[1], bt_addr[2], bt_addr[3], bt_addr[4], bt_addr[5]);
 
-  default:
-    break;
-  }
+    // 4. Initialize Built-in Services
+
+    // 4. Initialize Built-in Services
+    ble_svc_gap_init();
+    ble_svc_gatt_init();
+
+    // 5. Unified User Service Registration
+    int rc;
+    rc = ble_gatts_count_cfg(s_nimble_svc_defs);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Failed to count GATT; rc=%d", rc);
+        return ESP_FAIL;
+    }
+    rc = ble_gatts_add_svcs(s_nimble_svc_defs);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Failed to add services; rc=%d", rc);
+        return ESP_FAIL;
+    }
+
+    // 6. Start Host Task
+    nimble_port_freertos_init(ble_mp_host_task);
+    return ESP_OK;
 }
 
-static uint16_t s_main_gatts_if = ESP_GATT_IF_NONE;
-
-static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
-                                        esp_gatt_if_t gatts_if,
-                                        esp_ble_gatts_cb_param_t *param) {
-  if (event == ESP_GATTS_REG_EVT) {
-    if (param->reg.app_id != 0)
-      return;
-    s_main_gatts_if = gatts_if;
-  } else if (gatts_if != ESP_GATT_IF_NONE && gatts_if != s_main_gatts_if) {
-    return;
-  }
-
-  switch (event) {
-  case ESP_GATTS_REG_EVT: {
-    ESP_ERROR_CHECK(esp_ble_gap_set_device_name(DEVICE_NAME));
-
-    s_adv_data_ready = false;
-    s_scan_rsp_ready = false;
-    ESP_ERROR_CHECK(esp_ble_gap_config_adv_data_raw((uint8_t *)s_adv_raw,
-                                                    sizeof(s_adv_raw)));
-    ESP_ERROR_CHECK(esp_ble_gap_config_scan_rsp_data_raw(
-        (uint8_t *)s_scan_rsp_raw, sizeof(s_scan_rsp_raw)));
-
-    // Reset service state on (re)register
-    s_hud_service_started = false;
-    s_hid_service_started = false;
-    s_service_handle = 0;
-    s_hid_service_handle = 0;
-    s_dis_service_handle = 0;
-    s_batt_service_handle = 0;
-    s_dis_manuf_handle = 0;
-    s_dis_model_handle = 0;
-    s_dis_serial_handle = 0;
-    s_dis_pnp_handle = 0;
-    s_hid_report_map_handle = 0;
-    s_hid_info_handle = 0;
-    s_hid_ctrlpt_handle = 0;
-    s_hid_report_in_handle = 0;
-    s_hid_report_in_cccd_handle = 0;
-    s_hid_report_in_ref_handle = 0;
-    s_hid_report_out_handle = 0;
-    s_hid_report_out_ref_handle = 0;
-    s_hid_report_feat_handle = 0;
-    s_hid_report_feat_ref_handle = 0;
-    s_hid_proto_handle = 0;
-    s_fff2_cccd_handle = 0;
-    s_hid_cccd = 0x0000;
-
-    // Match Tplay/Android 16 requirement: 1801(SC) -> 180A(DIS) -> 180F(BATT) -> HUD -> HID
-    // 00. Service Changed (Standard requirement for Android Cache trust)
-    if (s_sc_service_handle == 0) {
-      esp_gatt_srvc_id_t sid = {.is_primary = true, .id = {.inst_id = 0, .uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x1801}}}};
-      ESP_ERROR_CHECK(esp_ble_gatts_create_service(gatts_if, &sid, 4));
-    }
-    // 0. DIS Service (Standard requirement for HID Host)
-    if (s_dis_service_handle == 0) {
-      esp_gatt_srvc_id_t sid = {.is_primary = true, .id = {.inst_id = 0, .uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x180A}}}};
-      ESP_ERROR_CHECK(esp_ble_gatts_create_service(gatts_if, &sid, 10));
-    }
-    // 1. Battery Service
-    if (s_batt_service_handle == 0) {
-      esp_gatt_srvc_id_t sid = {.is_primary = true, .id = {.inst_id = 0, .uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x180F}}}};
-      ESP_ERROR_CHECK(esp_ble_gatts_create_service(gatts_if, &sid, 10));
-    }
-    // 2. HUD Service
-    if (s_service_handle == 0) {
-      esp_gatt_srvc_id_t sid = {.is_primary = true, .id = {.inst_id = 1, .uuid = {.len = ESP_UUID_LEN_128}}};
-      memcpy(sid.id.uuid.uuid.uuid128, s_hud_svc_uuid128, 16);
-      ESP_ERROR_CHECK(esp_ble_gatts_create_service(gatts_if, &sid, 20));
-    }
-    // 3. HID Service
-    if (s_hid_service_handle == 0) {
-      esp_gatt_srvc_id_t sid = {.is_primary = true, .id = {.inst_id = 0, .uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x1812}}}};
-      ESP_ERROR_CHECK(esp_ble_gatts_create_service(gatts_if, &sid, 45)); 
-    }
-    break;
-  }
-  case ESP_GATTS_CREATE_EVT: {
-    if (param->create.status != ESP_GATT_OK) {
-      ESP_LOGE(TAG, "create service failed: %d", param->create.status);
-      break;
-    }
-    if (param->create.service_id.id.uuid.len == ESP_UUID_LEN_16 &&
-        param->create.service_id.id.uuid.uuid.uuid16 == 0x1801) {
-      s_sc_service_handle = param->create.service_handle;
-      ESP_LOGI(TAG, "SC(1801) service created handle=%u", (unsigned)s_sc_service_handle);
-      esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A05}}; // Service Changed
-      esp_ble_gatts_add_char(s_sc_service_handle, &uuid, ESP_GATT_PERM_READ, ESP_GATT_CHAR_PROP_BIT_INDICATE, NULL, NULL);
-    } else if (param->create.service_id.id.uuid.len == ESP_UUID_LEN_16 &&
-               param->create.service_id.id.uuid.uuid.uuid16 == 0x180A) {
-      s_dis_service_handle = param->create.service_handle;
-      ESP_LOGI(TAG, "DIS service created handle=%u", (unsigned)s_dis_service_handle);
-
-      esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A29}}; // Manuf
-      esp_ble_gatts_add_char(s_dis_service_handle, &uuid, ESP_GATT_PERM_READ_ENCRYPTED, ESP_GATT_CHAR_PROP_BIT_READ, NULL, NULL);
-
-    } else if (param->create.service_id.id.uuid.len == ESP_UUID_LEN_16 &&
-               param->create.service_id.id.uuid.uuid.uuid16 == 0x180F) {
-      s_batt_service_handle = param->create.service_handle;
-      ESP_LOGI(TAG, "Battery service created handle=%u", (unsigned)s_batt_service_handle);
-
-      esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A19}};
-      esp_attr_value_t attr = {0};
-      attr.attr_max_len = 1;
-      attr.attr_len = 1;
-      attr.attr_value = &s_batt_level;
-      // Battery Level: Read, Notify (per Telecons req). Require Encryption!
-      ESP_ERROR_CHECK(esp_ble_gatts_add_char(
-          s_batt_service_handle, &uuid, ESP_GATT_PERM_READ_ENCRYPTED,
-          ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_NOTIFY, &attr, NULL));
-
-    } else if (param->create.service_id.id.uuid.len == ESP_UUID_LEN_16 &&
-        param->create.service_id.id.uuid.uuid.uuid16 == 0x1812) {
-      s_hid_service_handle = param->create.service_handle;
-      ESP_LOGI(TAG, "HID service created handle=%u",
-               (unsigned)s_hid_service_handle);
-
-      // HID Information (0x2A4A) first
-      // (matches working device order)
-      esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A4A}};
-      esp_attr_value_t attr = {0};
-      attr.attr_max_len = sizeof(s_hid_info_val);
-      attr.attr_len = sizeof(s_hid_info_val);
-      attr.attr_value = (uint8_t *)s_hid_info_val;
-      // HID Info can be read without
-      // encryption (allows service discovery)
-      ESP_ERROR_CHECK(esp_ble_gatts_add_char(
-          s_hid_service_handle, &uuid, ESP_GATT_PERM_READ,
-          ESP_GATT_CHAR_PROP_BIT_READ, &attr, NULL));
-    } else if (param->create.service_id.id.uuid.len == ESP_UUID_LEN_128 &&
-               memcmp(param->create.service_id.id.uuid.uuid.uuid128,
-                      s_hud_svc_uuid128, 16) == 0) {
-      s_service_handle = param->create.service_handle;
-      ESP_LOGI(TAG,
-               "HUD(128) service created "
-               "handle=%u",
-               (unsigned)s_service_handle);
-
-      // STEP 1: Add FFF1 (Read/Notify)
-      // characteristic FIRST
-      esp_attr_value_t read_attr = {0};
-      read_attr.attr_max_len = 128;
-      read_attr.attr_len = sizeof(s_init_read_val);
-      read_attr.attr_value = s_init_read_val;
-
-      // Working device uses NOTIFICATION on
-      // FFF1; keep it notify-only (no
-      // indicate) to match behavior. Requires
-      // encryption
-      ESP_ERROR_CHECK(esp_ble_gatts_add_char(
-          s_service_handle, &s_read_uuid, ESP_GATT_PERM_READ_ENCRYPTED,
-          ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_NOTIFY,
-          &read_attr, NULL));
-      // NOTE: CCCD for FFF1 will be added in
-      // ADD_CHAR_EVT after FFF1 is added DO
-      // NOT add FFF2 here - wait until CCCD
-      // is added for FFF1 first
-    } else {
-      ESP_LOGW(TAG,
-               "Unknown service created "
-               "(uuid_len=%u)",
-               (unsigned)param->create.service_id.id.uuid.len);
-    }
-    break;
-  }
-  case ESP_GATTS_ADD_CHAR_EVT: {
-    if (param->add_char.status != ESP_GATT_OK) {
-      ESP_LOGE(TAG, "add char failed: %d", param->add_char.status);
-      break;
-    }
-    if (param->add_char.service_handle == s_hid_service_handle) {
-      // Target: match the working device HID
-      // layout (no vendor report refs/out
-      // report, no Boot Keyboard). Order:
-      // 2A4A(HID Info) -> 2A4B(Report Map) ->
-      // 2A4C(CtrlPt) -> 2A4D(Report) + CCCD
-      if (s_hid_info_handle == 0) {
-        s_hid_info_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG, "HID Info added handle=%u", (unsigned)s_hid_info_handle);
-
-        esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A4E}}; // Protocol Mode
-        esp_attr_value_t attr = {0};
-        attr.attr_max_len = 1;
-        attr.attr_len = 1;
-        attr.attr_value = &s_hid_protocol_mode;
-        ESP_ERROR_CHECK(esp_ble_gatts_add_char(s_hid_service_handle, &uuid, ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE_ENCRYPTED,
-                                               ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE, &attr, NULL));
-      } else if (s_hid_proto_handle == 0) {
-        s_hid_proto_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG, "HID ProtoMode added handle=%u", (unsigned)s_hid_proto_handle);
-
-        esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A4B}}; // Report Map
-        esp_attr_value_t attr = {0};
-        attr.attr_max_len = sizeof(s_hid_report_map);
-        attr.attr_len = sizeof(s_hid_report_map);
-        attr.attr_value = (uint8_t *)s_hid_report_map;
-        ESP_ERROR_CHECK(esp_ble_gatts_add_char(s_hid_service_handle, &uuid, ESP_GATT_PERM_READ,
-                                               ESP_GATT_CHAR_PROP_BIT_READ, &attr, NULL));
-      } else if (s_hid_report_map_handle == 0) {
-        s_hid_report_map_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG, "HID ReportMap added handle=%u", (unsigned)s_hid_report_map_handle);
-
-        esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A4C}}; // Control Point
-        static uint8_t ctrlpt = 0x00;
-        esp_attr_value_t attr = {.attr_max_len = 1, .attr_len = 1, .attr_value = &ctrlpt};
-        ESP_ERROR_CHECK(esp_ble_gatts_add_char(s_hid_service_handle, &uuid, ESP_GATT_PERM_WRITE_ENCRYPTED,
-                                               ESP_GATT_CHAR_PROP_BIT_WRITE_NR, &attr, NULL));
-      } else if (s_hid_ctrlpt_handle == 0) {
-        s_hid_ctrlpt_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG, "HID CtrlPt added handle=%u", (unsigned)s_hid_ctrlpt_handle);
-
-        // Report 1: Output (ID 1)
-        esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A4D}};
-        static uint8_t report1_val[8] = {0};
-        esp_attr_value_t attr = {.attr_max_len = 8, .attr_len = 8, .attr_value = report1_val};
-        ESP_ERROR_CHECK(esp_ble_gatts_add_char(s_hid_service_handle, &uuid, ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED,
-                                               ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE | ESP_GATT_CHAR_PROP_BIT_WRITE_NR, &attr, NULL));
-      } else if (s_hid_report_out_handle == 0) {
-        s_hid_report_out_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG, "HID Report1(Out) added handle=%u", (unsigned)s_hid_report_out_handle);
-
-        // Add Ref Descriptor for Report 1 (ID 1, Type Output=2)
-        esp_bt_uuid_t ref_uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2908}};
-        static uint8_t ref1_val[2] = {1, 2}; 
-        esp_attr_value_t ref_attr = {.attr_max_len = 2, .attr_len = 2, .attr_value = ref1_val};
-        ESP_ERROR_CHECK(esp_ble_gatts_add_char_descr(s_hid_service_handle, &ref_uuid, ESP_GATT_PERM_READ_ENCRYPTED, &ref_attr, NULL));
-      } else if (s_hid_report_in_handle == 0) {
-        s_hid_report_in_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG, "HID Report2(In) added handle=%u", (unsigned)s_hid_report_in_handle);
-
-        esp_bt_uuid_t cccd_uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2902}};
-        static uint8_t cccd_init[2] = {0, 0};
-        esp_attr_value_t cccd_attr = {.attr_max_len = 2, .attr_len = 2, .attr_value = cccd_init};
-        ESP_ERROR_CHECK(esp_ble_gatts_add_char_descr(s_hid_service_handle, &cccd_uuid, ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED, &cccd_attr, NULL));
-      } else if (s_hid_report_feat_handle == 0) {
-        s_hid_report_feat_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG, "HID Report3(Feat) added handle=%u", (unsigned)s_hid_report_feat_handle);
-
-        esp_bt_uuid_t ref_uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2908}};
-        static uint8_t ref3_val[2] = {3, 3}; 
-        esp_attr_value_t ref_attr = {.attr_max_len = 2, .attr_len = 2, .attr_value = ref3_val};
-        ESP_ERROR_CHECK(esp_ble_gatts_add_char_descr(s_hid_service_handle, &ref_uuid, ESP_GATT_PERM_READ_ENCRYPTED, &ref_attr, NULL));
-      }
-    } else if (param->add_char.service_handle == s_sc_service_handle) {
-      s_sc_handle = param->add_char.attr_handle;
-      ESP_LOGI(TAG, "SC(1801) Service Changed char added handle=%u", (unsigned)s_sc_handle);
-      esp_ble_gatts_start_service(s_sc_service_handle);
-
-    } else if (param->add_char.service_handle == s_service_handle) {
-      if (s_read_handle == 0) {
-        // ★ STEP 1: FFF1 (Read/Notify) added
-        s_read_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG, "★ FFF1 added handle=%u", (unsigned)s_read_handle);
-        // ★ STEP 2: Add CCCD for FFF1 ★
-        ESP_ERROR_CHECK(esp_ble_gatts_add_char_descr(s_service_handle, &s_cccd_uuid, ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED, &s_cccd_attr, NULL));
-      } else if (s_write_handle == 0) {
-        // ★ STEP 5: FFF2 (Write/Notify) added
-        s_write_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG, "★ FFF2 added handle=%u", (unsigned)s_write_handle);
-        // ★ STEP 6: Add CCCD for FFF2 ★
-        esp_bt_uuid_t cccd_uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2902}};
-        static uint8_t fff2_cccd_init[2] = {0, 0};
-        esp_attr_value_t cccd_attr = {.attr_max_len = 2, .attr_len = 2, .attr_value = fff2_cccd_init};
-        ESP_ERROR_CHECK(esp_ble_gatts_add_char_descr(s_service_handle, &cccd_uuid, ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED, &cccd_attr, NULL));
-      }
-    } else if (param->add_char.service_handle == s_batt_service_handle) {
-      if (s_batt_level_handle == 0) {
-        s_batt_level_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG, "Battery Level added handle=%u", (unsigned)s_batt_level_handle);
-        // Add CCCD for Battery Level (Notify support)
-        esp_bt_uuid_t cccd_uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2902}};
-        static uint8_t batt_cccd_init[2] = {0x00, 0x00};
-        esp_attr_value_t cccd_attr = {.attr_max_len = 2, .attr_len = 2, .attr_value = batt_cccd_init};
-        ESP_ERROR_CHECK(esp_ble_gatts_add_char_descr(s_batt_service_handle, &cccd_uuid, ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED, &cccd_attr, NULL));
-      }
-    } else if (param->add_char.service_handle == s_dis_service_handle) {
-      if (param->add_char.char_uuid.uuid.uuid16 == 0x2A29) { // Manufacturer Name
-        s_dis_manuf_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG, "DIS Manuf added handle=%u", (unsigned)s_dis_manuf_handle);
-        esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A24}}; // Model Number
-        esp_ble_gatts_add_char(s_dis_service_handle, &uuid, ESP_GATT_PERM_READ_ENCRYPTED, ESP_GATT_CHAR_PROP_BIT_READ, NULL, NULL);
-      } else if (param->add_char.char_uuid.uuid.uuid16 == 0x2A24) { // Model Number
-        s_dis_model_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG, "DIS Model added handle=%u", (unsigned)s_dis_model_handle);
-        esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A50}}; // PnPID
-        esp_ble_gatts_add_char(s_dis_service_handle, &uuid, ESP_GATT_PERM_READ_ENCRYPTED, ESP_GATT_CHAR_PROP_BIT_READ, NULL, NULL);
-      } else if (param->add_char.char_uuid.uuid.uuid16 == 0x2A50) { // PnPID
-        s_dis_pnp_handle = param->add_char.attr_handle;
-        ESP_LOGI(TAG, "DIS PnPID added handle=%u", (unsigned)s_dis_pnp_handle);
-        esp_ble_gatts_start_service(s_dis_service_handle);
-      }
-    }
-    break;
-  }
-  case ESP_GATTS_ADD_CHAR_DESCR_EVT:
-    if (param->add_char_descr.service_handle == s_service_handle) {
-      if (s_cccd_handle == 0) {
-        // ★ STEP 3: CCCD for FFF1 added
-        s_cccd_handle = param->add_char_descr.attr_handle;
-        ESP_LOGI(TAG, "★ CCCD for FFF1 added handle=%u", (unsigned)s_cccd_handle);
-
-        // ★ STEP 4: Add FFF2 (Write/Notify) ★
-        if (s_read_handle != 0 && s_write_handle == 0) {
-          esp_attr_value_t write_attr = {.attr_max_len = 64, .attr_len = sizeof(s_init_write_val), .attr_value = s_init_write_val};
-          // Match Tplay: WRITABLE, NOTIFIABLE (Prop: Write | Notify)
-          ESP_ERROR_CHECK(esp_ble_gatts_add_char(s_service_handle, &s_write_uuid, ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE,
-                                                 ESP_GATT_CHAR_PROP_BIT_WRITE | ESP_GATT_CHAR_PROP_BIT_NOTIFY, &write_attr, NULL));
-        }
-      } else if (s_fff2_cccd_handle == 0) {
-        s_fff2_cccd_handle = param->add_char_descr.attr_handle;
-        ESP_LOGI(TAG, "★ CCCD for FFF2 added handle=%u", (unsigned)s_fff2_cccd_handle);
-        // HUD Complete
-        ESP_ERROR_CHECK(esp_ble_gatts_start_service(s_service_handle));
-      }
-    } else if (param->add_char_descr.service_handle == s_batt_service_handle) {
-      if (s_batt_cccd_handle == 0) {
-        s_batt_cccd_handle = param->add_char_descr.attr_handle;
-        ESP_LOGI(TAG, "Battery CCCD added handle=%u", (unsigned)s_batt_cccd_handle);
-        ESP_ERROR_CHECK(esp_ble_gatts_start_service(s_batt_service_handle));
-      }
-    } else if (param->add_char_descr.service_handle == s_hid_service_handle) {
-      // HID sequential descriptors
-      if (s_hid_report_out_handle != 0 && s_hid_report_out_ref_handle == 0 && s_hid_report_in_handle == 0) {
-          s_hid_report_out_ref_handle = param->add_char_descr.attr_handle;
-          ESP_LOGI(TAG, "HID Report1 Ref added handle=%u", (unsigned)s_hid_report_out_ref_handle);
-
-          // Now add Report 2 (In, ID 2)
-          esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A4D}};
-          esp_attr_value_t attr = {.attr_max_len = sizeof(s_hid_in_report), .attr_len = sizeof(s_hid_in_report), .attr_value = s_hid_in_report};
-          // Match Tplay: READABLE, NOTIFIABLE
-          ESP_ERROR_CHECK(esp_ble_gatts_add_char(s_hid_service_handle, &uuid, ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE,
-                                                 ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_NOTIFY, &attr, NULL));
-      } else if (s_hid_report_in_handle != 0 && s_hid_report_in_cccd_handle == 0) {
-          s_hid_report_in_cccd_handle = param->add_char_descr.attr_handle;
-          ESP_LOGI(TAG, "HID Report2 CCCD added handle=%u", (unsigned)s_hid_report_in_cccd_handle);
-
-          // Now add Ref Descriptor for Report 2 (ID 2, Type Input=1)
-          esp_bt_uuid_t ref_uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2908}};
-          static uint8_t ref2_val[2] = {2, 1}; 
-          esp_attr_value_t ref_attr = {.attr_max_len = 2, .attr_len = 2, .attr_value = ref2_val};
-          ESP_ERROR_CHECK(esp_ble_gatts_add_char_descr(s_hid_service_handle, &ref_uuid, ESP_GATT_PERM_READ_ENCRYPTED, &ref_attr, NULL));
-      } else if (s_hid_report_in_ref_handle == 0) {
-          s_hid_report_in_ref_handle = param->add_char_descr.attr_handle;
-          ESP_LOGI(TAG, "HID Report2 Ref added handle=%u", (unsigned)s_hid_report_in_ref_handle);
-
-          // Now add Report 3 (Feature, ID 3)
-          esp_bt_uuid_t uuid = {.len = ESP_UUID_LEN_16, .uuid = {.uuid16 = 0x2A4D}};
-          static uint8_t report3_val[8] = {0};
-          esp_attr_value_t attr = {.attr_max_len = 8, .attr_len = 8, .attr_value = report3_val};
-          ESP_ERROR_CHECK(esp_ble_gatts_add_char(s_hid_service_handle, &uuid, ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED,
-                                                 ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE, &attr, NULL));
-      } else if (s_hid_report_feat_ref_handle == 0) {
-          s_hid_report_feat_ref_handle = param->add_char_descr.attr_handle;
-          ESP_LOGI(TAG, "HID Report3 Ref added handle=%u", (unsigned)s_hid_report_feat_ref_handle);
-
-          // HID Complete
-          ESP_ERROR_CHECK(esp_ble_gatts_start_service(s_hid_service_handle));
-      }
-    }
-    break;
-  case ESP_GATTS_START_EVT:
-    if (param->start.service_handle == s_service_handle) {
-      s_hud_service_started = (param->start.status == ESP_GATT_OK);
-      ESP_LOGI(TAG, "HUD service started=%d", s_hud_service_started ? 1 : 0);
-    } else if (param->start.service_handle == s_hid_service_handle) {
-      s_hid_service_started = (param->start.status == ESP_GATT_OK);
-      ESP_LOGI(TAG, "HID service started=%d", s_hid_service_started ? 1 : 0);
-    } else if (param->start.service_handle == s_batt_service_handle) {
-      ESP_LOGI(TAG, "Battery service started=%d", (param->start.status == ESP_GATT_OK) ? 1 : 0);
-    } else if (param->start.service_handle == s_dis_service_handle) {
-      ESP_LOGI(TAG, "DIS service started=%d",
-               (param->start.status == ESP_GATT_OK) ? 1 : 0);
-    }
-    try_start_advertising();
-    break;
-  case ESP_GATTS_CONNECT_EVT:
-    s_connected = true;
-    s_conn_id = param->connect.conn_id;
-
-    // 부팅 후 첫 연결 시 강제 전환 로직 제거 (앱 명령 대기)
-
-    // Update UI immediately on connection (Hide logo, show speedometer)
-    LVGL_LOCK();
-    update_display_mode_ui(s_current_mode);
-    LVGL_UNLOCK();
-
-    s_gatts_if = gatts_if;
-    memcpy(s_peer_bda, param->connect.remote_bda, sizeof(s_peer_bda));
-    s_peer_bda_valid = true;
-    s_adv_active = false;
-    s_adv_starting = false;
-    s_connect_tick = xTaskGetTickCount();
-    s_hud_notify_enabled = false;
-    s_hud_seen_first_cmd = false;
-
-    ESP_LOGI(TAG,
-             "peer_bda=%02x:%02x:%02x:%02x:%"
-             "02x:%02x",
-             param->connect.remote_bda[0], param->connect.remote_bda[1],
-             param->connect.remote_bda[2], param->connect.remote_bda[3],
-             param->connect.remote_bda[4], param->connect.remote_bda[5]);
-    s_last_ble_activity_tick = 0;
-    s_client_started = false;
-    s_feature_active = false;
-    s_feature_active_tick = 0;
-    s_mtu = 23;
-    s_cccd = 0x0000;
-    s_waiting_mtu_logged = false;
-    s_waiting_cccd_logged = false;
-    s_last_status_tick = 0;
-    s_tx_count = s_tx_ok = s_tx_fail = 0;
-    s_first_ffea_dump_done = false;
-    s_hid_cccd = 0x0000;
-    s_hid_tx_count = s_hid_tx_ok = s_hid_tx_fail = 0;
-    s_last_hid_tx_tick = 0;
-
-    // Force encryption (required for notification enable)
-    // This starts the auth process leading to AUTH_CMPL_EVT
-    ESP_LOGI(TAG,
-             "Requesting encryption for "
-             "%02x:%02x:%02x:%02x:%02x:%02x",
-             param->connect.remote_bda[0], param->connect.remote_bda[1],
-             param->connect.remote_bda[2], param->connect.remote_bda[3],
-             param->connect.remote_bda[4], param->connect.remote_bda[5]);
-    esp_ble_set_encryption(param->connect.remote_bda, ESP_BLE_SEC_ENCRYPT);
-
-    ESP_LOGI(TAG, "connected");
-    break;
-  case ESP_GATTS_DISCONNECT_EVT: {
-    s_connected = false;
-    s_cccd = 0x0000;
-    s_peer_bda_valid = false;
-    s_adv_active = false;
-    s_adv_starting = false;
-    s_waiting_mtu_logged = false;
-    s_waiting_cccd_logged = false;
-    s_connect_tick = 0;
-    s_hud_notify_enabled = false;
-    s_time_sync_requested = false; // 연결 끊김 시 초기화
-    s_hud_seen_first_cmd = false;
-    s_last_ble_activity_tick = 0;
-    s_client_started = false;
-    s_hid_cccd = 0x0000;
-    s_feature_active = false;
-    s_feature_active_tick = 0;
-    s_rssi_value = -128;      // RSSI 값 초기화
-                              // (읽지 않음 상태)
-    s_rssi_read_once = false; // RSSI 읽기 플래그 초기화
-    s_last_time_req_tick = 0; // 연결 해제 시 시간 요청 타이머 초기화
-    s_time_req_count = 0;     // 연결 해제 시 시간 요청 횟수 초기화
-    // 연결 해제 시 외곽 링 및 점멸 타이머 정리
-    LVGL_LOCK();
-    if (s_safety_ring_timer != NULL) {
-      lv_timer_del(s_safety_ring_timer);
-      s_safety_ring_timer = NULL;
-    }
-    if (s_circle_ring != NULL) {
-      lv_obj_add_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_invalidate(s_circle_ring);
-    }
-    
-    // UI 업데이트 대기 중인 큐들을 모두 비움 (잔상 방지)
-    if (s_safety_update_queue != NULL) xQueueReset(s_safety_update_queue);
-    if (s_image_update_queue != NULL) xQueueReset(s_image_update_queue);
-    if (s_road_name_update_queue != NULL) xQueueReset(s_road_name_update_queue);
-    if (s_speed_update_queue != NULL) xQueueReset(s_speed_update_queue);
-    if (s_clear_display_queue != NULL) xQueueReset(s_clear_display_queue);
-    
-    LVGL_UNLOCK();
-
-    // 이전에 한 번이라도 앱에 연결된 적이 있으면 대기 모드로 전환
-    // (OTA 모드 중에는 제외)
-    // 안내 모드 주행 중 연결이 끊기면 무조건 대기(BOOT) 화면으로 전환
-    // 안내 모드 주행 중 연결이 끊기면 안내 모드의 대기(STANDBY) 화면으로 전환
-    if (s_current_mode == DISPLAY_MODE_GUIDE || s_current_mode == DISPLAY_MODE_BOOT) {
-      ESP_LOGI(TAG, "Connection lost -> Switching to internal STANDBY");
-      s_guide_sub_mode = GUIDE_SUB_STANDBY;
-      switch_display_mode(DISPLAY_MODE_GUIDE);
-    } else {
-      // 그 외 모드에서는 UI 상태만 갱신
-      LVGL_LOCK();
-      update_display_mode_ui(s_current_mode);
-      LVGL_UNLOCK();
-    }
-    try_start_advertising();
-    ESP_LOGI(TAG, "disconnected reason=0x%x", param->disconnect.reason);
-    break;
-  }
-  case ESP_GATTS_MTU_EVT:
-    s_mtu = param->mtu.mtu;
-    ESP_LOGI(TAG, "MTU=%u", (unsigned)s_mtu);
-    // Service Changed Indication moved to
-    // AUTH_CMPL_EVT
-    break;
-  case ESP_GATTS_READ_EVT: {
-    // Respond to reads for our custom
-    // service.
-    uint16_t h = param->read.handle;
-    note_ble_activity();
-    ESP_LOGI(TAG, "READ_EVT: handle=%u offset=%u", (unsigned)h,
-             (unsigned)param->read.offset);
-    if (!s_client_started) {
-      s_client_started = true;
-      ESP_LOGI(TAG,
-               "client_started: first READ "
-               "(handle=%u)",
-               (unsigned)h);
-    }
-    if (h == s_hid_proto_handle) {
-      ESP_LOGI(TAG,
-               "READ_EVT HID ProtocolMode "
-               "handle=%u val=%u",
-               (unsigned)h, (unsigned)s_hid_protocol_mode);
-      send_read_rsp(gatts_if, param, &s_hid_protocol_mode, 1);
-    } else if (h == s_hid_report_map_handle) {
-      ESP_LOGI(TAG,
-               "READ_EVT HID ReportMap handle=%u "
-               "len=%u",
-               (unsigned)h, (unsigned)sizeof(s_hid_report_map));
-      send_read_rsp(gatts_if, param, s_hid_report_map,
-                    sizeof(s_hid_report_map));
-    } else if (h == s_hid_info_handle) {
-      ESP_LOGI(TAG, "READ_EVT HID Info handle=%u", (unsigned)h);
-      send_read_rsp(gatts_if, param, s_hid_info_val, sizeof(s_hid_info_val));
-    } else if (h == s_hid_report_in_handle) {
-      ESP_LOGI(TAG, "READ_EVT HID Report(IN) handle=%u", (unsigned)h);
-      send_read_rsp(gatts_if, param, s_hid_in_report, sizeof(s_hid_in_report));
-    } else if (h == s_hid_report_in_cccd_handle) {
-      uint8_t v[2] = {(uint8_t)(s_hid_cccd & 0xFF), (uint8_t)((s_hid_cccd >> 8) & 0xFF)};
-      send_read_rsp(gatts_if, param, v, sizeof(v));
-    } else if (h == s_hid_report_in_ref_handle) {
-      static const uint8_t ref[2] = {0x02, 0x01}; // ID 2, Type Input
-      send_read_rsp(gatts_if, param, ref, sizeof(ref));
-    } else if (h == s_hid_report_out_handle) {
-      static uint8_t zero[8] = {0};
-      send_read_rsp(gatts_if, param, zero, 8);
-    } else if (h == s_hid_report_out_ref_handle) {
-      static const uint8_t ref[2] = {0x01, 0x02}; // ID 1, Type Output
-      send_read_rsp(gatts_if, param, ref, sizeof(ref));
-    } else if (h == s_hid_report_feat_handle) {
-      static uint8_t zero[8] = {0};
-      send_read_rsp(gatts_if, param, zero, 8);
-    } else if (h == s_hid_report_feat_ref_handle) {
-      static const uint8_t ref[2] = {0x03, 0x03}; // ID 3, Type Feature
-      send_read_rsp(gatts_if, param, ref, sizeof(ref));
-    } else if (h == s_batt_level_handle) {
-      ESP_LOGI(TAG, "READ_EVT Battery Level: %d%%", s_batt_level);
-      send_read_rsp(gatts_if, param, &s_batt_level, 1);
-    } else if (h == s_batt_cccd_handle) {
-      uint8_t v[2] = {0, 0}; // s_batt_cccd logic placeholder
-      send_read_rsp(gatts_if, param, v, 2);
-    } else if (h == s_dis_manuf_handle) {
-      static const uint8_t manuf[] = "GOODWILL";
-      ESP_LOGI(TAG, "READ_EVT DIS ManufacturerName handle=%u (GOODWILL)", (unsigned)h);
-      send_read_rsp(gatts_if, param, manuf, sizeof(manuf) - 1);
-    } else if (h == s_dis_model_handle) {
-      static const uint8_t model[] = "MOVISION HUD1";
-      ESP_LOGI(TAG, "READ_EVT DIS ModelNumber handle=%u (MOVISION HUD1)", (unsigned)h);
-      send_read_rsp(gatts_if, param, model, sizeof(model) - 1);
-    } else if (h == s_dis_serial_handle) {
-      ESP_LOGI(TAG,
-               "READ_EVT DIS SerialNumber "
-               "handle=%u",
-               (unsigned)h);
-      send_read_rsp(gatts_if, param, (const uint8_t *)s_device_serial,
-                    (uint16_t)strlen(s_device_serial));
-    } else if (h == s_dis_pnp_handle) {
-      static const uint8_t pnp_id[7] = {0x01, 0x00, 0x00, 0x01,
-                                        0x00, 0x00, 0x01};
-      ESP_LOGI(TAG, "READ_EVT DIS PnPID handle=%u", (unsigned)h);
-      send_read_rsp(gatts_if, param, pnp_id, sizeof(pnp_id));
-    } else if (h == s_read_handle) {
-      uint16_t len = build_tbt_packet(1, (uint8_t)(s_ffea_seq % 20),
-                                      (uint32_t)(s_ffea_seq * 10));
-      ESP_LOGI(TAG,
-               "READ_EVT FFEA handle=%u "
-               "mtu=%u respond_len=%u",
-               (unsigned)h, (unsigned)s_mtu, (unsigned)len);
-      send_read_rsp(gatts_if, param, s_packet, len);
-    } else if (h == s_write_handle) {
-      // Many clients will "read" a writable
-      // characteristic as a readiness /
-      // status probe. Return a small status
-      // payload so the read succeeds.
-      uint8_t status[8] = {0};
-      status[0] = 0x4D; // 'M' - vendor marker
-      status[1] = 0x01; // version
-      status[2] = (uint8_t)(s_cccd & 0xFF);
-      status[3] = (uint8_t)((s_cccd >> 8) & 0xFF);
-      status[4] = (uint8_t)(s_last_write_len & 0xFF);
-      status[5] = (uint8_t)((s_last_write_len >> 8) & 0xFF);
-      status[6] = 0x00;
-      status[7] = 0x00;
-      ESP_LOGI(TAG,
-               "READ_EVT WRITE handle=%u "
-               "respond_len=%u last_write_len=%u "
-               "cccd=0x%04x",
-               (unsigned)h, (unsigned)sizeof(status),
-               (unsigned)s_last_write_len, (unsigned)s_cccd);
-      send_read_rsp(gatts_if, param, status, sizeof(status));
-    } else if (h == s_cccd_handle) {
-      uint8_t v[2] = {(uint8_t)(s_cccd & 0xFF),
-                      (uint8_t)((s_cccd >> 8) & 0xFF)};
-      ESP_LOGI(TAG,
-               "READ_EVT FFEA CCCD handle=%u "
-               "val=0x%04x",
-               (unsigned)h, (unsigned)s_cccd);
-      send_read_rsp(gatts_if, param, v, sizeof(v));
-    } else {
-      ESP_LOGI(TAG,
-               "READ_EVT handle=%u (unknown) "
-               "offset=%u",
-               (unsigned)h, (unsigned)param->read.offset);
-      send_read_rsp(gatts_if, param, NULL, 0);
-    }
-    break;
-  }
-  case ESP_GATTS_WRITE_EVT:
-    note_ble_activity();
-
-    if (param->write.handle == s_write_handle) {
-      // FFF2 Channel logging
-      ESP_LOGI(TAG, "[FFF2 RX] len=%u", (unsigned)param->write.len);
-    } else if (param->write.handle == s_cccd_handle) {
-      ESP_LOGI(TAG, "[FFF1 CCCD] write len=%u val=%02X%02X", (unsigned)param->write.len, param->write.value[0], (param->write.len > 1 ? param->write.value[1] : 0));
-    } else {
-      ESP_LOGI(TAG, "WRITE_EVT handle=%u len=%u", (unsigned)param->write.handle, (unsigned)param->write.len);
-    }
-
-    if (!s_client_started) {
-      s_client_started = true;
-      ESP_LOGI(TAG, "client_started: first WRITE (handle=%u)", (unsigned)param->write.handle);
-    }
-
-    if (param->write.handle == s_write_handle ||
-        param->write.handle == s_hid_ctrlpt_handle ||
-        param->write.handle == s_hid_report_out_handle ||
-        param->write.handle == s_hid_proto_handle) {
-      if (!s_feature_active) {
-        s_feature_active = true;
-        s_feature_active_tick = xTaskGetTickCount();
-        ESP_LOGI(TAG, "feature_active=1 (trigger handle=%u)", (unsigned)param->write.handle);
-      } else {
-        s_feature_active_tick = xTaskGetTickCount();
-      }
-    }
-
-    if (param->write.handle == s_hid_report_in_cccd_handle && param->write.len >= 2) {
-      s_hid_cccd = (uint16_t)(param->write.value[0] | (param->write.value[1] << 8));
-      ESP_LOGI(TAG, "HID_CCCD=0x%04x", (unsigned)s_hid_cccd);
-    }
-    
-    if (param->write.handle == s_hid_proto_handle && param->write.len >= 1) {
-      s_hid_protocol_mode = param->write.value[0];
-    }
-
-    if (param->write.handle == s_hid_report_out_handle && param->write.len >= 2) {
-      s_hid_out_report = param->write.value[1];
-    }
-
-    if (param->write.handle == s_cccd_handle && param->write.len >= 2) {
-      s_cccd = (uint16_t)(param->write.value[0] | (param->write.value[1] << 8));
-      ESP_LOGI(TAG, "FFEA CCCD=0x%04x", s_cccd);
-      s_waiting_cccd_logged = false;
-      bool was_enabled = s_hud_notify_enabled;
-      s_hud_notify_enabled = ((s_cccd & 0x0001) != 0);
-
-      // Trigger automatic handshake: Send time sync request when NOTIFY is enabled
-      if (s_hud_notify_enabled && !was_enabled) {
-          ESP_LOGI(TAG, "Notifications enabled on FFF1. Triggering handshake...");
-          if (!s_time_initialized) {
-              static const uint8_t time_req[] = {0x19, 0x4E, 0x0D, 0x01, 0x00, 0x2F}; 
-              hud_send_notify_bytes(time_req, sizeof(time_req));
-              s_time_sync_requested = true;
-              ESP_LOGI(TAG, ">>> Sent Time Sync Request (Automatic Handshake)");
-          }
-          // Optionally send a version request too if needed
-      }
-    }
-
-    if (param->write.handle == s_write_handle) {
-      for (uint16_t i = 0; i < param->write.len; i++) {
-        uint8_t byte = param->write.value[i];
-        if (byte == 0x19 && s_rx_expected_len == 0) {
-          s_rx_pos = 0;
-          s_rx_expected_len = 0;
-        }
-        if (s_rx_pos < sizeof(s_rx_buffer)) {
-          s_rx_buffer[s_rx_pos++] = byte;
-          if (s_rx_expected_len == 0) {
-            if (s_rx_pos == 4 && s_rx_buffer[0] == 0x19) {
-              uint8_t id = s_rx_buffer[1];
-              uint8_t cmd = s_rx_buffer[2];
-              if (id == 0x4D || (id == 0x50 && cmd == 0x06)) {
-                s_rx_expected_len = s_rx_buffer[3] + 5;
-              }
-            } else if (s_rx_pos == 5 && s_rx_buffer[0] == 0x19) {
-              uint8_t id = s_rx_buffer[1];
-              uint8_t cmd = s_rx_buffer[2];
-              if (id == 0x4F || (id == 0x50 && cmd != 0x06)) {
-                uint16_t dlen = (s_rx_buffer[3] << 8) | s_rx_buffer[4];
-                s_rx_expected_len = dlen + 6;
-              }
-            }
-          }
-          if (s_rx_expected_len > 0 && s_rx_pos == s_rx_expected_len) {
-            if (s_rx_buffer[s_rx_pos - 1] == 0x2F) {
-              uint8_t mid = s_rx_buffer[1];
-              uint8_t mcmd = s_rx_buffer[2];
-              bool is_bulk = (mid == 0x4F && mcmd == 0x03) || (mid == 0x50 && mcmd != 0x02);
-              if (!is_bulk) {
-                log_ble_packet(s_rx_buffer, s_rx_pos, "RX");
-              }
-              process_app_command(s_rx_buffer, s_rx_pos);
-            }
-            s_rx_pos = 0;
-            s_rx_expected_len = 0;
-          }
-        } else {
-          s_rx_pos = 0;
-          s_rx_expected_len = 0;
-        }
-      }
-    }
-
-    if (param->write.handle != s_cccd_handle &&
-        param->write.handle != s_write_handle &&
-        param->write.handle != s_fff2_cccd_handle &&
-        param->write.handle != s_hid_report_in_cccd_handle &&
-        param->write.handle != s_hid_proto_handle &&
-        param->write.handle != s_hid_report_out_handle &&
-        param->write.handle != s_hid_ctrlpt_handle) {
-      ESP_LOGW(TAG, "WRITE_EVT handle=%u len=%u (unhandled)", (unsigned)param->write.handle, (unsigned)param->write.len);
-    }
-    send_write_rsp_if_needed(gatts_if, param);
-    break;
-  case ESP_GATTS_CONF_EVT:
-    note_ble_activity();
-    // Confirmation for indications
-    // (need_confirm=true). Helps detect
-    // whether app is receiving our packets.
-    if (param->conf.handle == s_read_handle) {
-      if (param->conf.status == ESP_GATT_OK) {
-        s_ffea_conf_ok++;
-      } else {
-        s_ffea_conf_fail++;
-      }
-      // CONF_EVT 로그 제거 (사용자 요청 -
-      // 앱에서 보내는 메시지 아님)
-
-      // One-time payload dump after first
-      // confirmed receive
-      if (!s_first_ffea_dump_done && param->conf.status == ESP_GATT_OK) {
-        s_first_ffea_dump_done = true;
-        uint16_t len = build_tbt_packet(1, (uint8_t)(s_ffea_seq % 20),
-                                        (uint32_t)(s_ffea_seq * 10));
-        ESP_LOGI(TAG,
-                 "FFEA first confirmed TX dump: "
-                 "len=%u hdr=%02X id=%02X "
-                 "cmd=%02X dlen=%u tail=%02X",
-                 (unsigned)len, (unsigned)s_packet[0], (unsigned)s_packet[1],
-                 (unsigned)s_packet[2], (unsigned)s_packet[3],
-                 (unsigned)s_packet[len - 1]);
-        // print first 32 bytes for quick
-        // inspection
-        char hex[3 * 32 + 1] = {0};
-        uint16_t n = (len < 32) ? len : 32;
-        for (uint16_t i = 0; i < n; i++) {
-          sprintf(&hex[i * 3], "%02X ", s_packet[i]);
-        }
-        ESP_LOGI(TAG, "FFEA bytes[0..%u]: %s", (unsigned)(n - 1), hex);
-      }
-    }
-    break;
-  default:
-    break;
-  }
-}
-
-static void gatts_event_handler(esp_gatts_cb_event_t event,
-                                esp_gatt_if_t gatts_if,
-                                esp_ble_gatts_cb_param_t *param) {
-  if (event == ESP_GATTS_REG_EVT) {
-    if (param->reg.status != ESP_GATT_OK) {
-      ESP_LOGE(TAG, "app register failed: %d", param->reg.status);
-      return;
-    }
-  }
-
-  ota_ble_gatts_event_handler(event, gatts_if, param);
-  gatts_profile_event_handler(event, gatts_if, param);
-
-  if (event == ESP_GATTS_START_EVT) {
-    try_start_advertising();
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Periodic TX task
-// ---------------------------------------------------------------------------
-
-static void ble_tx_task(void *arg) {
-  (void)arg;
-  while (1) {
-    TickType_t now = xTaskGetTickCount();
-
-    // Service Changed Indication removed -
-    // let app discover services naturally
-
-    // periodic state log (helps confirm "not
-    // stuck")
-    if (s_connected && (s_last_status_tick == 0 ||
-                        (now - s_last_status_tick) >= pdMS_TO_TICKS(5000))) {
-      s_last_status_tick = now;
-      // 상태 로그 제거 (사용자 요청 - 앱
-      // 메시지만 표시하기 위해) since_conn_ms
-      // and since_activity_ms variables
-      // removed (unused)
-    }
-
-    // Link-liveness check: read RSSI
-    // periodically. If this succeeds, the BLE
-    // link is truly still connected.
-    static TickType_t s_last_rssi_tick = 0;
-    if (s_connected && s_peer_bda_valid &&
-        (s_last_rssi_tick == 0 ||
-         (now - s_last_rssi_tick) >= pdMS_TO_TICKS(2000))) {
-      s_last_rssi_tick = now;
-      esp_err_t r = esp_ble_gap_read_rssi(s_peer_bda);
-      if (r != ESP_OK) {
-        ESP_LOGW(TAG, "RSSI read request failed: %s", esp_err_to_name(r));
-      }
-    }
-
-    // Periodic Time Request (5s interval, max 3 times) when connected and notified
-    // [User Request] 시간이 이미 수신되었다면(s_time_initialized) 요청 중단
-    if (s_connected && s_hud_notify_enabled && !s_time_initialized && s_time_req_count < 3) {
-        if (s_last_time_req_tick == 0 || (now - s_last_time_req_tick) >= pdMS_TO_TICKS(5000)) {
-            static const uint8_t time_req[] = {0x19, 0x4E, 0x0D, 0x01, 0x00, 0x2F};
-            hud_send_notify_bytes(time_req, sizeof(time_req));
-            s_last_time_req_tick = now;
-            s_time_req_count++;
-            ESP_LOGI(TAG, "Sent periodic time sync request (Count: %d/3)", s_time_req_count);
-        }
-    }
-
-    // Time request moved to ESP_GATTS_WRITE_EVT (CCCD enable) for immediate 
-    // execution and better timing control during updates.
-
-    // HID TX: send HID report notifications
-    // periodically when CCCD is enabled.
-    if (s_connected && s_gatts_if != ESP_GATT_IF_NONE &&
-        s_hid_report_in_handle != 0 && (s_hid_cccd & 0x0001) != 0) {
-      const TickType_t now_hid = xTaskGetTickCount();
-      // Send HID report every ~100ms when
-      // subscribed
-      TickType_t min_gap_hid = pdMS_TO_TICKS(100);
-      if (s_last_hid_tx_tick == 0 ||
-          (now_hid - s_last_hid_tx_tick) >= min_gap_hid) {
-        s_last_hid_tx_tick = now_hid;
-        // Update HID report data (Report ID 1
-        // + 8 bytes)
-        s_hid_in_report[0] = 0x01; // Report ID
-        // Fill with simple test data (could
-        // be replaced with actual
-        // sensor/state data)
-        for (int i = 1; i < (int)sizeof(s_hid_in_report); i++) {
-          s_hid_in_report[i] = (uint8_t)((s_hid_tx_count + i) & 0xFF);
-        }
-        // Update characteristic value
-        (void)esp_ble_gatts_set_attr_value(
-            s_hid_report_in_handle, sizeof(s_hid_in_report), s_hid_in_report);
-        // Send notification
-        s_hid_tx_count++;
-        esp_err_t r = esp_ble_gatts_send_indicate(
-            s_gatts_if, s_conn_id, s_hid_report_in_handle,
-            sizeof(s_hid_in_report), s_hid_in_report, false);
-        if (r == ESP_OK) {
-          s_hid_tx_ok++;
-        } else {
-          s_hid_tx_fail++;
-          ESP_LOGW(TAG, "HID TX failed: %s", esp_err_to_name(r));
-        }
-      }
-    }
-
-    // IMPORTANT: ESP32 only sends time sync
-    // requests to app, not HUD TX data 1) App
-    // enables notifications on FFF1 (CCCD=1)
-    // 2) Device sends time sync request (4E
-    // 0D 01 00 2F) 3) Phone starts sending
-    // commands (write to FFF2)
-    //
-    // HUD TX data transmission removed -
-    // ESP32 only queries current time from
-    // app (HUD TX data transmission code
-    // removed per user request) Main loop
-    // delay: During "registration" phase,
-    // some apps time out unless they receive
-    // enough samples quickly. Use faster
-    // cadence until we see a few confirmed
-    // indications.
-    uint32_t delay_ms = (s_feature_active || s_ffea_conf_ok < 5) ? 200 : 1000;
-    vTaskDelay(pdMS_TO_TICKS(delay_ms));
-  }
-}
-
-static esp_err_t init_ble(void) {
-  ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
-
-  // Use default MAC address (from eFuse or
-  // NVS)
-
-  esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
-  ESP_ERROR_CHECK(esp_bt_controller_init(&bt_cfg));
-  ESP_ERROR_CHECK(esp_bt_controller_enable(ESP_BT_MODE_BLE));
-
-  ESP_ERROR_CHECK(esp_bluedroid_init());
-  ESP_ERROR_CHECK(esp_bluedroid_enable());
-
-  // MTU + basic SMP (bonding)
-  esp_ble_gatt_set_local_mtu(512);
-
-  // init UUIDs / CCCD attr (HUD uses 128-bit
-  // to match working device expectation)
-  s_read_uuid.len = ESP_UUID_LEN_128;
-  memcpy(s_read_uuid.uuid.uuid128, s_hud_svc_uuid128, 16);
-  s_read_uuid.uuid.uuid128[12] = 0xf1; // FFF1
-  s_read_uuid.uuid.uuid128[13] = 0xff;
-
-
-  s_write_uuid.len = ESP_UUID_LEN_128;
-  memcpy(s_write_uuid.uuid.uuid128, s_hud_svc_uuid128, 16);
-  s_write_uuid.uuid.uuid128[12] = 0xf2; // FFF2
-  s_write_uuid.uuid.uuid128[13] = 0xff;
-
-  s_cccd_uuid.len = ESP_UUID_LEN_16;
-  s_cccd_uuid.uuid.uuid16 = NOTIFICATION_DESC_UUID;
-  s_cccd_attr.attr_max_len = 2;
-  s_cccd_attr.attr_len = 2;
-  s_cccd_attr.attr_value = s_cccd_init;
-
-  esp_ble_auth_req_t auth_req = ESP_LE_AUTH_REQ_SC_BOND; 
-  esp_ble_io_cap_t iocap = ESP_IO_CAP_NONE; 
-  uint8_t key_size = 16;
-  uint8_t init_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK | ESP_BLE_CSR_KEY_MASK;
-  uint8_t rsp_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK | ESP_BLE_CSR_KEY_MASK;
-  
-  esp_ble_gap_set_security_param(ESP_BLE_SM_AUTHEN_REQ_MODE, &auth_req, sizeof(uint8_t));
-  esp_ble_gap_set_security_param(ESP_BLE_SM_IOCAP_MODE, &iocap, sizeof(uint8_t));
-  esp_ble_gap_set_security_param(ESP_BLE_SM_MAX_KEY_SIZE, &key_size, sizeof(uint8_t));
-  esp_ble_gap_set_security_param(ESP_BLE_SM_SET_INIT_KEY, &init_key, sizeof(uint8_t));
-  esp_ble_gap_set_security_param(ESP_BLE_SM_SET_RSP_KEY, &rsp_key, sizeof(uint8_t));
-
-  // Enable local privacy for Android 16 compatibility (IRK exchange)
-  esp_ble_gap_config_local_privacy(true);
-
-  ESP_ERROR_CHECK(esp_ble_gap_register_callback(gap_event_handler));
-  ESP_ERROR_CHECK(esp_ble_gatts_register_callback(gatts_event_handler));
-  ESP_ERROR_CHECK(esp_ble_gatts_app_register(0));
-  ota_ble_init();
-
-  return ESP_OK;
-}
+// ble_mp_host_task duplicate removed (original at line 7487)
 
 // LittleFS mount - based on ESP-IDF v5.5.1
 // example
@@ -8772,11 +8178,12 @@ static void clock_timer_cb(lv_timer_t *timer) {
 
   // Handle Boot Registration display logic
   // [Fix] iOS 자동 재연결 대응: 앱 명령 수신 전까지 설치 안내 타이머 유지
-  if (s_current_mode == DISPLAY_MODE_BOOT && !s_hud_seen_first_cmd) {
+  // [Fix] Increase timeout to 60s and suppress if connected
+  if (s_current_mode == DISPLAY_MODE_BOOT && !s_hud_seen_first_cmd && !s_connected) {
     if (!s_boot_reg_shown) {
       s_boot_reg_timer_sec++;
-      if (s_boot_reg_timer_sec >= 10) {
-        ESP_LOGI(TAG, "[DISPLAY] Step 5: 10s Timeout - Displaying Registration/QR UI");
+      if (s_boot_reg_timer_sec >= 60) {
+        ESP_LOGI(TAG, "[DISPLAY] Step 5: 60s Timeout - Displaying Registration/QR UI");
         if (s_intro_image) lv_obj_add_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
         
         if (s_boot_reg_title_label) {
@@ -8839,7 +8246,15 @@ static void clock_timer_cb(lv_timer_t *timer) {
                             week_days[wday % 7]);
     }
   } else if (s_current_mode == DISPLAY_MODE_CLOCK) {
-    if (s_clock_option == 0) draw_analog_clock(hour, minute, second);
+    bool use_clock2 = (s_clock_option == 1);
+    if (s_clock_option == 2) {
+      if (s_auto_clock_offset == -1) {
+        s_auto_clock_offset = (int)(esp_random() % 2);
+      }
+      use_clock2 = ((hour + s_auto_clock_offset) % 2 == 0);
+    }
+    
+    if (!use_clock2) draw_analog_clock(hour, minute, second);
     else draw_analog_clock2(hour, minute, second);
   }
 }
@@ -10139,9 +9554,14 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
 
         // Horizontal Swipe (Mode Change) detection
         if (abs(dx) > abs(dy) && abs(dx) > 40) {
-          ESP_LOGI("TOUCH", "HORIZONTAL SWIPE: dx=%d dy=%d", dx, dy);
-          // OTA 모드에서는 가로 스와이프 무시 (실수 방지)
-          if (s_current_mode == DISPLAY_MODE_OTA) {
+          // [User Request] Ignore ALL touch inputs in Virtual Drive mode
+          if (s_virt_drive_active) {
+              ESP_LOGI("TOUCH", "Horizontal touch ignored in Virtual Drive mode");
+              swiped = true;
+          } else {
+            ESP_LOGI("TOUCH", "HORIZONTAL SWIPE: dx=%d dy=%d", dx, dy);
+            // OTA 모드에서는 가로 스와이프 무시 (실수 방지)
+            if (s_current_mode == DISPLAY_MODE_OTA) {
             swiped = true; // 다산, 메세지만 더이상 발생 안 함
             // nothing
           } else {
@@ -10175,10 +9595,15 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
             s_is_manual_mode_switch = false;
             swiped = true;
           } // end else (not OTA)
+          }
         }
         // Vertical Swipe
         else if (abs(dy) > abs(dx) && abs(dy) > 60) {
-          if (s_current_mode == DISPLAY_MODE_GUIDE) {
+          // [User Request] Ignore touch inputs in Virtual Drive mode
+          if (s_virt_drive_active) {
+              ESP_LOGI("TOUCH", "Vertical touch ignored in Virtual Drive mode");
+              swiped = true;
+          } else if (s_current_mode == DISPLAY_MODE_GUIDE) {
             // [Integrated] Disable vertical swipe in Guide Mode to prevent accidental changes while driving
             ESP_LOGI("TOUCH", "Vertical swipe disabled in GUIDE mode");
             swiped = true; 
@@ -10197,6 +9622,23 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
             s_is_manual_mode_switch = true;
             switch_display_mode(DISPLAY_MODE_CLOCK);
             s_is_manual_mode_switch = false;
+            swiped = true;
+          } else if (s_current_mode == DISPLAY_MODE_BOOT) {
+            // [Secret Trigger] 5 vertical swipes in 10s enters Virtual Drive
+            uint32_t now = xTaskGetTickCount();
+            if (s_secret_swipe_count == 0 || (now - s_secret_swipe_start_tick) > pdMS_TO_TICKS(10000)) {
+                s_secret_swipe_count = 1;
+                s_secret_swipe_start_tick = now;
+                ESP_LOGI("TOUCH", "Secret Trigger: Swipe 1/5 detected (10s timer started)");
+            } else {
+                s_secret_swipe_count++;
+                ESP_LOGI("TOUCH", "Secret Trigger: Swipe %d/5 detected", s_secret_swipe_count);
+                if (s_secret_swipe_count >= 5) {
+                    ESP_LOGW("TOUCH", "SECRET TRIGGER ACTIVATED! Entering Virtual Drive...");
+                    toggle_virtual_drive(true);
+                    s_secret_swipe_count = 0;
+                }
+            }
             swiped = true;
           } else if (s_current_mode == DISPLAY_MODE_SETTING) {
             setting_page_cb(NULL);
@@ -10348,6 +9790,19 @@ void app_main(void) {
     break;
   }
   ESP_LOGI(TAG, "Reset reason: %s (%d)", reset_reason_str, reset_reason);
+  
+  s_boot_tick = xTaskGetTickCount(); // Record boot time for 20s monitor
+  
+  // [Fix] 전력 관리 비활성화 (클럭 지터 및 절전으로 인한 BLE 타임아웃 방지)
+#if CONFIG_PM_ENABLE
+  esp_pm_config_esp32s3_t pm_config = {
+      .max_freq_mhz = 240,
+      .min_freq_mhz = 240,
+      .light_sleep_enable = false,
+  };
+  esp_pm_configure(&pm_config);
+  ESP_LOGI(TAG, "Power Management set to High-Performance (Fixed 240MHz)");
+#endif
 
   // [Fix] NVS 초기화 및 설정을 UI 생성보다 먼저 수행하여 시리얼 번호(s_device_serial) 등이 올바르게 표시되도록 합니다.
   esp_err_t ret_nvs = nvs_flash_init();
@@ -10447,7 +9902,7 @@ void app_main(void) {
       // Start LVGL Handler Task for Update UI
       s_lvgl_task_handle = NULL;
       // Increased stack size for stability during heavy UI/SD operations
-      xTaskCreate(lvgl_handler_task, "lvgl_handler", 9216, NULL, 5,
+      xTaskCreate(lvgl_handler_task, "lvgl_handler", 9216, NULL, 4,
                   &s_lvgl_task_handle);
 
       if (s_intro_image) {
@@ -10512,12 +9967,18 @@ void app_main(void) {
   // 앱이 정상 부팅되었음을 마킹 (Rollback 방지)
   esp_ota_mark_app_valid_cancel_rollback();
 
-  ESP_ERROR_CHECK(init_ble());
+  ota_ble_init();
   img_transfer_init();
   fw_update_init();
 
+  // Initialize BLE Command Queue and Handler Task
+  s_ble_cmd_queue = xQueueCreate(20, sizeof(ble_cmd_t));
+  xTaskCreate(ble_cmd_handler_task, "ble_cmd_h", 8192, NULL, 4, &s_ble_cmd_task_handle);
+
+  ESP_ERROR_CHECK(init_ble());
+
   // Derived from assumption: simple TX task. 6KB is safer.
-  xTaskCreate(ble_tx_task, "ble_tx", 6144, NULL, 5, &s_ble_tx_task_handle);
+  xTaskCreate(ble_tx_task, "ble_tx", 6144, NULL, 4, &s_ble_tx_task_handle);
   // xTaskCreate(virtual_drive_task, "virt_drive", 8192, NULL, 5,
   //             &s_virt_drive_task_handle); // Create Virtual Drive Task
 
@@ -10725,15 +10186,15 @@ void app_main(void) {
 
   // keep app_main alive (so monitor doesn't
   // show "Returned from app_main()")
-  while (1) {
-    static uint32_t s_clock_auto_timer = 0;
+    while (1) {
+        static uint32_t s_clock_auto_timer = 0;
 
-    // 부팅 시 시계 화면 전환 트리거 처리 (이전에는 대기모드로 자동 전환했으나 
-    // 사용자 요청으로 자동 전환 로직 제거, 플래그만 초기화함)
-    if (s_boot_clock_trigger) {
-      s_boot_clock_trigger = false;
-      ESP_LOGI(TAG, "Main Task: First clock update received, maintaining current mode %d", s_current_mode);
-    }
+        // 부팅 시 시계 화면 전환 트리거 처리 (이전에는 대기모드로 자동 전환했으나 
+        // 사용자 요청으로 자동 전환 로직 제거, 플래그만 초기화함)
+        if (s_boot_clock_trigger) {
+            s_boot_clock_trigger = false;
+            ESP_LOGI(TAG, "Main Task: First clock update received, maintaining current mode %d", s_current_mode);
+        }
 
     // 이미지 전송 완료 비동기 처리 (BLE 태스크 블로킹 방지)
     if (s_img_transfer_finished_flag) {
@@ -10758,7 +10219,7 @@ void app_main(void) {
 
     // 1. 앨범 자동 갱신 (10초)
     if (s_album_option == 0 && s_current_mode == DISPLAY_MODE_ALBUM && !s_img_transfer_active) {
-      if (++s_album_auto_timer >= 10) {
+      if (++s_album_auto_timer >= 100) { // 100ms * 100 = 10s
         // s_album_auto_timer = 0; // load_image_from_sd internally resets this
         load_image_from_sd(1); // Next
       }
@@ -10785,31 +10246,3 @@ void app_main(void) {
   }
 }
 
-void hud_request_fast_conn(void) {
-    if (!s_peer_bda_valid) return;
-    esp_ble_conn_update_params_t conn_params = {0};
-    memcpy(conn_params.bda, s_peer_bda, 6);
-    conn_params.min_int = 0x06; // 7.5ms
-    conn_params.max_int = 0x10; // 20ms (Windows performance sweet spot)
-    conn_params.latency = 0;
-    conn_params.timeout = 400;  // 4s
-    
-    // PHY 업데이트를 먼저 시도 (status 298 충돌 방지)
-    esp_ble_gap_set_preferred_phy(s_peer_bda, 
-                                  0, // 0 means use the follow masks
-                                  ESP_BLE_GAP_PHY_2M_PREF_MASK, 
-                                  ESP_BLE_GAP_PHY_2M_PREF_MASK, 
-                                  0);
-    
-    // 연결 파라미터는 500ms 후 별도로 요청하여 충돌 방지
-    vTaskDelay(pdMS_TO_TICKS(500));
-    esp_err_t err = esp_ble_gap_update_conn_params(&conn_params);
-    if (err != ESP_OK) {
-        ESP_LOGW(TAG, "Fast Conn Update retry...");
-        for (int i = 0; i < 3; i++) {
-            vTaskDelay(pdMS_TO_TICKS(1000));
-            if (esp_ble_gap_update_conn_params(&conn_params) == ESP_OK) break;
-        }
-    }
-    ESP_LOGW(TAG, "HUD High-Performance Mode (PHY 2M + 7.5ms) Requested");
-}

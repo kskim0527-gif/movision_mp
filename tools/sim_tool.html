@@ -256,7 +256,7 @@
             </div>
             <div class="input-group">
                 <label>간격 (Interval ms)</label>
-                <input type="number" id="interval" value="50" min="10">
+                <input type="number" id="interval" value="200" min="10">
             </div>
         </div>
     </div>
@@ -294,8 +294,8 @@
     let isPaused = false;
     let logLines = [];
 
-    const HUD_SERVICE_UUID = "0000ffea-0000-1000-8000-00805f9b34fb";
-    const HUD_CHAR_WRITE_UUID = "0000fff2-0000-1000-8000-00805f9b34fb";
+    const HUD_SERVICE_UUID = "0000fff0-0000-1000-8000-00805f9b34fb";
+    const HUD_CHAR_WRITE_UUID = "0000fff1-0000-1000-8000-00805f9b34fb";
 
     const logPanel = document.getElementById('logPanel');
     const startLineInput = document.getElementById('startLine');
@@ -411,7 +411,12 @@
                     try {
                         const hexStr = Array.from(bytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
                         addLog(`TX -> ${hexStr}`, 'tx');
-                        await characteristic.writeValue(bytes);
+                        // Use writeValueWithoutResponse for better Windows/PC compatibility
+                        if (characteristic.writeValueWithoutResponse) {
+                            await characteristic.writeValueWithoutResponse(bytes);
+                        } else {
+                            await characteristic.writeValue(bytes);
+                        }
                         
                         const currentLine = startLine + i;
                         document.getElementById('statLine').textContent = `Progress: ${currentLine} / ${totalLines}`;
@@ -446,7 +451,11 @@
         const bytes = hexStringToBytes(hexStr);
         if (bytes.length > 0) {
             try {
-                await characteristic.writeValue(bytes);
+                if (characteristic.writeValueWithoutResponse) {
+                    await characteristic.writeValueWithoutResponse(bytes);
+                } else {
+                    await characteristic.writeValue(bytes);
+                }
                 addLog(`MANUAL TX -> ${hexStr.toUpperCase()}`, 'success');
             } catch (e) {
                 addLog(`수동 전송 실패: ${e.message}`, 'error');
