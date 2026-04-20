@@ -126,6 +126,8 @@ static void fw_start_task(void *pvParameters) {
         ESP_LOGE(TAG, "esp_ota_begin failed: %s", esp_err_to_name(err));
         send_fw_response(CMD_FW_REQ, 0, 2);
         s_fw_ctx.state = FW_STATE_ERROR;
+        extern bool s_fw_update_active;
+        s_fw_update_active = false; // 시작 실패 시 플래그 해제
     }
     vTaskDelete(NULL);
 }
@@ -192,6 +194,8 @@ static void handle_fw_info(const uint8_t *data, size_t len) {
     }
     
     s_fw_ctx.state = FW_STATE_PREPARING;
+    extern bool s_fw_update_active;
+    s_fw_update_active = true; // 펌웨어 업데이트 중 상태 표시
     
     // OTA 시작 시 고속 전송을 위해 연결 파라미터 업데이트 요청
     extern void hud_request_fast_conn(void);
@@ -209,6 +213,11 @@ static void handle_fw_data(const uint8_t *data, size_t len) {
     
     if (s_fw_ctx.state != FW_STATE_UPDATING || s_fw_ctx.update_handle == 0) return;
     
+    // 중복 패킷 방어: 이미 처리한 시퀀스라면 소모하지 않음
+    if (seq == s_fw_ctx.last_seq && s_fw_ctx.last_seq != 0xFFFF) {
+        return;
+    }
+    
     // 누적 CRC 계산
     s_fw_ctx.current_crc = crc16_ccitt(&data[7], payload_len, s_fw_ctx.current_crc);
 
@@ -216,15 +225,16 @@ static void handle_fw_data(const uint8_t *data, size_t len) {
     if (err == ESP_OK) {
         s_fw_ctx.current_size += payload_len;
         s_fw_ctx.last_seq = seq;
-        // 5블록 단위 그룹 ACK 송신 (또는 마지막 블록)
-        bool is_last = (s_fw_ctx.current_size >= s_fw_ctx.total_size);
-        if (seq % 5 == 4 || is_last) {
+        
+        // 5블록 단위 그룹 ACK 또는 마지막 블록 수신 시 ACK 송신
+        if (seq % 5 == 4 || s_fw_ctx.current_size >= s_fw_ctx.total_size) {
             send_fw_response(CMD_FW_DATA_ACK, seq, 0);
             
-            // 저장 및 ACK 송신 로그 (윈도우 단위 또는 처음/끝만 출력)
-            if (seq % 100 == 99 || seq < 5 || is_last) {
-                ESP_LOGW("BLE_ONLY", "[저장 완료 ACK] Seq=%u, Size=%lu/%lu (Window x5 Mode)", 
-                         seq, (unsigned long)s_fw_ctx.current_size, (unsigned long)s_fw_ctx.total_size);
+            // 저장 및 ACK 송신 로그 (전체 진행 상황 파악을 위해 로그 필터링 완화)
+            if (seq % 20 == 19 || s_fw_ctx.current_size >= s_fw_ctx.total_size) {
+                ESP_LOGW("BLE_ONLY", "[FW 저장 ACK] Seq=%u, Size=%lu/%lu%s", 
+                         seq, (unsigned long)s_fw_ctx.current_size, (unsigned long)s_fw_ctx.total_size,
+                         (s_fw_ctx.current_size >= s_fw_ctx.total_size) ? " [FINAL]" : "");
             }
         }
         
@@ -267,6 +277,8 @@ void process_fw_update_command(const uint8_t *data, size_t len) {
         case CMD_FW_CANCEL:
             ESP_LOGW(TAG, "Update Cancelled by APP. Reason: %u", (len > 5) ? data[5] : 0);
             s_fw_ctx.state = FW_STATE_CANCELLED;
+            extern bool s_fw_update_active;
+            s_fw_update_active = false; // 취소 시 플래그 해제
             update_ui_progress(s_fw_ctx.last_percent, "사용자에 의해 취소됨");
             // 추가적인 정리 로직 (예: reboot 또는 idle 전환)
             break;

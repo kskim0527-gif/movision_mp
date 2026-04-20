@@ -716,6 +716,7 @@ int s_image_count = 0;
 int s_current_image_index = 0;
 bool s_img_transfer_finished_flag = false; // 이미지 전송 완료 비동기 처리용
 bool s_img_transfer_active = false;        // 이미지 전송 중 여부
+bool s_fw_update_active = false;           // 펌웨어 업데이트 중 여부
 static int s_auto_clock_offset = -1;  // 부팅 시 결정된 앨범/시계 로테이션 오프셋
 static int s_album_auto_timer = 0;
 
@@ -1035,12 +1036,15 @@ static void process_app_command(const uint8_t *data, size_t len) {
   if (start != 0x19)
     return;
 
-  // [Priority] Image Transfer and FW Update must work in ALL modes
   if (id == 0x50) {
+    s_app_communicated = true;
+    s_hud_seen_first_cmd = true;
     process_img_command(data, len);
     return;
   }
   if (id == 0x4F) {
+    s_app_communicated = true;
+    s_hud_seen_first_cmd = true;
     process_fw_update_command(data, len);
     return;
   }
@@ -7688,9 +7692,9 @@ extern int ota_on_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_
 
 static const struct ble_gatt_svc_def s_nimble_svc_defs[] = {
     {
-        // 1. HUD Service (FFF0)
+        // 1. HUD Service (FFEA)
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid = BLE_UUID16_DECLARE(0xFFF0),
+        .uuid = BLE_UUID16_DECLARE(HUD_SERVICE_UUID16),
         .characteristics = (struct ble_gatt_chr_def[]) {{
             .uuid = BLE_UUID16_DECLARE(0xFFF1), // Primary Data (Write/Notify)
             .access_cb = hud_on_access,
@@ -7759,7 +7763,7 @@ static const struct ble_gatt_svc_def s_nimble_svc_defs[] = {
         .characteristics = (struct ble_gatt_chr_def[]) {{
             .uuid = BLE_UUID16_DECLARE(0x2A4B), // Report Map
             .access_cb = hid_on_access,
-            .flags = BLE_GATT_CHR_F_READ,
+            .flags = BLE_GATT_CHR_F_READ_ENC,
         }, {
             .uuid = BLE_UUID16_DECLARE(0x2A4A), // HID Info
             .access_cb = hid_on_access,
@@ -7902,7 +7906,7 @@ static void ble_mp_advertise(void) {
     
     // CRITICAL: HUD Service UUID must be in the main packet for many Apps
     fields.uuids16 = (ble_uuid16_t[]){
-        BLE_UUID16_INIT(0xFFF0)
+        BLE_UUID16_INIT(HUD_SERVICE_UUID16)
     };
     fields.num_uuids16 = 1;
     fields.uuids16_is_complete = 1;
@@ -9233,6 +9237,12 @@ void update_ui_progress(int percent, const char *status) {
   last_percent = percent;
 
   LVGL_LOCK();
+  // 업데이트 시작 시(0%) 기존 앨범 이미지의 파일 핸들 및 캐시 해제를 통해 안정성 확보
+  if (percent == 0) {
+      if (s_album_img) lv_img_set_src(s_album_img, NULL);
+      if (s_album_gif) lv_gif_set_src(s_album_gif, NULL);
+      lv_img_cache_invalidate_src(NULL);
+  }
   if (!s_update_bg) {
     s_update_bg = lv_obj_create(lv_layer_top());
     lv_obj_set_size(s_update_bg, LCD_H_RES, LCD_V_RES);
@@ -9272,6 +9282,14 @@ void update_img_transfer_ui(int percent, bool finished) {
     }
     LVGL_UNLOCK();
     return;
+  }
+
+  // [Fix] 이미지 전송 시작 시 기존 앨범 이미지의 파일 핸들을 명시적으로 해제하여
+  // 전송 완료 후 파일 교체(rename/unlink) 시 발생할 수 있는 EBUSY(Has open FD) 에러 방지
+  if (percent == 0) {
+      if (s_album_img) lv_img_set_src(s_album_img, NULL);
+      if (s_album_gif) lv_gif_set_src(s_album_gif, NULL);
+      lv_img_cache_invalidate_src(NULL);
   }
 
   if (!s_img_update_bg) {
@@ -9611,7 +9629,6 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
             // Album Image Change
             if (dy < 0) load_image_from_sd(1);
             else {
-              set_lcd_brightness(0, true);
               load_image_from_sd(-1);
             }
             swiped = true;
@@ -10217,14 +10234,14 @@ void app_main(void) {
                s_connected);
     }
 
-    // 1. 앨범 자동 갱신 (10초)
-    if (s_album_option == 0 && s_current_mode == DISPLAY_MODE_ALBUM && !s_img_transfer_active) {
+    // 1. 앨범 자동 갱신 (10초) - 이미지 전송이나 펌웨어 업데이트 중에는 동작하지 않도록 엄격히 제한
+    extern bool s_fw_update_active;
+    if (s_album_option == 0 && s_current_mode == DISPLAY_MODE_ALBUM && !s_img_transfer_active && !s_fw_update_active) {
       if (++s_album_auto_timer >= 100) { // 100ms * 100 = 10s
-        // s_album_auto_timer = 0; // load_image_from_sd internally resets this
         load_image_from_sd(1); // Next
       }
     } else {
-      s_album_auto_timer = 0;
+      s_album_auto_timer = 0; // 전송 중이거나 모드가 다르면 항상 0으로 초기화
     }
 
     // 2. 시계 자동 갱신 (1시간 = 3600초)

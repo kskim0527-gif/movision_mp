@@ -141,13 +141,12 @@ static void handle_img_info(const uint8_t *data, size_t len) {
     return;
 
   s_ctx.image_seq = data[5];
-  s_ctx.total_size =
-      (data[6] << 24) | (data[7] << 16) | (data[8] | (data[9]));
   s_ctx.total_size = (data[6] << 24) | (data[7] << 16) | (data[8] << 8) | data[9];
   s_ctx.image_type = data[10];
   s_ctx.current_size = 0;
   s_ctx.last_block_seq = 0xFFFF;
   s_ctx.last_percent = 0;
+  s_ctx.last_block_time = (uint32_t)(esp_timer_get_time() / 1000); // 전송 시작 시 타임아웃 타이머 리셋
 
   if (s_ctx.image_type == 0) {
     snprintf(s_ctx.file_path, sizeof(s_ctx.file_path),
@@ -164,10 +163,16 @@ static void handle_img_info(const uint8_t *data, size_t len) {
   if (s_ctx.file)
     fclose(s_ctx.file);
   s_ctx.file = fopen(s_ctx.file_path, "wb");
-
   if (s_ctx.file) {
+    // [Performance] 파일 쓰기 성능 향상 및 플래시 부하 감소를 위해 4KB 버퍼 할당
+    static char s_file_buf[4096];
+    setvbuf(s_ctx.file, s_file_buf, _IOFBF, sizeof(s_file_buf));
+    
     s_ctx.state = IMG_STATE_RECEIVING;
-    s_img_transfer_active = true; // 전송 중 상태 표시
+    s_img_transfer_active = true;           // 전송 중 상태 표시
+    s_img_transfer_finished_flag = false;   // 이전 세션의 종료 처리(UI 숨기기 등)가 진행 중이라면 무효화
+    note_ble_activity();                    // 재부팅 타이머 즉시 리셋
+    
     ESP_LOGI(TAG, "Starting download: %s, size: %lu", s_ctx.file_path,
              (unsigned long)s_ctx.total_size);
     update_img_transfer_ui(0, false);
@@ -204,15 +209,17 @@ static void handle_img_data(const uint8_t *data, size_t len) {
 
   size_t written = fwrite(&data[7], 1, payload_len, s_ctx.file);
   if (written == payload_len) {
-    s_ctx.current_size += payload_len;
+    // 중복 패킷 수신 시 용량이 이중으로 계산되는 것을 방지
+    if (seq != s_ctx.last_block_seq || s_ctx.last_block_seq == 0xFFFF) {
+        s_ctx.current_size += payload_len;
+    }
     s_ctx.last_block_seq = seq;
     
-    // 5블록마다 또는 전송 완료 직전(마지막 5블록 정도)에는 매번 ACK 전송
-    bool near_end = (s_ctx.total_size - s_ctx.current_size < 2500);
-    if (((seq + 1) % 5 == 0) || near_end) {
+    // 5블록 주기이거나, 모든 데이터를 다 받았을 때(마지막 블록) ACK 전송
+    if (((seq + 1) % 5 == 0) || (s_ctx.current_size >= s_ctx.total_size)) {
       ESP_LOGI(TAG, "Progress: %lu / %lu bytes (block %u)%s", 
                (unsigned long)s_ctx.current_size, (unsigned long)s_ctx.total_size, seq,
-               near_end ? " [Near End]" : "");
+               (s_ctx.current_size >= s_ctx.total_size) ? " [FINAL]" : "");
       send_response(CMD_IMG_RES_SEQ, seq, 0);
     }
 
@@ -226,7 +233,8 @@ static void handle_img_data(const uint8_t *data, size_t len) {
       ESP_LOGI(TAG, "Image transfer finished: %lu bytes. Closing file...",
                (unsigned long)s_ctx.current_size);
 
-      // 파일 기록 완료 보장 (fsync 제거하여 속도 향상 및 콜백 블로킹 방지)
+      // 파일 기록 완료 보장 후 닫기
+      fflush(s_ctx.file);
       fclose(s_ctx.file);
       s_ctx.file = NULL;
 
@@ -276,7 +284,8 @@ static void handle_img_data(const uint8_t *data, size_t len) {
       // UI 제거는 메인 루프에서 비동기로 수행하여 BLE 태스크가 빨리 리턴되게 함
       s_img_transfer_finished_flag = true;
       
-      // 앱에 완료 통보 (즉시 실행)
+      // 앱에 완료 통보 (파일 시스템 안착을 위해 100ms 대기 후 전송)
+      vTaskDelay(pdMS_TO_TICKS(100));
       send_response(CMD_IMG_RES_CMP, 0, 0);
 
       // 독립된 재부팅 전용 태스크 시작
@@ -345,11 +354,15 @@ void img_transfer_check_timeout(void) {
     return;
 
   uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
-  if (now - s_ctx.last_block_time > 1000) {
-    // 0.5초간 데이터 무소식 -> 마지막 블록 번호로 다시 ACK 전송
-    ESP_LOGW(TAG, "Transfer stuck at current size %lu / %lu (seq %u). Sending watchdog ACK...", 
-             (unsigned long)s_ctx.current_size, (unsigned long)s_ctx.total_size, s_ctx.last_block_seq);
-    send_response(CMD_IMG_RES_SEQ, s_ctx.last_block_seq, 0);
+  // [MOD] 워치독 시간을 1초에서 3초로 대폭 늘려 플래시 쓰기 지연 시간을 확보합니다.
+  if (now - s_ctx.last_block_time > 3000) {
+    ESP_LOGW(TAG, "Transfer stuck at current size %lu / %lu (seq %u). Free Heap: %lu. Sending watchdog ACK...", 
+             (unsigned long)s_ctx.current_size, (unsigned long)s_ctx.total_size, s_ctx.last_block_seq,
+             (unsigned long)esp_get_free_heap_size());
+    // 유효한 블록을 한 번이라도 받았을 때만 동일 번호로 ACK 재전송
+    if (s_ctx.last_block_seq != 0xFFFF) {
+      send_response(CMD_IMG_RES_SEQ, s_ctx.last_block_seq, 0);
+    }
     s_ctx.last_block_time = now; // 타이머 리셋
   }
 }
