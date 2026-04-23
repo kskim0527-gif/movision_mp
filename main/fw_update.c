@@ -226,16 +226,21 @@ static void handle_fw_data(const uint8_t *data, size_t len) {
         s_fw_ctx.current_size += payload_len;
         s_fw_ctx.last_seq = seq;
         
-        // 5블록 단위 그룹 ACK 또는 마지막 블록 수신 시 ACK 송신
-        if (seq % 5 == 4 || s_fw_ctx.current_size >= s_fw_ctx.total_size) {
+        // 5블록 단위 그룹 ACK 송신
+        if (seq % 5 == 4) {
             send_fw_response(CMD_FW_DATA_ACK, seq, 0);
             
-            // 저장 및 ACK 송신 로그 (전체 진행 상황 파악을 위해 로그 필터링 완화)
-            if (seq % 20 == 19 || s_fw_ctx.current_size >= s_fw_ctx.total_size) {
-                ESP_LOGW("BLE_ONLY", "[FW 저장 ACK] Seq=%u, Size=%lu/%lu%s", 
-                         seq, (unsigned long)s_fw_ctx.current_size, (unsigned long)s_fw_ctx.total_size,
-                         (s_fw_ctx.current_size >= s_fw_ctx.total_size) ? " [FINAL]" : "");
+            // 저장 및 ACK 송신 로그
+            if (seq % 20 == 19) {
+                ESP_LOGW("BLE_ONLY", "[FW 저장 ACK] Seq=%u, Size=%lu/%lu", 
+                         seq, (unsigned long)s_fw_ctx.current_size, (unsigned long)s_fw_ctx.total_size);
             }
+        }
+        
+        if (s_fw_ctx.current_size >= s_fw_ctx.total_size) {
+            // 마지막 블록 수신 로그 출력
+            ESP_LOGW("BLE_ONLY", "[FW 저장 완료] Seq=%u, Size=%lu/%lu [FINAL]", 
+                     seq, (unsigned long)s_fw_ctx.current_size, (unsigned long)s_fw_ctx.total_size);
         }
         
         int percent = (s_fw_ctx.current_size * 100) / s_fw_ctx.total_size;

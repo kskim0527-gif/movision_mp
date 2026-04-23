@@ -215,12 +215,16 @@ static void handle_img_data(const uint8_t *data, size_t len) {
     }
     s_ctx.last_block_seq = seq;
     
-    // 5블록 주기이거나, 모든 데이터를 다 받았을 때(마지막 블록) ACK 전송
-    if (((seq + 1) % 5 == 0) || (s_ctx.current_size >= s_ctx.total_size)) {
-      ESP_LOGI(TAG, "Progress: %lu / %lu bytes (block %u)%s", 
-               (unsigned long)s_ctx.current_size, (unsigned long)s_ctx.total_size, seq,
-               (s_ctx.current_size >= s_ctx.total_size) ? " [FINAL]" : "");
+    // 5블록 주기마다 ACK 전송
+    if ((seq + 1) % 5 == 0) {
+      ESP_LOGI(TAG, "Progress: %lu / %lu bytes (block %u)", 
+               (unsigned long)s_ctx.current_size, (unsigned long)s_ctx.total_size, seq);
       send_response(CMD_IMG_RES_SEQ, seq, 0);
+    }
+    
+    if (s_ctx.current_size >= s_ctx.total_size) {
+      ESP_LOGI(TAG, "Progress: %lu / %lu bytes (block %u) [FINAL]", 
+               (unsigned long)s_ctx.current_size, (unsigned long)s_ctx.total_size, seq);
     }
 
     int percent = (int)(s_ctx.current_size * 100 / s_ctx.total_size);

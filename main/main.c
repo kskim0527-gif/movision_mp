@@ -17,8 +17,8 @@
 #include "esp_log.h"
 #include "esp_mac.h"
 #include "esp_ota_ops.h"
-#include "esp_system.h"
 #include "esp_random.h"
+#include "esp_system.h"
 #include "nvs.h"
 #include "nvs_flash.h"
 
@@ -35,14 +35,15 @@
 #include "host/util/util.h"
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
-#include "services/gap/ble_svc_gap.h"
-#include "services/gatt/ble_svc_gatt.h"
 #include "services/ans/ble_svc_ans.h"
 #include "services/bas/ble_svc_bas.h"
+#include "services/gap/ble_svc_gap.h"
+#include "services/gatt/ble_svc_gatt.h"
 #include "services/hid/ble_svc_hid.h"
 #include "store/config/ble_store_config.h"
 
-// Forward declaration for NimBLE storage helper (contained in library but sometimes missing header)
+// Forward declaration for NimBLE storage helper (contained in library but
+// sometimes missing header)
 void ble_store_config_init(void);
 
 #include "esp_timer.h"
@@ -87,8 +88,8 @@ extern void lv_fs_posix_init(void);
 
 // LittleFS
 #include "esp_littlefs.h"
-#include "img_transfer.h"
 #include "fw_update.h"
+#include "img_transfer.h"
 #include "version.h"
 
 // SDMMC (SD Card)
@@ -105,8 +106,8 @@ extern void lv_fs_posix_init(void);
 // [Diagnostic] Dump all NVS entries to verify persistence (bonding keys, etc.)
 // NVS diagnostic functions removed
 
-#include "src/extra/libs/gif/lv_gif.h"
 #include "esp_phy_cert_test.h"
+#include "src/extra/libs/gif/lv_gif.h"
 
 static const char *TAG = "BLE_ONLY";
 static const char *SYS_MON_TAG = "SYS_MON";
@@ -169,8 +170,8 @@ void *lvgl_psram_realloc(void *ptr, size_t new_size) {
 // Display modes
 typedef enum {
   DISPLAY_MODE_BOOT = 0,
-  DISPLAY_MODE_GUIDE,   // [Integrated] Standby + Speedometer + HUD
-  DISPLAY_MODE_CLOCK,   // [Integrated] Clock 1 + Clock 2
+  DISPLAY_MODE_GUIDE, // [Integrated] Standby + Speedometer + HUD
+  DISPLAY_MODE_CLOCK, // [Integrated] Clock 1 + Clock 2
   DISPLAY_MODE_ALBUM,
   DISPLAY_MODE_SETTING,
   DISPLAY_MODE_OTA,
@@ -186,7 +187,7 @@ typedef enum {
 
 static display_mode_t s_current_mode = DISPLAY_MODE_BOOT;
 static guide_sub_mode_t s_guide_sub_mode = GUIDE_SUB_STANDBY;
-static uint8_t s_clock_option = 0; // 0: Clock 1, 1: Clock 2, 2: Auto
+static uint8_t s_clock_option = 1; // 0: Clock 1, 1: Clock 2, 2: Auto
 static display_mode_t s_last_base_mode = DISPLAY_MODE_GUIDE;
 static bool s_is_manual_mode_switch = false;
 
@@ -263,7 +264,6 @@ static uint16_t s_mtu = 23;
 static uint16_t s_hud_char_ready_handle;
 static uint16_t s_hud_char_write_handle;
 
-
 static bool s_need_fast_conn = false;
 static bool s_time_initialized = false;
 static bool s_boot_clock_trigger = false;
@@ -272,19 +272,19 @@ static int s_time_req_count = 0;
 static TickType_t s_last_time_req_tick = 0;
 
 static bool s_hud_seen_first_cmd = false;
-static bool s_app_communicated = false; // [New] Set to true when ANY app command received
-static TickType_t s_boot_tick = 0;      // [New] System startup tick for 20s monitor
+static bool s_app_communicated =
+    false; // [New] Set to true when ANY app command received
+static TickType_t s_boot_tick = 0; // [New] System startup tick for 20s monitor
 
 // ---------------------------------------------------------------------------
 // Device Information Service (DIS) 0x180A (helps some apps accept the device as
 // "real hardware")
 // ---------------------------------------------------------------------------
 // Device Information Handles (Managed by NimBLE unified callback)
- 
- // Battery Handles
- static uint16_t s_batt_level_handle;
- static uint8_t s_batt_level = 100;
 
+// Battery Handles
+static uint16_t s_batt_level_handle;
+static uint8_t s_batt_level = 100;
 
 // HID over GATT (HOGP) - minimal service 0x1812
 // ---------------------------------------------------------------------------
@@ -304,8 +304,8 @@ static uint16_t s_rx_expected_len = 0;
 
 // Thread-safe Command Queue for BLE
 typedef struct {
-    uint8_t data[256];
-    uint16_t len;
+  uint8_t data[256];
+  uint16_t len;
 } ble_cmd_t;
 static QueueHandle_t s_ble_cmd_queue = NULL;
 static TaskHandle_t s_ble_cmd_task_handle = NULL;
@@ -315,16 +315,16 @@ static void process_app_command(const uint8_t *data, size_t len);
 
 // Dedicated task for processing BLE commands safely
 static void ble_cmd_handler_task(void *pvParameters) {
-    ble_cmd_t cmd;
-    ESP_LOGI("BLE_CMD", "BLE Command Handler Task Started");
-    while (1) {
-        if (xQueueReceive(s_ble_cmd_queue, &cmd, portMAX_DELAY) == pdPASS) {
-            // Process command in a safe context with LVGL protection
-            LVGL_LOCK();
-            process_app_command(cmd.data, cmd.len);
-            LVGL_UNLOCK();
-        }
+  ble_cmd_t cmd;
+  ESP_LOGI("BLE_CMD", "BLE Command Handler Task Started");
+  while (1) {
+    if (xQueueReceive(s_ble_cmd_queue, &cmd, portMAX_DELAY) == pdPASS) {
+      // Process command in a safe context with LVGL protection
+      LVGL_LOCK();
+      process_app_command(cmd.data, cmd.len);
+      LVGL_UNLOCK();
     }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -356,7 +356,8 @@ static uint32_t s_tx_fail = 0; // Exported for hud_send_notify_bytes
 // static TickType_t s_feature_active_tick = 0;
 
 // Forward declarations
-// static void try_start_advertising(void); // Removed: declared but never defined
+// static void try_start_advertising(void); // Removed: declared but never
+// defined
 static esp_err_t load_image_data_csv(void);
 static void monitor_buffers_and_queues(void);
 static void check_task_heartbeats(void);
@@ -364,7 +365,7 @@ static void monitor_system_health(void);
 // static void update_heartbeat_ble(void); // Removed conflicting static
 // declaration
 static void buffer_queue_monitor_task(void *arg);
-void hud_request_fast_conn(uint16_t conn_handle); 
+void hud_request_fast_conn(uint16_t conn_handle);
 static void ble_mp_advertise(void);
 
 // ---------------------------------------------------------------------------
@@ -384,7 +385,7 @@ static esp_lcd_panel_handle_t s_lcd_panel = NULL;
 static esp_lcd_panel_io_handle_t s_lcd_io_handle =
     NULL;                                // LCD IO handle for brightness control
 static uint8_t s_brightness_level = 0;   // 0=Auto, 1=max, 5=min
-uint8_t s_album_option = 0;       // 0=Auto(10s), 1=Manual(Static)
+uint8_t s_album_option = 0;              // 0=Auto(10s), 1=Manual(Static)
 static uint8_t s_setting_page_index = 1; // 1 or 2
 
 typedef struct {
@@ -438,7 +439,7 @@ static lv_disp_t *s_disp = NULL;
 static lv_obj_t *s_boot_screen = NULL;     // Boot Mode Screen
 static lv_obj_t *s_boot_time_label = NULL; // Boot Mode Digital Time
 
-static lv_obj_t *s_boot_date_label = NULL; // Boot Mode Digital Date Header
+static lv_obj_t *s_boot_date_label = NULL;      // Boot Mode Digital Date Header
 static lv_obj_t *s_boot_reg_title_label = NULL; // App Registration Title
 static lv_obj_t *s_boot_reg_val_label = NULL;   // App Registration Value
 static lv_obj_t *s_boot_install_title_label = NULL;
@@ -451,9 +452,9 @@ static lv_obj_t *s_speedometer_screen = NULL; // Speedometer Screen
 static lv_obj_t *s_clock_screen = NULL;
 static lv_obj_t *s_clock2_screen = NULL; // New Clock 2 Screen
 static lv_obj_t *s_album_screen = NULL;
-static lv_obj_t *s_setting_screen = NULL;       // Setting Screen
+static lv_obj_t *s_setting_screen = NULL; // Setting Screen
 // static lv_obj_t *s_virtual_drive_screen = NULL; // Removed
-static lv_obj_t *s_ota_screen = NULL;           // OTA Mode Screen
+static lv_obj_t *s_ota_screen = NULL; // OTA Mode Screen
 
 // Forward declarations for UI creation
 static void create_boot_ui(void);
@@ -478,12 +479,13 @@ static void create_clock2_ui(void); // Forward decl
 static void draw_analog_clock2(int hour, int minute,
                                int second); // Forward decl
 static void create_album_ui(void);
-static void create_setting_ui(void);        // Setting UI Forward Decl
+static void create_setting_ui(void); // Setting UI Forward Decl
 void update_setting_ui_labels(void); // Helper Decl
 void save_nvs_settings(void);
 void update_album_option_from_ble(uint8_t mode);
-static void create_ota_ui(void);            // Forward decl
-static display_mode_t s_nvs_restored_mode = DISPLAY_MODE_GUIDE; // NVS에서 복구할 마지막 모드 보관용
+static void create_ota_ui(void); // Forward decl
+static display_mode_t s_nvs_restored_mode =
+    DISPLAY_MODE_GUIDE; // NVS에서 복구할 마지막 모드 보관용
 
 // Labels for new modes
 static lv_obj_t *s_clock_canvas = NULL;
@@ -493,7 +495,8 @@ static lv_obj_t *s_clock_canvas = NULL;
 // Helper declarations
 // Helper declarations
 static void draw_analog_clock(int hour, int minute, int second);
-static void set_lcd_brightness(uint8_t level, bool notify); // Forward declaration
+static void set_lcd_brightness(uint8_t level,
+                               bool notify); // Forward declaration
 void load_image_from_sd(int direction);
 static void reset_album_to_default_image(void);
 static void show_restart_msg(void);
@@ -502,14 +505,15 @@ static void show_restart_msg(void);
 void save_nvs_settings(void) {
   // [User Request] Do not save to NVS during Virtual Drive mode
   if (s_virt_drive_active) {
-      return;
+    return;
   }
   static uint8_t last_bright = 0xFF;
   static uint8_t last_album = 0xFF;
   static uint8_t last_clock = 0xFF;
   static uint8_t last_mode = 0xFF;
 
-  // [User Request] NVS 저장 시도 로그 추가 및 비교 로직 유지하되 로그로 상태 확인
+  // [User Request] NVS 저장 시도 로그 추가 및 비교 로직 유지하되 로그로 상태
+  // 확인
   if (last_bright == s_brightness_level && last_album == s_album_option &&
       last_clock == s_clock_option && last_mode == (uint8_t)s_current_mode) {
     // ESP_LOGD(TAG, "NVS Save skipped: same as last session");
@@ -524,23 +528,26 @@ void save_nvs_settings(void) {
     nvs_set_u8(nvs, "clock_opt", s_clock_option);
 
     uint8_t save_val = 0;
-    if (s_current_mode == DISPLAY_MODE_CLOCK) save_val = 1;
-    else if (s_current_mode == DISPLAY_MODE_ALBUM) save_val = 2;
-    else save_val = 0;
+    if (s_current_mode == DISPLAY_MODE_CLOCK)
+      save_val = 1;
+    else if (s_current_mode == DISPLAY_MODE_ALBUM)
+      save_val = 2;
+    else
+      save_val = 0;
 
     nvs_set_u8(nvs, "boot_mode", save_val);
     err = nvs_commit(nvs);
     nvs_close(nvs);
 
     if (err == ESP_OK) {
-        last_bright = s_brightness_level;
-        last_album = s_album_option;
-        last_clock = s_clock_option;
-        last_mode = (uint8_t)s_current_mode;
-        ESP_LOGW(TAG, "NVS Settings SAVED: Br=%d, Alb=%d, Clk=%d, Mode=%d", 
-                 last_bright, last_album, last_clock, save_val);
+      last_bright = s_brightness_level;
+      last_album = s_album_option;
+      last_clock = s_clock_option;
+      last_mode = (uint8_t)s_current_mode;
+      ESP_LOGW(TAG, "NVS Settings SAVED: Br=%d, Alb=%d, Clk=%d, Mode=%d",
+               last_bright, last_album, last_clock, save_val);
     } else {
-        ESP_LOGE(TAG, "NVS Commit FAILED: %s", esp_err_to_name(err));
+      ESP_LOGE(TAG, "NVS Commit FAILED: %s", esp_err_to_name(err));
     }
   } else {
     ESP_LOGE(TAG, "NVS Open FAILED: %s", esp_err_to_name(err));
@@ -560,9 +567,12 @@ static void load_nvs_settings(void) {
       s_clock_option = val;
     if (nvs_get_u8(nvs, "boot_mode", &val) == ESP_OK) {
       // [User Request] 0:기본(GUIDE), 1:시계, 2:앨범 매핑 적용
-      if (val == 1) s_current_mode = DISPLAY_MODE_CLOCK;
-      else if (val == 2) s_current_mode = DISPLAY_MODE_ALBUM;
-      else s_current_mode = DISPLAY_MODE_GUIDE; // 0 또는 그 외는 모두 GUIDE로 복원
+      if (val == 1)
+        s_current_mode = DISPLAY_MODE_CLOCK;
+      else if (val == 2)
+        s_current_mode = DISPLAY_MODE_ALBUM;
+      else
+        s_current_mode = DISPLAY_MODE_GUIDE; // 0 또는 그 외는 모두 GUIDE로 복원
 
       s_nvs_restored_mode = s_current_mode; // 부팅 시 읽어온 모드 보관
       s_current_mode = DISPLAY_MODE_BOOT;   // 앱 연결 전까지는 로고 화면 강제
@@ -571,7 +581,9 @@ static void load_nvs_settings(void) {
       if (s_current_mode == DISPLAY_MODE_GUIDE) {
         s_guide_sub_mode = GUIDE_SUB_STANDBY;
       }
-      ESP_LOGI(TAG, "NVS Loaded Boot Mode: %d (Old index) -> Consolidated Mode: %d", val, s_current_mode);
+      ESP_LOGI(TAG,
+               "NVS Loaded Boot Mode: %d (Old index) -> Consolidated Mode: %d",
+               val, s_current_mode);
     }
 
     size_t len = sizeof(s_device_serial);
@@ -587,7 +599,8 @@ static void load_nvs_settings(void) {
     nvs_close(nvs);
     ESP_LOGW(TAG, "################################################");
     ESP_LOGW(TAG, "NVS LOADED: Br=%d, Alb=%d, Clk=%d, SN=%s",
-             s_brightness_level, s_album_option, s_clock_option, s_device_serial);
+             s_brightness_level, s_album_option, s_clock_option,
+             s_device_serial);
     ESP_LOGW(TAG, "################################################");
   } else {
     ESP_LOGE(TAG, "NVS empty or failed to open, using defaults");
@@ -619,8 +632,10 @@ static lv_obj_t *s_speedometer_avr_speed_value_label =
 static lv_obj_t *s_speedometer_avr_speed_unit_label =
     NULL; // Speedometer Average Speed Unit
 static uint8_t s_speedometer_safety_tt_val = 0;
-static lv_obj_t *s_speedometer_road_name_label = NULL; // Speedometer Road Name Label
-static lv_obj_t *s_speedometer_road_name_sub_label = NULL; // Speedometer Road Name Sub-Label
+static lv_obj_t *s_speedometer_road_name_label =
+    NULL; // Speedometer Road Name Label
+static lv_obj_t *s_speedometer_road_name_sub_label =
+    NULL; // Speedometer Road Name Sub-Label
 
 static lv_obj_t *s_hyd_msg_label =
     NULL; // HYD TX 메시지 표시용 label (앱->ESP32)
@@ -697,9 +712,9 @@ static lv_obj_t *s_dest_distance_value_label =
     NULL; // 목적지남은거리값 표시용 label (30pt, 하늘색)
 static lv_obj_t *s_dest_distance_unit_label =
     NULL; // 목적지남은거리단위 표시용 label (20pt, 회색)
-static lv_obj_t *s_dest_image = NULL;      // 목적지정보 이미지 (go_to.bmp)
-static lv_obj_t *s_dest_label = NULL;      // "도착지까지" 라벨
-static lv_obj_t *s_road_name_label = NULL; // 도로명 표시 라벨 (Sector 12)
+static lv_obj_t *s_dest_image = NULL;          // 목적지정보 이미지 (go_to.bmp)
+static lv_obj_t *s_dest_label = NULL;          // "도착지까지" 라벨
+static lv_obj_t *s_road_name_label = NULL;     // 도로명 표시 라벨 (Sector 12)
 static lv_obj_t *s_road_name_sub_label = NULL; // 도로명 서브 라벨 (Sector 12)
 static lv_obj_t *s_rssi_label = NULL; // 블루투스 RSSI 표시용 label (20pt, 흰색)
 static lv_obj_t *s_speed_mark_value_label =
@@ -717,7 +732,7 @@ int s_current_image_index = 0;
 bool s_img_transfer_finished_flag = false; // 이미지 전송 완료 비동기 처리용
 bool s_img_transfer_active = false;        // 이미지 전송 중 여부
 bool s_fw_update_active = false;           // 펌웨어 업데이트 중 여부
-static int s_auto_clock_offset = -1;  // 부팅 시 결정된 앨범/시계 로테이션 오프셋
+static int s_auto_clock_offset = -1; // 부팅 시 결정된 앨범/시계 로테이션 오프셋
 static int s_album_auto_timer = 0;
 
 static lv_obj_t *s_intro_image = NULL; // 부팅 인트로 이미지 객체
@@ -929,7 +944,8 @@ static void *lv_fs_open_sd(lv_fs_drv_t *drv, const char *path,
     flags = O_RDWR | O_CREAT;
 
   char full_path[256];
-  const char *prefixes[] = {"/littlefs/", "/littlefs/flash_data/", "/littlefs/Flash_Data/"};
+  const char *prefixes[] = {"/littlefs/", "/littlefs/flash_data/",
+                            "/littlefs/Flash_Data/"};
   bool found = false;
 
   if (strncmp(path, "/littlefs/", 10) == 0) {
@@ -1049,22 +1065,26 @@ static void process_app_command(const uint8_t *data, size_t len) {
     return;
   }
 
-  // [User Request] 안내 모드(GUIDE)가 아니더라도 백그라운드에서 데이터를 지속적으로 갱신하여 
-  // 사용자가 스와이프했을 때 최신 정보를 볼 수 있도록 전역 필터를 제거합니다.
+  // [User Request] 안내 모드(GUIDE)가 아니더라도 백그라운드에서 데이터를
+  // 지속적으로 갱신하여 사용자가 스와이프했을 때 최신 정보를 볼 수 있도록 전역
+  // 필터를 제거합니다.
 
   if (id != 0x4D)
     return;
-  
+
   // 첫 유효 명령 수신 표시 (인트로 폴링 루프 조기 종료 및 부팅 타이머 중지용)
-  s_app_communicated = true; 
+  s_app_communicated = true;
   if (!s_hud_seen_first_cmd) {
     s_hud_seen_first_cmd = true;
-    // [User Request] 앱 연결 후 첫 패킷 수신 시, 외곽 링을 회색(0x02)으로 초기화 (GPS 수신 전 상태)
+    // [User Request] 앱 연결 후 첫 패킷 수신 시, 외곽 링을 회색(0x02)으로
+    // 초기화 (GPS 수신 전 상태)
     request_circle_update(start, id, 0x04, 0x01, 0x02);
 
-    // [User Request] 앱 연결 후 첫 패킷 수신 시, NVS에 저장되어 있던 마지막 모드로 자동 복원
+    // [User Request] 앱 연결 후 첫 패킷 수신 시, NVS에 저장되어 있던 마지막
+    // 모드로 자동 복원
     if (s_current_mode == DISPLAY_MODE_BOOT) {
-      ESP_LOGI(TAG, "First App Command -> Restoring mode from NVS: %d", s_nvs_restored_mode);
+      ESP_LOGI(TAG, "First App Command -> Restoring mode from NVS: %d",
+               s_nvs_restored_mode);
       s_is_manual_mode_switch = true; // 부팅 시 복원은 잠금을 우회하여 적용
       switch_display_mode(s_nvs_restored_mode);
       s_is_manual_mode_switch = false;
@@ -1072,19 +1092,19 @@ static void process_app_command(const uint8_t *data, size_t len) {
       // [Protocol 3.4.3~5] Initial Sync Requests to APP
       uint8_t sync_req_time[] = {0x19, 0x4E, 0x0D, 0x01, 0x00, 0x2F};
       uint8_t sync_req_mode[] = {0x19, 0x4E, 0x11, 0x01, 0x00, 0x2F};
-      uint8_t sync_req_gps[]  = {0x19, 0x4E, 0x12, 0x01, 0x00, 0x2F};
-      
-      ESP_LOGI(TAG, "Sending Initial Sync Requests (Time, Mode, GPS) with 300ms pacing...");
+      uint8_t sync_req_gps[] = {0x19, 0x4E, 0x12, 0x01, 0x00, 0x2F};
+
+      ESP_LOGI(TAG, "Sending Initial Sync Requests (Time, Mode, GPS) with "
+                    "300ms pacing...");
       hud_send_notify_bytes(sync_req_time, sizeof(sync_req_time));
       vTaskDelay(pdMS_TO_TICKS(300));
-      
+
       hud_send_notify_bytes(sync_req_mode, sizeof(sync_req_mode));
       vTaskDelay(pdMS_TO_TICKS(300));
-      
+
       hud_send_notify_bytes(sync_req_gps, sizeof(sync_req_gps));
     }
   }
-
 
   // 1. Time Set
   if (commend == 0x09 && data_length == 0x0E && len >= 19) {
@@ -1096,17 +1116,19 @@ static void process_app_command(const uint8_t *data, size_t len) {
     if (data_length == 0x02 && len >= 7) {
       uint8_t data1 = data[4];       // data1
       uint8_t speed_data2 = data[5]; // data2
-      // [Auto-Switch] ONLY from BOOT mode. Other modes like CLOCK/ALBUM stay visual but update background.
+      // [Auto-Switch] ONLY from BOOT mode. Other modes like CLOCK/ALBUM stay
+      // visual but update background.
       if (s_current_mode == DISPLAY_MODE_BOOT) {
-        ESP_LOGI(TAG, "Active command (Speed) received. Auto-switching from BOOT to SPEEDOMETER.");
+        ESP_LOGI(TAG, "Active command (Speed) received. Auto-switching from "
+                      "BOOT to SPEEDOMETER.");
         s_guide_sub_mode = GUIDE_SUB_SPEEDOMETER;
         switch_display_mode(DISPLAY_MODE_GUIDE);
-        
+
         // [Add] 주행 시작 시 외곽 링을 기본 회색(0x02)으로 초기화
         ESP_LOGI(TAG, "Initializing outer ring to Grey on first speed packet.");
-        request_circle_update(start, id, 0x04, 0x01, 0x02); 
+        request_circle_update(start, id, 0x04, 0x01, 0x02);
       }
-      
+
       if (data1 == 0x00) {
         speed_mark(start, id, commend, data_length, data1, speed_data2);
       } else if (data1 == 0x01) {
@@ -1123,18 +1145,20 @@ static void process_app_command(const uint8_t *data, size_t len) {
 
     // [Auto-Switch] ONLY from BOOT mode.
     if (s_current_mode == DISPLAY_MODE_BOOT) {
-        ESP_LOGI(TAG, "TBT command received. Auto-switching from BOOT to SPEEDOMETER.");
-        s_guide_sub_mode = GUIDE_SUB_SPEEDOMETER;
-        switch_display_mode(DISPLAY_MODE_GUIDE);
+      ESP_LOGI(
+          TAG,
+          "TBT command received. Auto-switching from BOOT to SPEEDOMETER.");
+      s_guide_sub_mode = GUIDE_SUB_SPEEDOMETER;
+      switch_display_mode(DISPLAY_MODE_GUIDE);
     }
-    
+
     uint8_t tbt_data3 = (len >= 7) ? data[6] : 0;
     uint8_t tbt_data4 = (len >= 8) ? data[7] : 0;
     uint8_t tbt_data5 = (len >= 9) ? data[8] : 0;
 
     display_tbt_direction(start, id, commend, data_length, data1, data2,
                           tbt_data3, tbt_data4, tbt_data5);
-    }
+  }
 
   // 4. Safety_DRV
   if (commend == 0x02 && data_length == 0x06 && len >= 11) {
@@ -1147,20 +1171,25 @@ static void process_app_command(const uint8_t *data, size_t len) {
 
     // [Auto-Switch] ONLY from BOOT mode.
     if (s_current_mode == DISPLAY_MODE_BOOT) {
-        ESP_LOGI(TAG, "Safety command received. Auto-switching from BOOT to SPEEDOMETER.");
-        s_guide_sub_mode = GUIDE_SUB_SPEEDOMETER;
-        switch_display_mode(DISPLAY_MODE_GUIDE);
+      ESP_LOGI(
+          TAG,
+          "Safety command received. Auto-switching from BOOT to SPEEDOMETER.");
+      s_guide_sub_mode = GUIDE_SUB_SPEEDOMETER;
+      switch_display_mode(DISPLAY_MODE_GUIDE);
     }
-    
+
     safety_drive(start, id, commend, data_length, safety_data1, safety_data2,
                  safety_data3, safety_data4, safety_data5, safety_data6);
   }
 
   // 5. Destination Info
   if (commend == 0x0A && data_length == 0x05 && len >= 10) {
-    if (s_current_mode == DISPLAY_MODE_BOOT || 
-       (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_STANDBY) ||
-       (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER)) { // 속도계에서 목적지 수신 시 내비로 전환
+    if (s_current_mode == DISPLAY_MODE_BOOT ||
+        (s_current_mode == DISPLAY_MODE_GUIDE &&
+         s_guide_sub_mode == GUIDE_SUB_STANDBY) ||
+        (s_current_mode == DISPLAY_MODE_GUIDE &&
+         s_guide_sub_mode ==
+             GUIDE_SUB_SPEEDOMETER)) { // 속도계에서 목적지 수신 시 내비로 전환
       ESP_LOGI(TAG, "Destination info received. Auto-switching to NAVI.");
       s_guide_sub_mode = GUIDE_SUB_NAVI;
       switch_display_mode(DISPLAY_MODE_GUIDE);
@@ -1188,9 +1217,14 @@ static void process_app_command(const uint8_t *data, size_t len) {
 
   // 7. Clear Display
   if (commend == 0x05 && data_length == 0x01 && len >= 6) {
-    if (s_current_mode == DISPLAY_MODE_CLOCK || s_current_mode == DISPLAY_MODE_ALBUM || s_current_mode == DISPLAY_MODE_SETTING) {
-      ESP_LOGI(TAG, "Specialty Mode (%d): Ignoring Clear Display command (0x05)", s_current_mode);
-    } else if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_STANDBY) {
+    if (s_current_mode == DISPLAY_MODE_CLOCK ||
+        s_current_mode == DISPLAY_MODE_ALBUM ||
+        s_current_mode == DISPLAY_MODE_SETTING) {
+      ESP_LOGI(TAG,
+               "Specialty Mode (%d): Ignoring Clear Display command (0x05)",
+               s_current_mode);
+    } else if (s_current_mode == DISPLAY_MODE_GUIDE &&
+               s_guide_sub_mode == GUIDE_SUB_STANDBY) {
       ESP_LOGI(TAG, "Standby Screen: Ignoring Clear Display command (0x05)");
     } else {
       uint8_t clear_data1 = data[4];
@@ -1242,10 +1276,14 @@ static void process_app_command(const uint8_t *data, size_t len) {
     uint8_t data1 = data[4];
     if (data1 <= 5) {
       if (data1 != s_brightness_level) {
-        set_lcd_brightness(data1, true); // Level 0-5 mapping (data1 matches level)
-        save_nvs_settings();             // [User Request] NVS 저장 추가
+        set_lcd_brightness(data1,
+                           true); // Level 0-5 mapping (data1 matches level)
+        save_nvs_settings();      // [User Request] NVS 저장 추가
       } else {
-        ESP_LOGI(TAG, "Brightness command received, but value same (%d). Syncing UI anyway.", data1);
+        ESP_LOGI(TAG,
+                 "Brightness command received, but value same (%d). Syncing UI "
+                 "anyway.",
+                 data1);
         LVGL_LOCK();
         update_setting_ui_labels();
         LVGL_UNLOCK();
@@ -1256,29 +1294,36 @@ static void process_app_command(const uint8_t *data, size_t len) {
   if (commend == 0x0C && data_length == 0x01 && len >= 6) {
     uint8_t mode_val = data[4];
     // Protocol 1.10: 0x00: Safety Driving Mode, 0x01: Destination Mode
-    
+
     // [User Request] Block auto-switch in specialized modes (CLOCK, ALBUM)
-    if (s_current_mode == DISPLAY_MODE_CLOCK || s_current_mode == DISPLAY_MODE_ALBUM || s_current_mode == DISPLAY_MODE_SETTING) {
-      ESP_LOGI(TAG, "0x0C command (Dest Mode) ignored in specialty mode: %d", s_current_mode);
+    if (s_current_mode == DISPLAY_MODE_CLOCK ||
+        s_current_mode == DISPLAY_MODE_ALBUM ||
+        s_current_mode == DISPLAY_MODE_SETTING) {
+      ESP_LOGI(TAG, "0x0C command (Dest Mode) ignored in specialty mode: %d",
+               s_current_mode);
       return;
     }
 
-    s_guide_sub_mode = (mode_val == 0x01) ? GUIDE_SUB_NAVI : GUIDE_SUB_SPEEDOMETER;
-    ESP_LOGI(TAG, "Mode switch command received: Sub-mode set to %d", s_guide_sub_mode);
-    
+    s_guide_sub_mode =
+        (mode_val == 0x01) ? GUIDE_SUB_NAVI : GUIDE_SUB_SPEEDOMETER;
+    ESP_LOGI(TAG, "Mode switch command received: Sub-mode set to %d",
+             s_guide_sub_mode);
+
     // Switch to integrated GUIDE mode
     switch_display_mode(DISPLAY_MODE_GUIDE);
   }
 
   // 11. Destination Arrived (목적지 도착) -> 속도계 화면으로 자동 전환
   if (commend == 0x0D && data_length == 0x01 && len >= 6) {
-    if (s_current_mode == DISPLAY_MODE_BOOT || s_current_mode == DISPLAY_MODE_GUIDE) {
-        ESP_LOGI(TAG, "Destination arrived -> Switching to SPEEDOMETER");
-        s_guide_sub_mode = GUIDE_SUB_SPEEDOMETER;
-        switch_display_mode(DISPLAY_MODE_GUIDE);
+    if (s_current_mode == DISPLAY_MODE_BOOT ||
+        s_current_mode == DISPLAY_MODE_GUIDE) {
+      ESP_LOGI(TAG, "Destination arrived -> Switching to SPEEDOMETER");
+      s_guide_sub_mode = GUIDE_SUB_SPEEDOMETER;
+      switch_display_mode(DISPLAY_MODE_GUIDE);
     } else {
-        ESP_LOGI(TAG, "Destination arrived received in specialty mode. Keeping current mode.");
-        s_guide_sub_mode = GUIDE_SUB_SPEEDOMETER; // 내부 상태만 갱신
+      ESP_LOGI(TAG, "Destination arrived received in specialty mode. Keeping "
+                    "current mode.");
+      s_guide_sub_mode = GUIDE_SUB_SPEEDOMETER; // 내부 상태만 갱신
     }
   }
 
@@ -1296,13 +1341,14 @@ static void process_app_command(const uint8_t *data, size_t len) {
   }
 }
 
-
-
 // Helper to convert hex char to int
 static int hex_char_to_int(char c) {
-  if (c >= '0' && c <= '9') return c - '0';
-  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+  if (c >= '0' && c <= '9')
+    return c - '0';
+  if (c >= 'A' && c <= 'F')
+    return c - 'A' + 10;
+  if (c >= 'a' && c <= 'f')
+    return c - 'a' + 10;
   return -1;
 }
 
@@ -1317,21 +1363,20 @@ static void virtual_drive_task(void *arg) {
     if (s_virt_drive_active && !s_connected) {
       if (f == NULL) {
         const char *log_search_paths[] = {
-            "/littlefs/flash_data/merged_log.txt",
-            "/littlefs/merged_log.txt",
-            "/littlefs/Flash_Data/merged_log.txt",
-            "/sdcard/merged_log.txt"
-        };
-        
+            "/littlefs/flash_data/merged_log.txt", "/littlefs/merged_log.txt",
+            "/littlefs/Flash_Data/merged_log.txt", "/sdcard/merged_log.txt"};
+
         for (int i = 0; i < 4; i++) {
-            // Check LittleFS mount status before opening
-            if (strncmp(log_search_paths[i], "/littlefs/", 10) == 0 && !s_littlefs_mounted) continue;
-            
-            f = fopen(log_search_paths[i], "r");
-            if (f) {
-                ESP_LOGI("VIRT", "Opened Log: %s", log_search_paths[i]);
-                break;
-            }
+          // Check LittleFS mount status before opening
+          if (strncmp(log_search_paths[i], "/littlefs/", 10) == 0 &&
+              !s_littlefs_mounted)
+            continue;
+
+          f = fopen(log_search_paths[i], "r");
+          if (f) {
+            ESP_LOGI("VIRT", "Opened Log: %s", log_search_paths[i]);
+            break;
+          }
         }
 
         if (f == NULL) {
@@ -1346,7 +1391,8 @@ static void virtual_drive_task(void *arg) {
         size_t len = 0;
         size_t line_len = strlen(line);
         for (size_t i = 0; i < line_len; i++) {
-          if (line[i] == ' ' || line[i] == '\r' || line[i] == '\n') continue;
+          if (line[i] == ' ' || line[i] == '\r' || line[i] == '\n')
+            continue;
           if (i + 1 < line_len) {
             int hi = hex_char_to_int(line[i]);
             int lo = hex_char_to_int(line[i + 1]);
@@ -1354,17 +1400,23 @@ static void virtual_drive_task(void *arg) {
               if (len < sizeof(buffer)) {
                 buffer[len++] = (uint8_t)((hi << 4) | lo);
                 i++;
-              } else break;
+              } else
+                break;
             }
           }
         }
-        if (len > 0) process_app_command(buffer, len);
+        if (len > 0)
+          process_app_command(buffer, len);
       } else {
         fseek(f, 0, SEEK_SET);
       }
-      vTaskDelay(pdMS_TO_TICKS(100)); 
+      vTaskDelay(pdMS_TO_TICKS(100));
     } else {
-      if (f != NULL) { fclose(f); f = NULL; ESP_LOGI("VIRT", "Log file closed"); }
+      if (f != NULL) {
+        fclose(f);
+        f = NULL;
+        ESP_LOGI("VIRT", "Log file closed");
+      }
       vTaskDelay(pdMS_TO_TICKS(500));
     }
   }
@@ -1372,36 +1424,39 @@ static void virtual_drive_task(void *arg) {
 
 // Toggle Virtual Drive Mode
 void toggle_virtual_drive(bool enable) {
-    if (enable && !s_virt_drive_active) {
-        s_virt_drive_active = true;
-        if (s_virt_drive_task_handle == NULL) {
-            xTaskCreate(virtual_drive_task, "virt_drive", 8192, NULL, 5, &s_virt_drive_task_handle);
-        }
-        ESP_LOGW("VIRT", "Virtual Drive Mode ENABLED (Endless Replay, No NVS save, No Touch)");
-        s_guide_sub_mode = GUIDE_SUB_SPEEDOMETER;
-        
-        // [User Request] Ensure outer ring is visible in Virtual Drive mode
-        LVGL_LOCK();
-        ensure_circle_ring_created();
-        if (s_circle_ring) {
-            // Initialize to Grey (0x02) directly
-            lv_obj_set_style_border_color(s_circle_ring, lv_color_hex(0x808080), 0);
-            lv_obj_set_style_border_width(s_circle_ring, 5, 0);
-            lv_obj_set_size(s_circle_ring, 463, 463);
-            lv_obj_center(s_circle_ring);
-            lv_obj_clear_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_invalidate(s_circle_ring);
-        }
-        LVGL_UNLOCK();
-
-        // Use a direct mode switch that avoids NVS save by the guard in save_nvs_settings
-        switch_display_mode(DISPLAY_MODE_GUIDE);
-    } else if (!enable && s_virt_drive_active) {
-        s_virt_drive_active = false;
-        ESP_LOGW("VIRT", "Virtual Drive Mode DISABLED");
+  if (enable && !s_virt_drive_active) {
+    s_virt_drive_active = true;
+    if (s_virt_drive_task_handle == NULL) {
+      xTaskCreate(virtual_drive_task, "virt_drive", 8192, NULL, 5,
+                  &s_virt_drive_task_handle);
     }
-}
+    ESP_LOGW(
+        "VIRT",
+        "Virtual Drive Mode ENABLED (Endless Replay, No NVS save, No Touch)");
+    s_guide_sub_mode = GUIDE_SUB_SPEEDOMETER;
 
+    // [User Request] Ensure outer ring is visible in Virtual Drive mode
+    LVGL_LOCK();
+    ensure_circle_ring_created();
+    if (s_circle_ring) {
+      // Initialize to Grey (0x02) directly
+      lv_obj_set_style_border_color(s_circle_ring, lv_color_hex(0x808080), 0);
+      lv_obj_set_style_border_width(s_circle_ring, 5, 0);
+      lv_obj_set_size(s_circle_ring, 463, 463);
+      lv_obj_center(s_circle_ring);
+      lv_obj_clear_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_invalidate(s_circle_ring);
+    }
+    LVGL_UNLOCK();
+
+    // Use a direct mode switch that avoids NVS save by the guard in
+    // save_nvs_settings
+    switch_display_mode(DISPLAY_MODE_GUIDE);
+  } else if (!enable && s_virt_drive_active) {
+    s_virt_drive_active = false;
+    ESP_LOGW("VIRT", "Virtual Drive Mode DISABLED");
+  }
+}
 
 // Parse CSV file and load image data mappings
 static esp_err_t load_image_data_csv(void) {
@@ -1525,24 +1580,24 @@ static esp_err_t load_image_data_csv(void) {
   fseek(fp, 0,
         SEEK_SET); // Reset to beginning
 
-/*
-  ESP_LOGI(TAG,
-           "CSV file opened, first %zu bytes "
-           "(hex):",
-           bytes_read);
-  for (size_t i = 0; i < bytes_read && i < 64; i++) {
-    if (i % 16 == 0) {
-      ESP_LOGI(TAG, "  %04zu: ", i);
+  /*
+    ESP_LOGI(TAG,
+             "CSV file opened, first %zu bytes "
+             "(hex):",
+             bytes_read);
+    for (size_t i = 0; i < bytes_read && i < 64; i++) {
+      if (i % 16 == 0) {
+        ESP_LOGI(TAG, "  %04zu: ", i);
+      }
+      ESP_LOGI(TAG, "%02X ", (unsigned char)first_bytes[i]);
+      if (i % 16 == 15) {
+        ESP_LOGI(TAG, "");
+      }
     }
-    ESP_LOGI(TAG, "%02X ", (unsigned char)first_bytes[i]);
-    if (i % 16 == 15) {
-      ESP_LOGI(TAG, "");
-    }
-  }
-  ESP_LOGI(TAG, "");
-  ESP_LOGI(TAG, "CSV file first %zu bytes (text): %.*s", bytes_read,
-           (int)bytes_read, first_bytes);
-*/
+    ESP_LOGI(TAG, "");
+    ESP_LOGI(TAG, "CSV file first %zu bytes (text): %.*s", bytes_read,
+             (int)bytes_read, first_bytes);
+  */
 
   // Count lines first (skip header line)
   size_t line_count = 0;
@@ -2306,7 +2361,7 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
   // 연결이 끊겼을 때는 앱으로부터의 정보를 무시함 (잔상 방지)
   // [User Request] 가상 운행 모드에서는 연결이 없어도 업데이트 허용
   if (!s_connected && !s_virt_drive_active) {
-      return;
+    return;
   }
 
   hide_black_screen_overlay();
@@ -2334,8 +2389,10 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
     char *tt_pos = strstr(img_filename, "tt");
     if (tt_pos != NULL) {
       uint8_t effective_data2 = data2;
-      if (effective_data2 < 30) effective_data2 = 30;
-      else if (effective_data2 > 120) effective_data2 = 120;
+      if (effective_data2 < 30)
+        effective_data2 = 30;
+      else if (effective_data2 > 120)
+        effective_data2 = 120;
 
       char data2_str[4];
       snprintf(data2_str, sizeof(data2_str), "%02d", effective_data2);
@@ -2492,9 +2549,11 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
 
       // Show image (LVGL이 백그라운드에서
       // 디코딩하는 동안에도 표시 가능)
-      if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_NAVI) {
+      if (s_current_mode == DISPLAY_MODE_GUIDE &&
+          s_guide_sub_mode == GUIDE_SUB_NAVI) {
         lv_obj_clear_flag(s_safety_image, LV_OBJ_FLAG_HIDDEN);
-      } else if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER) {
+      } else if (s_current_mode == DISPLAY_MODE_GUIDE &&
+                 s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER) {
         if (s_speedometer_safety_image != NULL) {
           lv_img_set_src(s_speedometer_safety_image, img_path);
           lv_obj_clear_flag(s_speedometer_safety_image, LV_OBJ_FLAG_HIDDEN);
@@ -2509,17 +2568,23 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
           }
           s_speedometer_safety_tt_val = (uint8_t)limit_speed;
 
-          ESP_LOGI(TAG, "Speedometer Arc Update: data2=%u, limit_speed=%d, current_sub_mode=%d", 
+          ESP_LOGI(TAG,
+                   "Speedometer Arc Update: data2=%u, limit_speed=%d, "
+                   "current_sub_mode=%d",
                    data2, limit_speed, s_guide_sub_mode);
 
           if (limit_speed > 0) {
             int start_angle = (int)((limit_speed / 220.0) * 228.0);
-            ESP_LOGI(TAG, "Setting Safety Arc Start Angle: %d (limit: %d km/h)", start_angle, limit_speed);
-            
+            ESP_LOGI(TAG, "Setting Safety Arc Start Angle: %d (limit: %d km/h)",
+                     start_angle, limit_speed);
+
             // 시인성 확보를 위해 두께와 색상을 강제 재설정 (주황색/10px로 복구)
-            lv_obj_set_style_arc_width(s_speedometer_safety_arc, 10, LV_PART_INDICATOR);
-            lv_obj_set_style_arc_color(s_speedometer_safety_arc, lv_color_hex(0xFF8800), LV_PART_INDICATOR);
-            
+            lv_obj_set_style_arc_width(s_speedometer_safety_arc, 10,
+                                       LV_PART_INDICATOR);
+            lv_obj_set_style_arc_color(s_speedometer_safety_arc,
+                                       lv_color_hex(0xFF8800),
+                                       LV_PART_INDICATOR);
+
             lv_arc_set_angles(s_speedometer_safety_arc, start_angle, 228);
             lv_obj_clear_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
             lv_obj_move_foreground(s_speedometer_safety_arc);
@@ -2539,12 +2604,13 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
           lv_obj_add_flag(s_speedometer_speed_label, LV_OBJ_FLAG_HIDDEN);
         if (s_speedometer_unit_label)
           lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
-        
+
         // 안내모드의 안전운행화면(속도계화면)에서는 도로명을 표기하지 않는다.
         if (s_speedometer_road_name_label)
           lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
         if (s_speedometer_road_name_sub_label)
-          lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(s_speedometer_road_name_sub_label,
+                          LV_OBJ_FLAG_HIDDEN);
 
         // Also hide primary HUD road name
         if (s_road_name_label)
@@ -2552,24 +2618,33 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
         if (s_road_name_sub_label)
           lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
       }
-      
-      // HUD 모드일 때 도로명 숨기기 로직 제거 (안전운행 정보 표시 중에도 도로명 유지 요청)
-      if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_NAVI) {
-          // 구간속도가 보이고 있다면 도로명 숨겨야 함 (공간 중첩)
-          bool avr_visible = s_avr_speed_value_label && !lv_obj_has_flag(s_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN);
-          if (avr_visible) {
-              if (s_road_name_label) lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
-              if (s_road_name_sub_label) lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
-          } else {
-              // 구간속도가 없으면 도로명 표시 (안전운행 중이어도)
-              if (s_road_name_label && lv_label_get_text(s_road_name_label)[0] != '\0') {
-                  lv_obj_clear_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
-                  if (s_road_name_sub_label && lv_label_get_text(s_road_name_sub_label)[0] != '\0') {
-                      lv_obj_clear_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
-                  }
-                  if (s_speed_mark_unit_label) lv_obj_add_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
-              }
+
+      // HUD 모드일 때 도로명 숨기기 로직 제거 (안전운행 정보 표시 중에도 도로명
+      // 유지 요청)
+      if (s_current_mode == DISPLAY_MODE_GUIDE &&
+          s_guide_sub_mode == GUIDE_SUB_NAVI) {
+        // 구간속도가 보이고 있다면 도로명 숨겨야 함 (공간 중첩)
+        bool avr_visible =
+            s_avr_speed_value_label &&
+            !lv_obj_has_flag(s_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN);
+        if (avr_visible) {
+          if (s_road_name_label)
+            lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+          if (s_road_name_sub_label)
+            lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+        } else {
+          // 구간속도가 없으면 도로명 표시 (안전운행 중이어도)
+          if (s_road_name_label &&
+              lv_label_get_text(s_road_name_label)[0] != '\0') {
+            lv_obj_clear_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+            if (s_road_name_sub_label &&
+                lv_label_get_text(s_road_name_sub_label)[0] != '\0') {
+              lv_obj_clear_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+            }
+            if (s_speed_mark_unit_label)
+              lv_obj_add_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
           }
+        }
       }
 
       // 하트비트 업데이트 (이미지 표시 후)
@@ -2588,11 +2663,13 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
         lv_obj_align(s_safety_image, LV_ALIGN_CENTER, offset_x, offset_y);
       }
 
-      if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_NAVI) {
+      if (s_current_mode == DISPLAY_MODE_GUIDE &&
+          s_guide_sub_mode == GUIDE_SUB_NAVI) {
         if (s_safety_image != NULL) {
           lv_obj_clear_flag(s_safety_image, LV_OBJ_FLAG_HIDDEN);
         }
-      } else if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER) {
+      } else if (s_current_mode == DISPLAY_MODE_GUIDE &&
+                 s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER) {
         if (s_speedometer_safety_image != NULL) {
           lv_obj_clear_flag(s_speedometer_safety_image, LV_OBJ_FLAG_HIDDEN);
         }
@@ -2605,16 +2682,22 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
           }
           s_speedometer_safety_tt_val = (uint8_t)limit_speed;
 
-          ESP_LOGI(TAG, "Speedometer Arc (Else) Update: data2=%u, limit_speed=%d", data2, limit_speed);
+          ESP_LOGI(TAG,
+                   "Speedometer Arc (Else) Update: data2=%u, limit_speed=%d",
+                   data2, limit_speed);
 
           if (limit_speed > 0) {
             int start_angle = (int)((limit_speed / 220.0) * 228.0);
-            ESP_LOGI(TAG, "Setting Safety Arc Start Angle: %d (limit: %d km/h)", start_angle, limit_speed);
-            
+            ESP_LOGI(TAG, "Setting Safety Arc Start Angle: %d (limit: %d km/h)",
+                     start_angle, limit_speed);
+
             // 시인성 확보를 위해 두께와 색상을 강제 재설정 (주황색/10px로 복구)
-            lv_obj_set_style_arc_width(s_speedometer_safety_arc, 10, LV_PART_INDICATOR);
-            lv_obj_set_style_arc_color(s_speedometer_safety_arc, lv_color_hex(0xFF8800), LV_PART_INDICATOR);
-            
+            lv_obj_set_style_arc_width(s_speedometer_safety_arc, 10,
+                                       LV_PART_INDICATOR);
+            lv_obj_set_style_arc_color(s_speedometer_safety_arc,
+                                       lv_color_hex(0xFF8800),
+                                       LV_PART_INDICATOR);
+
             lv_arc_set_angles(s_speedometer_safety_arc, start_angle, 228);
             lv_obj_clear_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
             lv_obj_move_foreground(s_speedometer_safety_arc);
@@ -2647,17 +2730,20 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
     if (data3 == 1) {
       // 외곽 링 객체가 없으면 생성
       ensure_circle_ring_created();
-      
+
       if (s_circle_ring != NULL) {
         // 빨강링 점멸 시작
         if (s_safety_ring_timer == NULL) {
-          ESP_LOGI(TAG, "Safety Ring FLASH START: mode=%d, d3=%d", s_current_mode, data3);
+          ESP_LOGI(TAG, "Safety Ring FLASH START: mode=%d, d3=%d",
+                   s_current_mode, data3);
           s_safety_ring_flash_count = 1; // 첫 번째 상태 (빨강)
-          s_safety_ring_timer = lv_timer_create(safety_ring_timer_cb, 200, NULL);
+          s_safety_ring_timer =
+              lv_timer_create(safety_ring_timer_cb, 200, NULL);
 
-          lv_obj_set_style_border_color(s_circle_ring, lv_color_hex(0xFF0000), 0);
+          lv_obj_set_style_border_color(s_circle_ring, lv_color_hex(0xFF0000),
+                                        0);
           lv_obj_set_style_border_width(s_circle_ring, 10, 0); // Red = 10pt
-          lv_obj_set_size(s_circle_ring, 461, 461);           // Red diameter = 461
+          lv_obj_set_size(s_circle_ring, 461, 461); // Red diameter = 461
           lv_obj_center(s_circle_ring);
           lv_obj_clear_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
           lv_obj_move_foreground(s_circle_ring); // 최상위로
@@ -2668,11 +2754,12 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
           ESP_LOGI(TAG, "Safety Ring FLASH RESET: mode=%d", s_current_mode);
           lv_timer_reset(s_safety_ring_timer);
           s_safety_ring_flash_count = 1;
-          lv_obj_set_style_border_color(s_circle_ring, lv_color_hex(0xFF0000), 0);
+          lv_obj_set_style_border_color(s_circle_ring, lv_color_hex(0xFF0000),
+                                        0);
           lv_obj_set_style_border_width(s_circle_ring, 10, 0); // Red = 10pt
           lv_obj_set_size(s_circle_ring, 461, 461);
           lv_obj_center(s_circle_ring);
-          lv_obj_move_foreground(s_circle_ring); 
+          lv_obj_move_foreground(s_circle_ring);
           lv_obj_invalidate(s_circle_ring);
           lv_refr_now(NULL); // 즉시 갱신 강제
         }
@@ -2690,12 +2777,16 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
         lv_obj_set_style_border_color(s_circle_ring, lv_color_hex(0x00FF00),
                                       0); // Green
       }
-      lv_obj_set_style_border_width(s_circle_ring, 5, 0); // Revert to 5pt for GPS status
-      lv_obj_set_size(s_circle_ring, 463, 463);           // GPS diameter = 463
+      lv_obj_set_style_border_width(s_circle_ring, 5,
+                                    0);         // Revert to 5pt for GPS status
+      lv_obj_set_size(s_circle_ring, 463, 463); // GPS diameter = 463
       lv_obj_center(s_circle_ring);
 
-      // GPS 링을 숨기는 모드이거나 연결이 끊겼을 때(단, 가상 모드 제외), 과속 경고 점멸 중이 아닐 때만 숨김
-      if ((s_current_mode != DISPLAY_MODE_GUIDE || (!s_connected && !s_virt_drive_active)) && s_safety_ring_timer == NULL) {
+      // GPS 링을 숨기는 모드이거나 연결이 끊겼을 때(단, 가상 모드 제외), 과속
+      // 경고 점멸 중이 아닐 때만 숨김
+      if ((s_current_mode != DISPLAY_MODE_GUIDE ||
+           (!s_connected && !s_virt_drive_active)) &&
+          s_safety_ring_timer == NULL) {
         lv_obj_add_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
       } else if (s_connected || s_virt_drive_active) {
         lv_obj_clear_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
@@ -2731,19 +2822,25 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
       lv_obj_add_flag(s_speedometer_safety_unit_label, LV_OBJ_FLAG_HIDDEN);
     }
     if (s_speedometer_safety_arc != NULL) {
-      // 거리가 가까워져서 텍스트를 지울 때도, 실제 제한 속도(tt_val)가 있다면 해당 구간 표시 유지
-      int limit = (s_speedometer_safety_tt_val > 0) ? s_speedometer_safety_tt_val : 180;
+      // 거리가 가까워져서 텍스트를 지울 때도, 실제 제한 속도(tt_val)가 있다면
+      // 해당 구간 표시 유지
+      int limit =
+          (s_speedometer_safety_tt_val > 0) ? s_speedometer_safety_tt_val : 180;
       int start_angle = (int)((limit / 220.0) * 228.0);
-      
+
       // 제한 속도가 활성 상태일 때도 주황색/10px 유지
       if (s_speedometer_safety_tt_val > 0) {
-          lv_obj_set_style_arc_width(s_speedometer_safety_arc, 10, LV_PART_INDICATOR);
-          lv_obj_set_style_arc_color(s_speedometer_safety_arc, lv_color_hex(0xFF8800), LV_PART_INDICATOR);
+        lv_obj_set_style_arc_width(s_speedometer_safety_arc, 10,
+                                   LV_PART_INDICATOR);
+        lv_obj_set_style_arc_color(s_speedometer_safety_arc,
+                                   lv_color_hex(0xFF8800), LV_PART_INDICATOR);
       } else {
-          lv_obj_set_style_arc_width(s_speedometer_safety_arc, 10, LV_PART_INDICATOR);
-          lv_obj_set_style_arc_color(s_speedometer_safety_arc, lv_color_hex(0xFF8800), LV_PART_INDICATOR);
+        lv_obj_set_style_arc_width(s_speedometer_safety_arc, 10,
+                                   LV_PART_INDICATOR);
+        lv_obj_set_style_arc_color(s_speedometer_safety_arc,
+                                   lv_color_hex(0xFF8800), LV_PART_INDICATOR);
       }
-      
+
       lv_arc_set_angles(s_speedometer_safety_arc, start_angle, 228);
       lv_obj_clear_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
       lv_obj_invalidate(s_speedometer_safety_arc);
@@ -2836,11 +2933,13 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
   }
 
   // Speedometer Mode Labels update
-  if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER) {
+  if (s_current_mode == DISPLAY_MODE_GUIDE &&
+      s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER) {
     if (s_speedometer_safety_value_label != NULL) {
       lv_label_set_text(s_speedometer_safety_value_label, value_text);
 
-      // Calculate width for last digit center alignment (using kopub_35 to match HUD)
+      // Calculate width for last digit center alignment (using kopub_35 to
+      // match HUD)
       lv_coord_t v_width = lv_txt_get_width(
           value_text, strlen(value_text), &font_kopub_35, 0, LV_TEXT_FLAG_NONE);
       size_t v_len = strlen(value_text);
@@ -2851,10 +2950,12 @@ static void update_safety_image_for_data(const safety_data_entry_t *entry,
                                          LV_TEXT_FLAG_NONE);
       }
 
-      // Align: center of last digit at X=110, 아래로 146pt (Y=146) - Safety 이미지 우측 하단 정렬
+      // Align: center of last digit at X=110, 아래로 146pt (Y=146) - Safety
+      // 이미지 우측 하단 정렬
       lv_obj_align(s_speedometer_safety_value_label, LV_ALIGN_CENTER,
                    110 + (v_last_char_w / 2) - (v_width / 2), 146);
-      lv_obj_set_style_text_color(s_speedometer_safety_value_label, lv_color_hex(0x00FF00), 0); // 초록색
+      lv_obj_set_style_text_color(s_speedometer_safety_value_label,
+                                  lv_color_hex(0x00FF00), 0); // 초록색
 
       lv_obj_clear_flag(s_speedometer_safety_value_label, LV_OBJ_FLAG_HIDDEN);
     }
@@ -2916,7 +3017,9 @@ static void safety_drive(uint8_t start, uint8_t id, uint8_t commend,
 
   // data1 == 2: 외곽링을 제외한 LCD 에 표기한
   // 모든것을 화면에 표기하지 않는다
-  ESP_LOGI(TAG, "Safety_DRV Packet: start=0x%02X id=0x%02X cmd=0x%02X d1=0x%02X d2=0x%02X d3=0x%02X", 
+  ESP_LOGI(TAG,
+           "Safety_DRV Packet: start=0x%02X id=0x%02X cmd=0x%02X d1=0x%02X "
+           "d2=0x%02X d3=0x%02X",
            start, id, commend, data1, data2, data3);
 
   if (data1 == 0x02) {
@@ -3011,7 +3114,8 @@ static void update_circle_display(uint8_t start, uint8_t id, uint8_t commend,
   // CLOCK/CLOCK2/ALBUM/SETTING: GPS 링(GPS 상태) 숨김
   // 연결이 끊겼거나 Safety 빨강 점멸 타이머 실행 중이면 건드리지 않음
   // [User Request] 가상 운행 모드(DISPLAY_MODE_GUIDE + virt_active)에서는 허용
-  if (s_current_mode != DISPLAY_MODE_GUIDE || (!s_connected && !s_virt_drive_active)) {
+  if (s_current_mode != DISPLAY_MODE_GUIDE ||
+      (!s_connected && !s_virt_drive_active)) {
     if (s_safety_ring_timer == NULL && s_circle_ring != NULL) {
       lv_obj_add_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
     }
@@ -3116,7 +3220,7 @@ static void safety_ring_timer_cb(lv_timer_t *timer) {
   if (s_safety_ring_flash_count % 2 == 1) {
     lv_obj_set_style_border_color(s_circle_ring, lv_color_hex(0xFF0000), 0);
     lv_obj_set_style_border_width(s_circle_ring, 10, 0); // 빨강일 때 10pt
-    lv_obj_set_size(s_circle_ring, 461, 461);           // 빨강일 때 지름 461pt
+    lv_obj_set_size(s_circle_ring, 461, 461);            // 빨강일 때 지름 461pt
     lv_obj_center(s_circle_ring);
   } else {
     lv_color_t original_color = lv_color_hex(0x00FF00);
@@ -3150,7 +3254,7 @@ data_length, data1);
 static void ensure_circle_ring_created(void) {
   if (s_circle_ring == NULL) {
     s_circle_ring = lv_obj_create(lv_layer_top());
-    lv_obj_set_size(s_circle_ring, 463, 463);           // 기본 지름 463pt
+    lv_obj_set_size(s_circle_ring, 463, 463); // 기본 지름 463pt
     // 완전한 원이 되도록 radius를 원형으로 설정
     lv_obj_set_style_radius(s_circle_ring, LV_RADIUS_CIRCLE, 0);
     // 배경은 투명, 테두리만 표시
@@ -3159,7 +3263,7 @@ static void ensure_circle_ring_created(void) {
     lv_obj_set_style_border_opa(s_circle_ring, LV_OPA_COVER, 0);
     lv_obj_set_style_pad_all(s_circle_ring, 0, 0);
     lv_obj_set_scrollbar_mode(s_circle_ring, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_center(s_circle_ring); // 화면 중앙 기준 원
+    lv_obj_center(s_circle_ring);                       // 화면 중앙 기준 원
     lv_obj_add_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN); // 초기에는 숨김
   }
 }
@@ -3219,7 +3323,8 @@ static void update_clear_display(uint8_t data1) {
   ESP_LOGI(TAG, "clear_display called: data1=0x%02X", data1);
 
   // Speedometer sub-mode ignore 0x07 (Full Black)
-  if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER && data1 == 0x07) {
+  if (s_current_mode == DISPLAY_MODE_GUIDE &&
+      s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER && data1 == 0x07) {
     ESP_LOGI(TAG, "clear_display: Speedometer mode - ignoring data1=0x07");
     return;
   }
@@ -3287,50 +3392,66 @@ static void update_clear_display(uint8_t data1) {
       lv_obj_add_flag(s_speedometer_safety_unit_label, LV_OBJ_FLAG_HIDDEN);
     }
     if (s_speedometer_safety_arc != NULL) {
-      // 클리어 요청 시에도 현재 설정된 제한 속도가 있으면 그 값을 유지, 없으면 180km 기본값
-      int limit = (s_speedometer_safety_tt_val > 0) ? s_speedometer_safety_tt_val : 180;
+      // 클리어 요청 시에도 현재 설정된 제한 속도가 있으면 그 값을 유지, 없으면
+      // 180km 기본값
+      int limit =
+          (s_speedometer_safety_tt_val > 0) ? s_speedometer_safety_tt_val : 180;
       int start_angle = (int)((limit / 220.0) * 228.0);
-      
+
       // 안내가 종료되는 상황이므로 원래의 주황색/10px 스타일로 복구
-      lv_obj_set_style_arc_width(s_speedometer_safety_arc, 10, LV_PART_INDICATOR);
-      lv_obj_set_style_arc_color(s_speedometer_safety_arc, lv_color_hex(0xFF8800), LV_PART_INDICATOR);
-      
+      lv_obj_set_style_arc_width(s_speedometer_safety_arc, 10,
+                                 LV_PART_INDICATOR);
+      lv_obj_set_style_arc_color(s_speedometer_safety_arc,
+                                 lv_color_hex(0xFF8800), LV_PART_INDICATOR);
+
       lv_arc_set_angles(s_speedometer_safety_arc, start_angle, 228);
       lv_obj_clear_flag(s_speedometer_safety_arc, LV_OBJ_FLAG_HIDDEN);
       lv_obj_invalidate(s_speedometer_safety_arc);
     }
 
     // Show speedometer mode speed labels when safety image is cleared
-    if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER) {
+    if (s_current_mode == DISPLAY_MODE_GUIDE &&
+        s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER) {
       if (s_speedometer_speed_label != NULL) {
         lv_obj_clear_flag(s_speedometer_speed_label, LV_OBJ_FLAG_HIDDEN);
       }
-      
-      // 안내모드의 안전운행화면(속도계화면)에서는 도로명을 표기하지 않는다. (단위 km/h 항상 표시)
-      if (s_speedometer_road_name_label) lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
-      if (s_speedometer_road_name_sub_label) lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+
+      // 안내모드의 안전운행화면(속도계화면)에서는 도로명을 표기하지 않는다.
+      // (단위 km/h 항상 표시)
+      if (s_speedometer_road_name_label)
+        lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_speedometer_road_name_sub_label)
+        lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
       if (s_speedometer_unit_label) {
-        bool avr_visible = (s_speedometer_avr_speed_value_label != NULL && !lv_obj_has_flag(s_speedometer_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN));
+        bool avr_visible =
+            (s_speedometer_avr_speed_value_label != NULL &&
+             !lv_obj_has_flag(s_speedometer_avr_speed_value_label,
+                              LV_OBJ_FLAG_HIDDEN));
         if (!avr_visible) {
           lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
         } else {
           lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
         }
       }
-    } else if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_NAVI) {
-        // HUD 모드에서도 도로명이 있으면 복구
-        bool road_name_active = (s_road_name_label != NULL && 
-                                 lv_label_get_text(s_road_name_label)[0] != '\0');
-        if (road_name_active) {
-            bool avr_visible = s_avr_speed_value_label && !lv_obj_has_flag(s_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN);
-            if (!avr_visible) {
-                lv_obj_clear_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
-                if (s_road_name_sub_label && lv_label_get_text(s_road_name_sub_label)[0] != '\0') {
-                    lv_obj_clear_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
-                }
-                if (s_speed_mark_unit_label) lv_obj_add_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
-            }
+    } else if (s_current_mode == DISPLAY_MODE_GUIDE &&
+               s_guide_sub_mode == GUIDE_SUB_NAVI) {
+      // HUD 모드에서도 도로명이 있으면 복구
+      bool road_name_active = (s_road_name_label != NULL &&
+                               lv_label_get_text(s_road_name_label)[0] != '\0');
+      if (road_name_active) {
+        bool avr_visible =
+            s_avr_speed_value_label &&
+            !lv_obj_has_flag(s_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN);
+        if (!avr_visible) {
+          lv_obj_clear_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
+          if (s_road_name_sub_label &&
+              lv_label_get_text(s_road_name_sub_label)[0] != '\0') {
+            lv_obj_clear_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+          }
+          if (s_speed_mark_unit_label)
+            lv_obj_add_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
         }
+      }
     }
     s_last_safety_request_valid = false;
   }
@@ -3344,7 +3465,7 @@ static void update_clear_display(uint8_t data1) {
       lv_obj_add_flag(s_normal_speed_unit_label, LV_OBJ_FLAG_HIDDEN);
       lv_obj_invalidate(s_normal_speed_unit_label);
     }
-    
+
     // Also hide HUD speed marks
     if (s_speed_mark_value_label != NULL) {
       lv_obj_add_flag(s_speed_mark_value_label, LV_OBJ_FLAG_HIDDEN);
@@ -3366,9 +3487,12 @@ static void update_clear_display(uint8_t data1) {
     if (s_speedometer_road_name_sub_label != NULL) {
       lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
     }
-    // 도로명이 지워졌으므로 속도계 단위(km/h) 다시 표시 (단, 구간속도 표시 중이면 제외)
+    // 도로명이 지워졌으므로 속도계 단위(km/h) 다시 표시 (단, 구간속도 표시
+    // 중이면 제외)
     if (s_speedometer_unit_label != NULL) {
-      bool avr_visible = (s_speedometer_avr_speed_value_label != NULL && !lv_obj_has_flag(s_speedometer_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN));
+      bool avr_visible = (s_speedometer_avr_speed_value_label != NULL &&
+                          !lv_obj_has_flag(s_speedometer_avr_speed_value_label,
+                                           LV_OBJ_FLAG_HIDDEN));
       if (!avr_visible) {
         lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
       }
@@ -3403,12 +3527,16 @@ static void update_clear_display(uint8_t data1) {
     // 평균속도가 명시적으로 지워졌으므로 도로명 라벨 위치/가시성 즉시 복구
     align_avr_speed_labels();
 
-    // 속도계 모드에서 구간속도가 사라졌으므로 km/h 단위 다시 표시 (안전안내 중이 아닐 때만)
-    if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER) {
-        bool safety_visible = (s_speedometer_safety_image != NULL && !lv_obj_has_flag(s_speedometer_safety_image, LV_OBJ_FLAG_HIDDEN));
-        if (!safety_visible && s_speedometer_unit_label) {
-            lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
-        }
+    // 속도계 모드에서 구간속도가 사라졌으므로 km/h 단위 다시 표시 (안전안내
+    // 중이 아닐 때만)
+    if (s_current_mode == DISPLAY_MODE_GUIDE &&
+        s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER) {
+      bool safety_visible =
+          (s_speedometer_safety_image != NULL &&
+           !lv_obj_has_flag(s_speedometer_safety_image, LV_OBJ_FLAG_HIDDEN));
+      if (!safety_visible && s_speedometer_unit_label) {
+        lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
+      }
     }
   }
 
@@ -3661,14 +3789,16 @@ static void update_speed_mark(uint8_t data2) {
 
   // --- HUD 모드 요청: 도로명이나 평균속도가 있으면 단위(km/h) 숨기고, 없으면
   // 표시 ---
-  // 도로명이 1행 또는 2행 중 하나라도 활성 상태면(숨겨지지 않았으면) 보고 있는 것으로 판단
+  // 도로명이 1행 또는 2행 중 하나라도 활성 상태면(숨겨지지 않았으면) 보고 있는
+  // 것으로 판단
   bool road_name_visible =
       (s_road_name_label != NULL &&
        !lv_obj_has_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN));
-  if (s_road_name_sub_label && !lv_obj_has_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN)) {
-      road_name_visible = true;
+  if (s_road_name_sub_label &&
+      !lv_obj_has_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN)) {
+    road_name_visible = true;
   }
-  
+
   bool avr_speed_visible =
       (s_avr_speed_value_label != NULL &&
        !lv_obj_has_flag(s_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN));
@@ -3699,7 +3829,8 @@ static void align_avr_speed_labels(void) {
       !s_avr_speed_unit_label)
     return;
 
-  if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_NAVI) {
+  if (s_current_mode == DISPLAY_MODE_GUIDE &&
+      s_guide_sub_mode == GUIDE_SUB_NAVI) {
     // Original Dynamic Alignment for HUD
     lv_obj_update_layout(s_avr_speed_value_label);
     lv_coord_t val_w = lv_obj_get_width(s_avr_speed_value_label);
@@ -3776,7 +3907,8 @@ static void update_speed_label(uint8_t data1, uint8_t speed) {
   // condition.
   hide_black_screen_overlay();
   // [User Request] 가상 운행 모드에서는 연결이 없어도 업데이트 허용
-  if (!s_connected && !s_virt_drive_active) return;
+  if (!s_connected && !s_virt_drive_active)
+    return;
 
   if (s_current_mode != DISPLAY_MODE_GUIDE &&
       s_current_mode != DISPLAY_MODE_CLOCK)
@@ -3789,12 +3921,14 @@ static void update_speed_label(uint8_t data1, uint8_t speed) {
     // [일반속도] 155pt 흰색 (중앙 83pt 하), KM/H 35pt 흰색 (중앙 164pt 하)
 
     // HUD mode display
-    if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_NAVI) {
+    if (s_current_mode == DISPLAY_MODE_GUIDE &&
+        s_guide_sub_mode == GUIDE_SUB_NAVI) {
       update_speed_mark(speed);
     }
 
     // Speedometer mode display
-    if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER) {
+    if (s_current_mode == DISPLAY_MODE_GUIDE &&
+        s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER) {
       if (s_speedometer_needle_line != NULL) {
         static int s_last_drawn_speed = -1;
         int draw_speed = speed > 220 ? 220 : speed;
@@ -3861,12 +3995,14 @@ static void update_speed_label(uint8_t data1, uint8_t speed) {
 
           // 안내모드의 안전운행화면(속도계화면)에서는 도로명을 표기하지 않는다.
           // 단, 구간속도가 표시 중이면 km/h 단위를 숨겨 겹침 방지
-          bool avr_visible = (s_speedometer_avr_speed_value_label != NULL && 
-                              !lv_obj_has_flag(s_speedometer_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN));
+          bool avr_visible =
+              (s_speedometer_avr_speed_value_label != NULL &&
+               !lv_obj_has_flag(s_speedometer_avr_speed_value_label,
+                                LV_OBJ_FLAG_HIDDEN));
           if (!avr_visible) {
-              lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
           } else {
-              lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
           }
         } else if (safety_visible && s_speedometer_speed_label) {
           // Keep the label text updated even if hidden, so it's correct when
@@ -3886,7 +4022,8 @@ static void update_speed_label(uint8_t data1, uint8_t speed) {
 
         // HUD 모드라면 현재속도 단위(KM/H)를 다시 표시하되, 도로명 활성화 시엔
         // 무시
-        if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_NAVI && s_speed_mark_unit_label) {
+        if (s_current_mode == DISPLAY_MODE_GUIDE &&
+            s_guide_sub_mode == GUIDE_SUB_NAVI && s_speed_mark_unit_label) {
           bool road_name_visible =
               (s_road_name_label != NULL &&
                !lv_obj_has_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN));
@@ -3908,7 +4045,8 @@ static void update_speed_label(uint8_t data1, uint8_t speed) {
         lv_obj_clear_flag(s_avr_speed_unit_label, LV_OBJ_FLAG_HIDDEN);
 
         // HUD 모드라면 현재속도 단위(KM/H)를 숨김
-        if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_NAVI && s_speed_mark_unit_label) {
+        if (s_current_mode == DISPLAY_MODE_GUIDE &&
+            s_guide_sub_mode == GUIDE_SUB_NAVI && s_speed_mark_unit_label) {
           lv_obj_add_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
         }
 
@@ -3949,9 +4087,11 @@ static void update_speed_label(uint8_t data1, uint8_t speed) {
         lv_obj_add_flag(s_speedometer_avr_speed_unit_label, LV_OBJ_FLAG_HIDDEN);
 
         // 구간속도가 사라지면 km/h 단위 다시 표시 (안전안내 중이 아닐 때만)
-        bool safety_visible = (s_speedometer_safety_image != NULL && !lv_obj_has_flag(s_speedometer_safety_image, LV_OBJ_FLAG_HIDDEN));
+        bool safety_visible =
+            (s_speedometer_safety_image != NULL &&
+             !lv_obj_has_flag(s_speedometer_safety_image, LV_OBJ_FLAG_HIDDEN));
         if (!safety_visible && s_speedometer_unit_label) {
-            lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
+          lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
         }
       } else {
         lv_label_set_text(s_speedometer_avr_speed_value_label, speed_str);
@@ -3986,28 +4126,37 @@ static void update_speed_label(uint8_t data1, uint8_t speed) {
         // HUD labels alternate with road name at Y=170 (rel to center)
         // Road name is at TOP_MID, 0, 388 (466/2 = 233. 388-233 = 155 approx)
         // Let's use Y=170 for consistency with HUD's avr_y logic
-        
+
         lv_obj_update_layout(s_speedometer_avr_speed_value_label);
-        lv_coord_t val_w = lv_obj_get_width(s_speedometer_avr_speed_value_label);
+        lv_coord_t val_w =
+            lv_obj_get_width(s_speedometer_avr_speed_value_label);
         char *txt = lv_label_get_text(s_speedometer_avr_speed_value_label);
         size_t char_count = utf8_strlen_simple(txt);
         lv_coord_t char_w = (char_count > 0) ? (val_w / char_count) : 0;
 
-        lv_obj_align(s_speedometer_avr_speed_value_label, LV_ALIGN_CENTER, (val_w - char_w) / 2, 186);
-        lv_obj_align_to(s_speedometer_avr_speed_title_label, s_speedometer_avr_speed_value_label,
+        lv_obj_align(s_speedometer_avr_speed_value_label, LV_ALIGN_CENTER,
+                     (val_w - char_w) / 2, 186);
+        lv_obj_align_to(s_speedometer_avr_speed_title_label,
+                        s_speedometer_avr_speed_value_label,
                         LV_ALIGN_OUT_LEFT_MID, -5, 0);
-        lv_obj_align_to(s_speedometer_avr_speed_unit_label, s_speedometer_avr_speed_value_label,
+        lv_obj_align_to(s_speedometer_avr_speed_unit_label,
+                        s_speedometer_avr_speed_value_label,
                         LV_ALIGN_OUT_RIGHT_MID, 1, 0);
-        
+
         // Show unit by default for HUD parity
-        lv_obj_clear_flag(s_speedometer_avr_speed_unit_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(s_speedometer_avr_speed_unit_label,
+                          LV_OBJ_FLAG_HIDDEN);
 
         // Hide speedometer road names when average speed is shown
-        if (s_speedometer_road_name_label) lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
-        if (s_speedometer_road_name_sub_label) lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
-        
+        if (s_speedometer_road_name_label)
+          lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_speedometer_road_name_sub_label)
+          lv_obj_add_flag(s_speedometer_road_name_sub_label,
+                          LV_OBJ_FLAG_HIDDEN);
+
         // 구간속도 표시 중에는 km/h 단위를 숨겨 겹침 방지
-        if (s_speedometer_unit_label) lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_speedometer_unit_label)
+          lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
       }
     }
   }
@@ -4018,7 +4167,8 @@ static void update_speed_label(uint8_t data1, uint8_t speed) {
 // 날짜: MM(하늘색) 월(회색) dd(하늘색)
 // 일(회색)
 static void update_time_display(void) {
-  if (!s_time_initialized) return;
+  if (!s_time_initialized)
+    return;
 
   struct tm timeinfo;
   time_t now;
@@ -4037,12 +4187,12 @@ static void update_time_display(void) {
   }
 
   // 2. Update Digital Labels (Standby Mode)
-  if (s_time_month_label && s_time_month_unit_label &&
-      s_time_day_label && s_time_day_unit_label &&
-      s_time_hour_label && s_time_minute_label && s_time_second_label) {
-      
+  if (s_time_month_label && s_time_month_unit_label && s_time_day_label &&
+      s_time_day_unit_label && s_time_hour_label && s_time_minute_label &&
+      s_time_second_label) {
+
     char buf[16];
-    
+
     snprintf(buf, sizeof(buf), "%d", month);
     lv_label_set_text(s_time_month_label, buf);
     lv_label_set_text(s_time_month_unit_label, "월");
@@ -4053,11 +4203,13 @@ static void update_time_display(void) {
 
     snprintf(buf, sizeof(buf), "%02d", hour);
     lv_label_set_text(s_time_hour_label, buf);
-    if (s_time_colon1_label) lv_label_set_text(s_time_colon1_label, ":");
+    if (s_time_colon1_label)
+      lv_label_set_text(s_time_colon1_label, ":");
 
     snprintf(buf, sizeof(buf), "%02d", min);
     lv_label_set_text(s_time_minute_label, buf);
-    if (s_time_colon2_label) lv_label_set_text(s_time_colon2_label, ":");
+    if (s_time_colon2_label)
+      lv_label_set_text(s_time_colon2_label, ":");
 
     snprintf(buf, sizeof(buf), "%02d", sec);
     lv_label_set_text(s_time_second_label, buf);
@@ -4236,7 +4388,7 @@ static void time_set(const uint8_t *data, size_t data_len) {
 
   // Update brightness immediately based on new time (only if in Auto mode)
   if (s_brightness_level == 0) {
-      update_auto_brightness(true);
+    update_auto_brightness(true);
   }
 }
 
@@ -4344,10 +4496,10 @@ static void request_destination_update(uint8_t data1, uint8_t data2,
   // task - actual LVGL object manipulation)
 }
 
-
 static void update_road_name_label(const char *road_name) {
   // [User Request] 가상 운행 모드에서는 연결이 없어도 업데이트 허용
-  if (!s_connected && !s_virt_drive_active) return;
+  if (!s_connected && !s_virt_drive_active)
+    return;
 
   if (s_road_name_label == NULL) {
     ESP_LOGW(TAG, "Road Name: s_road_name_label is NULL!");
@@ -4368,15 +4520,17 @@ static void update_road_name_label(const char *road_name) {
     lv_obj_set_width(s_speedometer_road_name_label, LV_SIZE_CONTENT);
   }
   if (s_speedometer_road_name_sub_label) {
-    lv_label_set_long_mode(s_speedometer_road_name_sub_label, LV_LABEL_LONG_WRAP);
+    lv_label_set_long_mode(s_speedometer_road_name_sub_label,
+                           LV_LABEL_LONG_WRAP);
     lv_obj_set_width(s_speedometer_road_name_sub_label, LV_SIZE_CONTENT);
   }
 
   if (road_name == NULL || strlen(road_name) == 0) {
     ESP_LOGI(TAG, "Road Name: Received empty string, hiding labels");
     lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
-    if (s_road_name_sub_label) lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
-    
+    if (s_road_name_sub_label)
+      lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+
     if (s_speedometer_road_name_label) {
       lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
     }
@@ -4399,14 +4553,15 @@ static void update_road_name_label(const char *road_name) {
     if (s_speedometer_unit_label) {
       lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
     }
-    
+
     LVGL_UNLOCK();
     return;
   }
 
   ESP_LOGI(TAG, "Road Name: Updating label to '%s'", road_name);
 
-  // Road Name Logic: Split by \n if logic applies, otherwise check for manual \n
+  // Road Name Logic: Split by \n if logic applies, otherwise check for manual
+  // \n
   char line1[128] = {0};
   char line2[128] = {0};
   bool has_split = false;
@@ -4462,8 +4617,9 @@ static void update_road_name_label(const char *road_name) {
 
   // Set texts
   lv_label_set_text(s_road_name_label, line1);
-  if (s_speedometer_road_name_label) lv_label_set_text(s_speedometer_road_name_label, line1);
-  
+  if (s_speedometer_road_name_label)
+    lv_label_set_text(s_speedometer_road_name_label, line1);
+
   if (has_split) {
     if (s_road_name_sub_label) {
       lv_label_set_text(s_road_name_sub_label, line2);
@@ -4474,8 +4630,10 @@ static void update_road_name_label(const char *road_name) {
       lv_obj_clear_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
     }
   } else {
-    if (s_road_name_sub_label) lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
-    if (s_speedometer_road_name_sub_label) lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_road_name_sub_label)
+      lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_speedometer_road_name_sub_label)
+      lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
   }
 
   // Apply Scrolling (11 chars for top, 5 chars for bottom)
@@ -4488,66 +4646,88 @@ static void update_road_name_label(const char *road_name) {
     lv_label_set_long_mode(s_road_name_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
     if (s_speedometer_road_name_label) {
       lv_obj_set_width(s_speedometer_road_name_label, top_limit_width);
-      lv_label_set_long_mode(s_speedometer_road_name_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
+      lv_label_set_long_mode(s_speedometer_road_name_label,
+                             LV_LABEL_LONG_SCROLL_CIRCULAR);
     }
   }
 
   if (has_split && utf8_strlen_simple(line2) >= 5) {
     if (s_road_name_sub_label) {
       lv_obj_set_width(s_road_name_sub_label, bottom_limit_width);
-      lv_label_set_long_mode(s_road_name_sub_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
+      lv_label_set_long_mode(s_road_name_sub_label,
+                             LV_LABEL_LONG_SCROLL_CIRCULAR);
     }
     if (s_speedometer_road_name_sub_label) {
       lv_obj_set_width(s_speedometer_road_name_sub_label, bottom_limit_width);
-      lv_label_set_long_mode(s_speedometer_road_name_sub_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
+      lv_label_set_long_mode(s_speedometer_road_name_sub_label,
+                             LV_LABEL_LONG_SCROLL_CIRCULAR);
     }
   }
 
   // 가시성 및 위치 제어
-  if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_NAVI) {
+  if (s_current_mode == DISPLAY_MODE_GUIDE &&
+      s_guide_sub_mode == GUIDE_SUB_NAVI) {
     lv_obj_set_parent(s_road_name_label, s_hud_screen);
     lv_obj_move_foreground(s_road_name_label);
     if (s_road_name_sub_label) {
-        lv_obj_set_parent(s_road_name_sub_label, s_hud_screen);
-        lv_obj_move_foreground(s_road_name_sub_label);
+      lv_obj_set_parent(s_road_name_sub_label, s_hud_screen);
+      lv_obj_move_foreground(s_road_name_sub_label);
     }
-    
-    lv_obj_align(s_road_name_label, LV_ALIGN_TOP_MID, 0, 388);
-    if (s_road_name_sub_label) lv_obj_align(s_road_name_sub_label, LV_ALIGN_TOP_MID, 0, 423);
-    
-    // 도로명 색상을 약간 어두운 노란색으로 변경 (210, 210, 0)
-    lv_obj_set_style_text_color(s_road_name_label, lv_color_make(210, 210, 0), 0);
-    if (s_road_name_sub_label) lv_obj_set_style_text_color(s_road_name_sub_label, lv_color_make(210, 210, 0), 0);
 
-    bool avr_visible = s_avr_speed_value_label && !lv_obj_has_flag(s_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN);
-    // 안전운행 정보 표시 중에도 도로명을 표기하도록 로직 수정 (avr_visible만 체크)
+    lv_obj_align(s_road_name_label, LV_ALIGN_TOP_MID, 0, 388);
+    if (s_road_name_sub_label)
+      lv_obj_align(s_road_name_sub_label, LV_ALIGN_TOP_MID, 0, 423);
+
+    // 도로명 색상을 약간 어두운 노란색으로 변경 (210, 210, 0)
+    lv_obj_set_style_text_color(s_road_name_label, lv_color_make(210, 210, 0),
+                                0);
+    if (s_road_name_sub_label)
+      lv_obj_set_style_text_color(s_road_name_sub_label,
+                                  lv_color_make(210, 210, 0), 0);
+
+    bool avr_visible =
+        s_avr_speed_value_label &&
+        !lv_obj_has_flag(s_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN);
+    // 안전운행 정보 표시 중에도 도로명을 표기하도록 로직 수정 (avr_visible만
+    // 체크)
     if (!avr_visible) {
       lv_obj_clear_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
-      if (has_split && s_road_name_sub_label) lv_obj_clear_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
-      
+      if (has_split && s_road_name_sub_label)
+        lv_obj_clear_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+
       if (s_speed_mark_unit_label) {
         lv_obj_add_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
       }
     } else {
       lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
-      if (s_road_name_sub_label) lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_road_name_sub_label)
+        lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
     }
     // Disable speedometer labels
-    if (s_speedometer_road_name_label) lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
-    if (s_speedometer_road_name_sub_label) lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_speedometer_road_name_label)
+      lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_speedometer_road_name_sub_label)
+      lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
 
-  } else if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER) {
+  } else if (s_current_mode == DISPLAY_MODE_GUIDE &&
+             s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER) {
     // 안내모드의 안전운행화면(속도계화면)에서는 도로명을 표기하지 않는다.
-    if (s_speedometer_road_name_label) lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
-    if (s_speedometer_road_name_sub_label) lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_speedometer_road_name_label)
+      lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_speedometer_road_name_sub_label)
+      lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
     // Disable primary HUD labels
     lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
-    if (s_road_name_sub_label) lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_road_name_sub_label)
+      lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
   } else {
     lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
-    if (s_road_name_sub_label) lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
-    if (s_speedometer_road_name_label) lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
-    if (s_speedometer_road_name_sub_label) lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_road_name_sub_label)
+      lv_obj_add_flag(s_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_speedometer_road_name_label)
+      lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_speedometer_road_name_sub_label)
+      lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
   }
 
   LVGL_UNLOCK();
@@ -4561,7 +4741,8 @@ static void update_destination_info(uint8_t data1, uint8_t data2, uint8_t data3,
   hide_black_screen_overlay();
 
   // [User Request] 가상 운행 모드에서는 연결이 없어도 업데이트 허용
-  if (!s_connected && !s_virt_drive_active) return;
+  if (!s_connected && !s_virt_drive_active)
+    return;
 
   // Check if labels exist
   if (s_dest_time_value_label == NULL || s_dest_time_hour_unit_label == NULL ||
@@ -4641,7 +4822,8 @@ static void update_destination_info(uint8_t data1, uint8_t data2, uint8_t data3,
     // 3. Minute Value (녹색, 35pt)
     lv_label_set_text(s_dest_time_minute_value_label, time_minute_text);
     lv_obj_set_style_text_color(s_dest_time_minute_value_label,
-                                lv_color_hex(0x00FF00), 0); // 밝은 초록색 (Bright Green)
+                                lv_color_hex(0x00FF00),
+                                0); // 밝은 초록색 (Bright Green)
     lv_obj_set_style_text_font(s_dest_time_minute_value_label, &font_kopub_35,
                                0);
 
@@ -4685,7 +4867,8 @@ static void update_destination_info(uint8_t data1, uint8_t data2, uint8_t data3,
 
     // 1. Minute Value (using time value label) (밝은 초록색, 30pt)
     lv_label_set_text(s_dest_time_value_label, time_value_text);
-    lv_obj_set_style_text_color(s_dest_time_value_label, lv_color_hex(0x00FF00), 0); // 밝은 초록색 (Bright Green)
+    lv_obj_set_style_text_color(s_dest_time_value_label, lv_color_hex(0x00FF00),
+                                0); // 밝은 초록색 (Bright Green)
     lv_obj_set_style_text_font(s_dest_time_value_label, &font_kopub_35, 0);
     lv_obj_align(s_dest_time_value_label, LV_ALIGN_CENTER,
                  start_x + (w_val / 2), -15);
@@ -4693,7 +4876,8 @@ static void update_destination_info(uint8_t data1, uint8_t data2, uint8_t data3,
 
     // 2. Minute Unit "분" (회색, 30pt)
     lv_label_set_text(s_dest_time_unit_label, "분");
-    lv_obj_set_style_text_color(s_dest_time_unit_label, lv_palette_main(LV_PALETTE_GREY), 0);
+    lv_obj_set_style_text_color(s_dest_time_unit_label,
+                                lv_palette_main(LV_PALETTE_GREY), 0);
     lv_obj_set_style_text_font(s_dest_time_unit_label, &font_addr_30, 0);
 
     // Hide Unused
@@ -4717,9 +4901,8 @@ static void update_destination_info(uint8_t data1, uint8_t data2, uint8_t data3,
     lv_obj_set_style_text_font(s_dest_label, &font_addr_30, 0);
 
     // Calculate width with 30pt font
-    lv_coord_t label_width =
-        lv_txt_get_width("소요시간", strlen("소요시간"), &font_addr_30, 0,
-                         LV_TEXT_FLAG_NONE);
+    lv_coord_t label_width = lv_txt_get_width(
+        "소요시간", strlen("소요시간"), &font_addr_30, 0, LV_TEXT_FLAG_NONE);
 
     // Align Left edge at -190
     // Center X = TargetLeftX + Width/2 = -190 + Width/2
@@ -5049,7 +5232,8 @@ static void update_hud_image_for_data(const image_data_entry_t *entry,
     return;
   }
 
-  if (s_current_mode != DISPLAY_MODE_GUIDE || s_guide_sub_mode != GUIDE_SUB_NAVI) {
+  if (s_current_mode != DISPLAY_MODE_GUIDE ||
+      s_guide_sub_mode != GUIDE_SUB_NAVI) {
     /* ESP_LOGW(TAG,
              "Not in HUD mode (current "
              "mode=%d), cannot update image",
@@ -5229,101 +5413,164 @@ static TickType_t s_last_ble_activity_tick = 0;
 // Deleted legacy Bluedroid notification logic residue
 
 void log_ble_packet(const uint8_t *data, size_t len, const char *prefix) {
-    if (data == NULL || len < 2 || data[0] != 0x19 || data[len - 1] != 0x2F) {
-        return;
+  if (data == NULL || len < 2 || data[0] != 0x19 || data[len - 1] != 0x2F) {
+    return;
+  }
+
+  uint8_t id = data[1];
+  uint8_t cmd = data[2];
+
+  // 1. 패킷 설명(desc) 분석
+  const char *desc = "알 수 없는 명령";
+  if (len >= 3 && data[0] == 0x19 && (data[1] == 0x4D || data[1] == 0x4E)) {
+    uint8_t mcmd = data[2];
+    switch (mcmd) {
+    case 0x01:
+      desc = "TBT 방향 정보";
+      break;
+    case 0x02:
+      desc = "안전운행(Safety) 정보";
+      break;
+    case 0x03:
+      desc = "주행 속도(Speed) 정보";
+      break;
+    case 0x04:
+      desc = "외곽 링 상태(00:파랑, 01:초록)";
+      break;
+    case 0x05:
+      desc = "화면 클리어(Clear) 명령";
+      break;
+    case 0x06:
+      desc = (len >= 5 && data[4] == 0x03) ? "(펌웨어 정보 문의)"
+                                           : "화면 밝기 조회(RX)";
+      break;
+    case 0x07:
+      desc = "화면 밝기 설정";
+      break;
+    case 0x09:
+      desc = "시간 설정(Time Set)";
+      break;
+    case 0x0A:
+      desc = "목적지 남은 정보";
+      break;
+    case 0x0B:
+      desc = (len >= 4 && data[3] == 0x02) ? "밝기 설정값 통보(TX)"
+                                           : "목적지 정보 지움";
+      break;
+    case 0x0C:
+      desc = (len >= 5 && data[4] == 0x01)   ? "(내비기능 시작)"
+             : (len >= 5 && data[4] == 0x00) ? "(속도계 모드 시작)"
+                                             : "(모델명과 펌웨어 버전 송신)";
+      break;
+    case 0x0D:
+      desc = (data[1] == 0x4E || data[1] == 0x4D) ? "시간 업데이트 요청(TX)"
+                                                  : "목적지 도착 알림(RX)";
+      break;
+    case 0x0E:
+      desc = "도로명 정보(Road Name)";
+      break;
+    case 0xFF:
+      desc = "Keep-Alive Heartbeat (TX)";
+      break;
     }
-    
-    uint8_t id = data[1];
-    uint8_t cmd = data[2];
+  } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x59) {
+    desc = "설정/동기화 데이터(0x59)";
+  } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x50) {
+    uint8_t mcmd = data[2];
+    switch (mcmd) {
+    case 0x01:
+      desc = "이미지 정보 전달(RX)";
+      break;
+    case 0x02:
+      desc = "이미지 데이터 블록(RX)";
+      break;
+    case 0x03:
+      desc = "이미지 전송 결과(Seq)(TX)";
+      break;
+    case 0x04:
+      desc = "이미지 업로드 완료(TX)";
+      break;
+    case 0x05:
+      desc = "이미지 삭제 명령(RX)";
+      break;
+    case 0x06:
+      desc = "이미지 자동 모드 설정(RX)";
+      break;
+    case 0x07:
+      desc = "이미지 상태 요청(TX)";
+      break;
+    case 0x08:
+      desc = "이미지 상태 전달(RX)";
+      break;
+    case 0x11:
+      desc = "이미지 정보 수신 응답(TX)";
+      break;
+    }
+  } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x4F) {
+    uint8_t mcmd = data[2];
+    switch (mcmd) {
+    case 0x01:
+      desc = "업데이트정보 수신";
+      break;
+    case 0x02:
+      desc = "업데이트 요청(REQ)(TX)";
+      break;
+    case 0x03:
+      desc = "펌웨어 데이터(Data)(RX)";
+      break;
+    case 0x04:
+      desc = "데이터 수신 응답(ACK)(TX)";
+      break;
+    case 0x05:
+      desc = "업데이트 완료 통보(TX)";
+      break;
+    }
+  }
 
-    // 1. 패킷 설명(desc) 분석
-    const char *desc = "알 수 없는 명령";
-    if (len >= 3 && data[0] == 0x19 && (data[1] == 0x4D || data[1] == 0x4E)) {
-        uint8_t mcmd = data[2];
-        switch (mcmd) {
-            case 0x01: desc = "TBT 방향 정보"; break;
-            case 0x02: desc = "안전운행(Safety) 정보"; break;
-            case 0x03: desc = "주행 속도(Speed) 정보"; break;
-            case 0x04: desc = "외곽 링 상태(00:파랑, 01:초록)"; break;
-            case 0x05: desc = "화면 클리어(Clear) 명령"; break;
-            case 0x06: desc = (len >= 5 && data[4] == 0x03) ? "(펌웨어 정보 문의)" : "화면 밝기 조회(RX)"; break;
-            case 0x07: desc = "화면 밝기 설정"; break;
-            case 0x09: desc = "시간 설정(Time Set)"; break;
-            case 0x0A: desc = "목적지 남은 정보"; break;
-            case 0x0B: desc = (len >= 4 && data[3] == 0x02) ? "밝기 설정값 통보(TX)" : "목적지 정보 지움"; break;
-            case 0x0C: desc = (len >= 5 && data[4] == 0x01) ? "(내비기능 시작)" : (len >= 5 && data[4] == 0x00) ? "(속도계 모드 시작)" : "(모델명과 펌웨어 버전 송신)"; break;
-            case 0x0D: desc = (data[1] == 0x4E || data[1] == 0x4D) ? "시간 업데이트 요청(TX)" : "목적지 도착 알림(RX)"; break;
-            case 0x0E: desc = "도로명 정보(Road Name)"; break;
-            case 0xFF: desc = "Keep-Alive Heartbeat (TX)"; break;
-        }
-    } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x59) {
-        desc = "설정/동기화 데이터(0x59)";
-    } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x50) {
-        uint8_t mcmd = data[2];
-        switch (mcmd) {
-            case 0x01: desc = "이미지 정보 전달(RX)"; break;
-            case 0x02: desc = "이미지 데이터 블록(RX)"; break;
-            case 0x03: desc = "이미지 전송 결과(Seq)(TX)"; break;
-            case 0x04: desc = "이미지 업로드 완료(TX)"; break;
-            case 0x05: desc = "이미지 삭제 명령(RX)"; break;
-            case 0x06: desc = "이미지 자동 모드 설정(RX)"; break;
-            case 0x07: desc = "이미지 상태 요청(TX)"; break;
-            case 0x08: desc = "이미지 상태 전달(RX)"; break;
-            case 0x11: desc = "이미지 정보 수신 응답(TX)"; break;
-        }
-    } else if (len >= 3 && data[0] == 0x19 && data[1] == 0x4F) {
-        uint8_t mcmd = data[2];
-        switch (mcmd) {
-            case 0x01: desc = "업데이트정보 수신"; break;
-            case 0x02: desc = "업데이트 요청(REQ)(TX)"; break;
-            case 0x03: desc = "펌웨어 데이터(Data)(RX)"; break;
-            case 0x04: desc = "데이터 수신 응답(ACK)(TX)"; break;
-            case 0x05: desc = "업데이트 완료 통보(TX)"; break;
-        }
+  // 2. 시간 및 터미널 출력용 문자열 생성
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  struct tm timeinfo;
+  localtime_r(&tv.tv_sec, &timeinfo);
+
+  // 3. 뮤텍스 보호 하에 static 버퍼 사용하여 HEX 문자열 생성 및 출력
+  if (s_pkt_log_mutex == NULL) {
+    s_pkt_log_mutex = xSemaphoreCreateMutex();
+  }
+
+  if (xSemaphoreTake(s_pkt_log_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+    // [MOD] Silence only very heavy binary data flows if requested,
+    // but now explicitly enabling 0x50 for tracking
+    bool is_bulk_data = (id == 0x4F && cmd == 0x03);
+
+    static char hex_str[800];
+    memset(hex_str, 0, sizeof(hex_str));
+    int pos = 0;
+
+    // 0x50 02(IMAGE DATA) and 0x4F 03(FW DATA) get 10-byte truncation
+    size_t limit = len - 1;
+    bool truncated = false;
+    if (((id == 0x50 && cmd == 0x02) || (id == 0x4F && cmd == 0x03)) &&
+        len > 11) {
+      limit = 11; // index 1 ~ 10 (10 bytes)
+      truncated = true;
     }
 
-    // 2. 시간 및 터미널 출력용 문자열 생성
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    struct tm timeinfo;
-    localtime_r(&tv.tv_sec, &timeinfo);
-
-    // 3. 뮤텍스 보호 하에 static 버퍼 사용하여 HEX 문자열 생성 및 출력
-    if (s_pkt_log_mutex == NULL) {
-        s_pkt_log_mutex = xSemaphoreCreateMutex();
+    for (size_t i = 1; i < limit && pos < (sizeof(hex_str) - 8); i++) {
+      pos += snprintf(hex_str + pos, sizeof(hex_str) - pos, "%02X ", data[i]);
+    }
+    if (truncated) {
+      strcat(hex_str, "... ");
     }
 
-    if (xSemaphoreTake(s_pkt_log_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-        // [MOD] Silence only very heavy binary data flows if requested, 
-        // but now explicitly enabling 0x50 for tracking
-        bool is_bulk_data = (id == 0x4F && cmd == 0x03); 
-        
-        static char hex_str[800];
-        memset(hex_str, 0, sizeof(hex_str));
-        int pos = 0;
-        
-        // 0x50 02(IMAGE DATA) and 0x4F 03(FW DATA) get 10-byte truncation
-        size_t limit = len - 1;
-        bool truncated = false;
-        if (((id == 0x50 && cmd == 0x02) || (id == 0x4F && cmd == 0x03)) && len > 11) {
-            limit = 11; // index 1 ~ 10 (10 bytes)
-            truncated = true;
-        }
-
-        for (size_t i = 1; i < limit && pos < (sizeof(hex_str) - 8); i++) {
-            pos += snprintf(hex_str + pos, sizeof(hex_str) - pos, "%02X ", data[i]);
-        }
-        if (truncated) {
-            strcat(hex_str, "... ");
-        }
-
-        if (!is_bulk_data || (id == 0x50 && cmd == 0x02)) { // Show image data even if bulk
-            ESP_LOGW(TAG, "PKT_LOG [%02d:%02d:%02d] [%s] %s// %s", 
-                     timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, 
-                     (prefix ? prefix : "??"), hex_str, desc);
-        }
-        xSemaphoreGive(s_pkt_log_mutex);
+    if (!is_bulk_data ||
+        (id == 0x50 && cmd == 0x02)) { // Show image data even if bulk
+      ESP_LOGW(TAG, "PKT_LOG [%02d:%02d:%02d] [%s] %s// %s", timeinfo.tm_hour,
+               timeinfo.tm_min, timeinfo.tm_sec, (prefix ? prefix : "??"),
+               hex_str, desc);
     }
+    xSemaphoreGive(s_pkt_log_mutex);
+  }
 }
 
 void update_album_option_from_ble(uint8_t mode) {
@@ -5332,7 +5579,8 @@ void update_album_option_from_ble(uint8_t mode) {
   LVGL_LOCK();
   update_setting_ui_labels();
   LVGL_UNLOCK();
-  ESP_LOGI(TAG, "Album mode update from BLE: %s", (mode == 0)?"AUTO":"MANUAL");
+  ESP_LOGI(TAG, "Album mode update from BLE: %s",
+           (mode == 0) ? "AUTO" : "MANUAL");
 }
 
 /* ---------------------------------------------------------------------------
@@ -5596,21 +5844,27 @@ static lv_font_t *load_font_from_fs(const char *font_name) {
 // Load all required fonts
 static void load_all_fonts(void) {
   ESP_LOGI(TAG, "Font: Starting bulk font loading...");
-  s_font_kopub_20 = load_font_from_fs("font_kopub_20"); vTaskDelay(pdMS_TO_TICKS(20));
-  s_font_kopub_25 = load_font_from_fs("font_kopub_25"); vTaskDelay(pdMS_TO_TICKS(20));
+  s_font_kopub_20 = load_font_from_fs("font_kopub_20");
+  vTaskDelay(pdMS_TO_TICKS(20));
+  s_font_kopub_25 = load_font_from_fs("font_kopub_25");
+  vTaskDelay(pdMS_TO_TICKS(20));
 
-  s_font_kopub_35 = load_font_from_fs("font_kopub_35"); vTaskDelay(pdMS_TO_TICKS(20));
-  s_font_kopub_40 = load_font_from_fs("font_kopub_40"); vTaskDelay(pdMS_TO_TICKS(20));
-  s_font_orb_100 = load_font_from_fs("font_orb_100");  vTaskDelay(pdMS_TO_TICKS(20));
-  s_font_orb_155 = load_font_from_fs("font_orb_155");  vTaskDelay(pdMS_TO_TICKS(20));
-  
+  s_font_kopub_35 = load_font_from_fs("font_kopub_35");
+  vTaskDelay(pdMS_TO_TICKS(20));
+  s_font_kopub_40 = load_font_from_fs("font_kopub_40");
+  vTaskDelay(pdMS_TO_TICKS(20));
+  s_font_orb_100 = load_font_from_fs("font_orb_100");
+  vTaskDelay(pdMS_TO_TICKS(20));
+  s_font_orb_155 = load_font_from_fs("font_orb_155");
+  vTaskDelay(pdMS_TO_TICKS(20));
+
   /* ESP_LOGI(TAG, "Font: Attempting to load gman_188...");
-  s_font_gman_188 = load_font_from_fs("font_gman_188"); vTaskDelay(pdMS_TO_TICKS(20)); */
-  
+  s_font_gman_188 = load_font_from_fs("font_gman_188");
+  vTaskDelay(pdMS_TO_TICKS(20)); */
+
   ESP_LOGI(TAG, "Font: Attempting to load addr_30...");
-  s_font_addr_30 = load_font_from_fs("font_addr_30");   vTaskDelay(pdMS_TO_TICKS(20));
-
-
+  s_font_addr_30 = load_font_from_fs("font_addr_30");
+  vTaskDelay(pdMS_TO_TICKS(20));
 
   // Link font_gman_188 as fallback for font_orb_155 if both are available
   /* if (s_font_orb_155 && s_font_gman_188) {
@@ -5744,7 +5998,8 @@ static esp_err_t lvgl_init(void) {
   s_disp = lv_disp_drv_register(&s_disp_drv);
 
   // Set image cache size for better JPG/PNG decoding performance
-  // Cache up to 4 decoded images in memory. Each 466x466 RGB565 image takes ~434KB. 4 images = ~1.7MB.
+  // Cache up to 4 decoded images in memory. Each 466x466 RGB565 image takes
+  // ~434KB. 4 images = ~1.7MB.
   lv_img_cache_set_size(4);
   ESP_LOGI(TAG, "LVGL: Image cache set to 4 entries (aggressive PSRAM usage)");
 
@@ -5758,7 +6013,7 @@ static esp_err_t lvgl_init(void) {
   s_ota_screen = lv_obj_create(NULL);
 
   lv_obj_set_style_bg_color(s_boot_screen, lv_color_black(), 0);
-  lv_obj_set_style_bg_opa(s_boot_screen, LV_OPA_COVER, 0); 
+  lv_obj_set_style_bg_opa(s_boot_screen, LV_OPA_COVER, 0);
   lv_obj_set_style_bg_color(s_hud_screen, lv_color_black(), 0);
   lv_obj_set_style_bg_color(s_speedometer_screen, lv_color_black(), 0);
   lv_obj_set_style_bg_color(s_clock_screen, lv_color_black(), 0);
@@ -5777,7 +6032,9 @@ static esp_err_t lvgl_init(void) {
   // Now that a black frame is ready, turn ON display and set brightness
   esp_lcd_panel_disp_on_off(s_lcd_panel, true);
   vTaskDelay(pdMS_TO_TICKS(100));
-  set_lcd_brightness(s_brightness_level, true); // [User Request] Use restored NVS level instead of hardcoded 0
+  set_lcd_brightness(
+      s_brightness_level,
+      true); // [User Request] Use restored NVS level instead of hardcoded 0
 
   ESP_LOGI(TAG, "LVGL: Black screen rendered and panel active");
 
@@ -6079,29 +6336,34 @@ static esp_err_t lvgl_init(void) {
   // 노랑색) 위치: LCD 중앙에서 위로 5pt,
   // 레이블 중심 기준으로 좌측으로 150pt
   s_dest_time_value_label = lv_label_create(s_hud_screen);
-  lv_obj_set_style_text_color(s_dest_time_value_label,
-                              lv_color_hex(0x00FF00),
+  lv_obj_set_style_text_color(s_dest_time_value_label, lv_color_hex(0x00FF00),
                               0); // 밝은 초록색 (Bright Green)
   lv_obj_set_style_text_font(s_dest_time_value_label, &font_kopub_35, 0);
   // Create 목적지남은시간 "시간" 단위 label (30pt 폰트, 회색)
   s_dest_time_hour_unit_label = lv_label_create(s_hud_screen);
-  lv_obj_set_style_text_color(s_dest_time_hour_unit_label, lv_palette_main(LV_PALETTE_GREY), 0);
+  lv_obj_set_style_text_color(s_dest_time_hour_unit_label,
+                              lv_palette_main(LV_PALETTE_GREY), 0);
   lv_obj_set_style_text_font(s_dest_time_hour_unit_label, &font_addr_30, 0);
   lv_label_set_text(s_dest_time_hour_unit_label, "");
-  lv_obj_set_style_text_align(s_dest_time_hour_unit_label, LV_TEXT_ALIGN_LEFT, 0);
+  lv_obj_set_style_text_align(s_dest_time_hour_unit_label, LV_TEXT_ALIGN_LEFT,
+                              0);
   lv_obj_add_flag(s_dest_time_hour_unit_label, LV_OBJ_FLAG_HIDDEN);
 
-  // Create 목적지남은시간 분 숫자 label 
+  // Create 목적지남은시간 분 숫자 label
   s_dest_time_minute_value_label = lv_label_create(s_hud_screen);
-  lv_obj_set_style_text_color(s_dest_time_minute_value_label, lv_color_hex(0x00FF00), 0); // 밝은 초록색 (Bright Green)
+  lv_obj_set_style_text_color(s_dest_time_minute_value_label,
+                              lv_color_hex(0x00FF00),
+                              0); // 밝은 초록색 (Bright Green)
   lv_obj_set_style_text_font(s_dest_time_minute_value_label, &font_kopub_35, 0);
   lv_label_set_text(s_dest_time_minute_value_label, "");
-  lv_obj_set_style_text_align(s_dest_time_minute_value_label, LV_TEXT_ALIGN_LEFT, 0);
+  lv_obj_set_style_text_align(s_dest_time_minute_value_label,
+                              LV_TEXT_ALIGN_LEFT, 0);
   lv_obj_add_flag(s_dest_time_minute_value_label, LV_OBJ_FLAG_HIDDEN);
 
   // Create "소요시간" label
   s_dest_label = lv_label_create(s_hud_screen);
-  lv_obj_set_style_text_color(s_dest_label, lv_color_make(180, 160, 0), 0); // 어두운 노랑색 (Dark Yellow)
+  lv_obj_set_style_text_color(s_dest_label, lv_color_make(180, 160, 0),
+                              0); // 어두운 노랑색 (Dark Yellow)
   lv_obj_set_style_text_font(s_dest_label, &font_addr_30, 0);
   lv_obj_align(s_dest_label, LV_ALIGN_CENTER, -100, -53);
   lv_label_set_text(s_dest_label, "소요시간");
@@ -6117,7 +6379,8 @@ static esp_err_t lvgl_init(void) {
   lv_obj_add_flag(s_road_name_label, LV_OBJ_FLAG_HIDDEN);
 
   s_road_name_sub_label = lv_label_create(s_hud_screen);
-  lv_obj_set_style_text_color(s_road_name_sub_label, lv_color_make(210, 210, 0), 0);
+  lv_obj_set_style_text_color(s_road_name_sub_label, lv_color_make(210, 210, 0),
+                              0);
   lv_obj_set_style_text_font(s_road_name_sub_label, &font_addr_30, 0);
   lv_obj_set_style_text_align(s_road_name_sub_label, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_align(s_road_name_sub_label, LV_ALIGN_TOP_MID, 0, 423);
@@ -6126,7 +6389,8 @@ static esp_err_t lvgl_init(void) {
 
   // TBT Distance Labels (NAVI)
   s_length_tbt_value_label = lv_label_create(s_hud_screen);
-  lv_obj_set_style_text_color(s_length_tbt_value_label, lv_color_hex(0x00FF00), 0);
+  lv_obj_set_style_text_color(s_length_tbt_value_label, lv_color_hex(0x00FF00),
+                              0);
   lv_obj_set_style_text_font(s_length_tbt_value_label, &font_kopub_40, 0);
   lv_label_set_text(s_length_tbt_value_label, "");
   lv_obj_add_flag(s_length_tbt_value_label, LV_OBJ_FLAG_HIDDEN);
@@ -6139,7 +6403,8 @@ static esp_err_t lvgl_init(void) {
 
   // Create 목적지남은시간단위 label
   s_dest_time_unit_label = lv_label_create(s_hud_screen);
-  lv_obj_set_style_text_color(s_dest_time_unit_label, lv_palette_main(LV_PALETTE_GREY), 0);
+  lv_obj_set_style_text_color(s_dest_time_unit_label,
+                              lv_palette_main(LV_PALETTE_GREY), 0);
   lv_obj_set_style_text_font(s_dest_time_unit_label, &font_addr_30, 0);
   lv_label_set_text(s_dest_time_unit_label, "");
   lv_obj_set_style_text_align(s_dest_time_unit_label, LV_TEXT_ALIGN_LEFT, 0);
@@ -6147,45 +6412,36 @@ static esp_err_t lvgl_init(void) {
 
   // Create 목적지남은거리값 label (하늘색)
   s_dest_distance_value_label = lv_label_create(s_hud_screen);
-  lv_obj_set_style_text_color(s_dest_distance_value_label, lv_color_make(135, 206, 235), 0);
+  lv_obj_set_style_text_color(s_dest_distance_value_label,
+                              lv_color_make(135, 206, 235), 0);
   lv_obj_set_style_text_font(s_dest_distance_value_label, &font_kopub_35, 0);
   lv_obj_align(s_dest_distance_value_label, LV_ALIGN_LEFT_MID, 103, 25);
   lv_label_set_text(s_dest_distance_value_label, "");
-  lv_obj_set_style_text_align(s_dest_distance_value_label, LV_TEXT_ALIGN_LEFT, 0);
+  lv_obj_set_style_text_align(s_dest_distance_value_label, LV_TEXT_ALIGN_LEFT,
+                              0);
   lv_obj_add_flag(s_dest_distance_value_label, LV_OBJ_FLAG_HIDDEN);
 
   // Create 목적지남은거리단위 label (회색) - "m", "km"
   s_dest_distance_unit_label = lv_label_create(s_hud_screen);
   lv_obj_set_style_text_color(s_dest_distance_unit_label, lv_color_white(), 0);
-  lv_obj_set_style_text_font(s_dest_distance_unit_label, &lv_font_montserrat_20, 0);
+  lv_obj_set_style_text_font(s_dest_distance_unit_label, &lv_font_montserrat_20,
+                             0);
   lv_label_set_text(s_dest_distance_unit_label, "");
-  lv_obj_set_style_text_align(s_dest_distance_unit_label, LV_TEXT_ALIGN_LEFT, 0);
+  lv_obj_set_style_text_align(s_dest_distance_unit_label, LV_TEXT_ALIGN_LEFT,
+                              0);
   lv_obj_add_flag(s_dest_distance_unit_label, LV_OBJ_FLAG_HIDDEN);
 
   return ESP_OK;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 static void update_display_mode_ui(display_mode_t mode) {
-  // Determine if we are in a "functioning" state (App connected or Virtual Drive)
+  // Determine if we are in a "functioning" state (App connected or Virtual
+  // Drive)
   bool is_active_state = s_connected || s_virt_drive_active;
 
   // [Fix] Intro Image Overlap Bug:
-  // Hide intro image if we are not in BOOT mode, OR if connected, OR if QR Registration is shown.
+  // Hide intro image if we are not in BOOT mode, OR if connected, OR if QR
+  // Registration is shown.
   if (s_intro_image) {
     if (mode == DISPLAY_MODE_BOOT && !is_active_state && !s_boot_reg_shown) {
       lv_obj_clear_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
@@ -6197,59 +6453,86 @@ static void update_display_mode_ui(display_mode_t mode) {
 
   switch (mode) {
   case DISPLAY_MODE_BOOT:
-    if (lv_scr_act() != s_boot_screen) lv_scr_load(s_boot_screen);
+    if (lv_scr_act() != s_boot_screen)
+      lv_scr_load(s_boot_screen);
     // [Fix] BOOT 모드에서는 시계와 날짜를 절대 표시하지 않음 (로고 전용)
-    if (s_boot_time_label) lv_obj_add_flag(s_boot_time_label, LV_OBJ_FLAG_HIDDEN);
-    if (s_boot_date_label) lv_obj_add_flag(s_boot_date_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_boot_time_label)
+      lv_obj_add_flag(s_boot_time_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_boot_date_label)
+      lv_obj_add_flag(s_boot_date_label, LV_OBJ_FLAG_HIDDEN);
 
     // 10초 타임아웃이 지났고 앱 연결 전이라면 안내 라벨 표시
-    // [Fix] iOS 자동 재연결 대응: s_connected 대신 실제 앱 명령 수신 여부로만 판단
+    // [Fix] iOS 자동 재연결 대응: s_connected 대신 실제 앱 명령 수신 여부로만
+    // 판단
     if (s_boot_reg_shown && !s_hud_seen_first_cmd) {
-      if (s_boot_reg_title_label) lv_obj_clear_flag(s_boot_reg_title_label, LV_OBJ_FLAG_HIDDEN);
-      if (s_boot_reg_val_label) lv_obj_clear_flag(s_boot_reg_val_label, LV_OBJ_FLAG_HIDDEN);
-      if (s_boot_install_title_label) lv_obj_clear_flag(s_boot_install_title_label, LV_OBJ_FLAG_HIDDEN);
-      if (s_boot_install_sub_label) lv_obj_clear_flag(s_boot_install_sub_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_reg_title_label)
+        lv_obj_clear_flag(s_boot_reg_title_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_reg_val_label)
+        lv_obj_clear_flag(s_boot_reg_val_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_install_title_label)
+        lv_obj_clear_flag(s_boot_install_title_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_install_sub_label)
+        lv_obj_clear_flag(s_boot_install_sub_label, LV_OBJ_FLAG_HIDDEN);
     } else {
-      if (s_boot_reg_title_label) lv_obj_add_flag(s_boot_reg_title_label, LV_OBJ_FLAG_HIDDEN);
-      if (s_boot_reg_val_label) lv_obj_add_flag(s_boot_reg_val_label, LV_OBJ_FLAG_HIDDEN);
-      if (s_boot_install_title_label) lv_obj_add_flag(s_boot_install_title_label, LV_OBJ_FLAG_HIDDEN);
-      if (s_boot_install_sub_label) lv_obj_add_flag(s_boot_install_sub_label, LV_OBJ_FLAG_HIDDEN);
-      if (s_boot_install_qr) lv_obj_add_flag(s_boot_install_qr, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_reg_title_label)
+        lv_obj_add_flag(s_boot_reg_title_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_reg_val_label)
+        lv_obj_add_flag(s_boot_reg_val_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_install_title_label)
+        lv_obj_add_flag(s_boot_install_title_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_install_sub_label)
+        lv_obj_add_flag(s_boot_install_sub_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_install_qr)
+        lv_obj_add_flag(s_boot_install_qr, LV_OBJ_FLAG_HIDDEN);
     }
     break;
 
   case DISPLAY_MODE_GUIDE:
     hide_black_screen_overlay();
-    if (s_intro_image) lv_obj_add_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
+    if (s_intro_image)
+      lv_obj_add_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
 
-      if (s_guide_sub_mode == GUIDE_SUB_NAVI) {
-        ESP_LOGI(TAG, "[DISPLAY] Switching to NAVI (HUD) Screen");
+    if (s_guide_sub_mode == GUIDE_SUB_NAVI) {
+      ESP_LOGI(TAG, "[DISPLAY] Switching to NAVI (HUD) Screen");
+      // [User Request] 진입 시 속도 데이터를 받기 전까지 0으로 표시
+      if (s_normal_speed_value_label)
+        lv_label_set_text(s_normal_speed_value_label, "0");
       if (s_road_name_label) {
         lv_obj_set_parent(s_road_name_label, s_hud_screen);
         lv_obj_move_foreground(s_road_name_label);
       }
       align_avr_speed_labels();
       lv_scr_load(s_hud_screen);
-    } 
-    else if (s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER) {
+    } else if (s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER) {
       ESP_LOGI(TAG, "[DISPLAY] Switching to SPEEDOMETER Screen");
+      // [User Request] 진입 시 속도 데이터를 받기 전까지 0으로 표시
+      if (s_speedometer_speed_label)
+        lv_label_set_text(s_speedometer_speed_label, "0");
+
       // 안내모드의 안전운행화면(속도계화면)에서는 도로명을 표기하지 않는다.
-      if (s_speedometer_road_name_label) lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
-      if (s_speedometer_road_name_sub_label) lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
-      
+      if (s_speedometer_road_name_label)
+        lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_speedometer_road_name_sub_label)
+        lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
+
       // 구간속도가 표시 중이면 km/h 단위를 숨김
-      bool avr_visible = (s_speedometer_avr_speed_value_label != NULL && !lv_obj_has_flag(s_speedometer_avr_speed_value_label, LV_OBJ_FLAG_HIDDEN));
+      bool avr_visible = (s_speedometer_avr_speed_value_label != NULL &&
+                          !lv_obj_has_flag(s_speedometer_avr_speed_value_label,
+                                           LV_OBJ_FLAG_HIDDEN));
       if (!avr_visible) {
-          if (s_speedometer_unit_label) lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_speedometer_unit_label)
+          lv_obj_clear_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
       } else {
-          if (s_speedometer_unit_label) lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_speedometer_unit_label)
+          lv_obj_add_flag(s_speedometer_unit_label, LV_OBJ_FLAG_HIDDEN);
       }
       lv_scr_load(s_speedometer_screen);
-    } 
-    else {
+    } else {
       // [STANDBY] 안내 모드 내의 대기 상태 -> 시계와 날짜 표시
-      if (lv_scr_act() != s_boot_screen) lv_scr_load(s_boot_screen);
-      if (s_intro_image) lv_obj_add_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
+      if (lv_scr_act() != s_boot_screen)
+        lv_scr_load(s_boot_screen);
+      if (s_intro_image)
+        lv_obj_add_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
 
       if (s_boot_time_label) {
         lv_obj_clear_flag(s_boot_time_label, LV_OBJ_FLAG_HIDDEN);
@@ -6260,49 +6543,64 @@ static void update_display_mode_ui(display_mode_t mode) {
         lv_obj_move_foreground(s_boot_date_label);
       }
       // 로고 및 QR 안내는 숨김
-      if (s_boot_reg_title_label) lv_obj_add_flag(s_boot_reg_title_label, LV_OBJ_FLAG_HIDDEN);
-      if (s_boot_reg_val_label) lv_obj_add_flag(s_boot_reg_val_label, LV_OBJ_FLAG_HIDDEN);
-      if (s_boot_install_title_label) lv_obj_add_flag(s_boot_install_title_label, LV_OBJ_FLAG_HIDDEN);
-      if (s_boot_install_sub_label) lv_obj_add_flag(s_boot_install_sub_label, LV_OBJ_FLAG_HIDDEN);
-      if (s_boot_install_qr) lv_obj_add_flag(s_boot_install_qr, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_reg_title_label)
+        lv_obj_add_flag(s_boot_reg_title_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_reg_val_label)
+        lv_obj_add_flag(s_boot_reg_val_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_install_title_label)
+        lv_obj_add_flag(s_boot_install_title_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_install_sub_label)
+        lv_obj_add_flag(s_boot_install_sub_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_install_qr)
+        lv_obj_add_flag(s_boot_install_qr, LV_OBJ_FLAG_HIDDEN);
     }
     break;
 
-    case DISPLAY_MODE_CLOCK:
-    {
-      bool use_clock2 = (s_clock_option == 1);
-      if (s_clock_option == 2) {
-        // [User Request] 재부팅 시마다 스타일이 바뀔 수 있도록 랜덤 오프셋 적용
-        if (s_auto_clock_offset == -1) {
-          s_auto_clock_offset = (int)(esp_random() % 2);
-        }
-        
-        time_t now; struct tm t; time(&now); localtime_r(&now, &t);
-        // 오프셋을 더해 시간 기반 전환의 기준점을 부팅 시마다 다르게 설정
-        use_clock2 = ((t.tm_hour + s_auto_clock_offset) % 2 == 0);
+  case DISPLAY_MODE_CLOCK: {
+    bool use_clock2 = (s_clock_option == 1);
+    if (s_clock_option == 2) {
+      // [User Request] 재부팅 시마다 스타일이 바뀔 수 있도록 랜덤 오프셋 적용
+      if (s_auto_clock_offset == -1) {
+        s_auto_clock_offset = (int)(esp_random() % 2);
       }
-      if (!use_clock2) {
-        lv_scr_load(s_clock_screen);
-      } else {
-        lv_scr_load(s_clock2_screen);
-      }
-      
-      // Load current time immediately to avoid invisible hands on startup
-      time_t now; struct tm t; time(&now); localtime_r(&now, &t);
-      if (!use_clock2) draw_analog_clock(t.tm_hour, t.tm_min, t.tm_sec);
-      else draw_analog_clock2(t.tm_hour, t.tm_min, t.tm_sec);
+
+      time_t now;
+      struct tm t;
+      time(&now);
+      localtime_r(&now, &t);
+      // 오프셋을 더해 시간 기반 전환의 기준점을 부팅 시마다 다르게 설정
+      use_clock2 = ((t.tm_hour + s_auto_clock_offset) % 2 == 0);
     }
+    if (!use_clock2) {
+      lv_scr_load(s_clock_screen);
+    } else {
+      lv_scr_load(s_clock2_screen);
+    }
+
+    // Load current time immediately to avoid invisible hands on startup
+    time_t now;
+    struct tm t;
+    time(&now);
+    localtime_r(&now, &t);
+    if (!use_clock2)
+      draw_analog_clock(t.tm_hour, t.tm_min, t.tm_sec);
+    else
+      draw_analog_clock2(t.tm_hour, t.tm_min, t.tm_sec);
+  }
     align_avr_speed_labels();
     break;
 
   case DISPLAY_MODE_ALBUM:
-    if (s_image_count == 0) scan_intro_images();
-    
+    if (s_image_count == 0)
+      scan_intro_images();
+
     if (s_image_count > 0) {
       // 앨범 파일이 있으면 정상 재생
-      if (s_current_image_index >= s_image_count) s_current_image_index = 0;
-      
-      if (s_album_guide_label) lv_obj_add_flag(s_album_guide_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_current_image_index >= s_image_count)
+        s_current_image_index = 0;
+
+      if (s_album_guide_label)
+        lv_obj_add_flag(s_album_guide_label, LV_OBJ_FLAG_HIDDEN);
       load_image_from_sd(0);
     } else {
       // 앨범 파일이 하나도 없으면 guide.jpg 표시
@@ -6311,14 +6609,13 @@ static void update_display_mode_ui(display_mode_t mode) {
         lv_label_set_text(s_album_guide_label, "앱에서 사진을 보내주세요!");
         lv_obj_move_foreground(s_album_guide_label);
       }
-      
+
       // guide.jpg 존재 여부 확인 후 로드 (다양한 경로 체크)
       const char *guide_paths[] = {
           "/littlefs/Photo/guide.jpg", "/littlefs/photo/guide.jpg",
-          "/littlefs/flash_data/Photo/guide.jpg", "/littlefs/flash_data/photo/guide.jpg",
-          "/littlefs/image/guide.jpg"
-      };
-      
+          "/littlefs/flash_data/Photo/guide.jpg",
+          "/littlefs/flash_data/photo/guide.jpg", "/littlefs/image/guide.jpg"};
+
       bool loaded = false;
       struct stat st;
       for (int i = 0; i < 5; i++) {
@@ -6342,31 +6639,42 @@ static void update_display_mode_ui(display_mode_t mode) {
   case DISPLAY_MODE_SETTING:
     // [User Request] Always start from SETUP 1 when entering setting mode
     s_setting_page_index = 1;
-    if (s_setting_page1_obj) lv_obj_clear_flag(s_setting_page1_obj, LV_OBJ_FLAG_HIDDEN);
-    if (s_setting_page2_obj) lv_obj_add_flag(s_setting_page2_obj, LV_OBJ_FLAG_HIDDEN);
-    if (s_setting_title_label) lv_label_set_text(s_setting_title_label, "SETUP 1");
-    
+    if (s_setting_page1_obj)
+      lv_obj_clear_flag(s_setting_page1_obj, LV_OBJ_FLAG_HIDDEN);
+    if (s_setting_page2_obj)
+      lv_obj_add_flag(s_setting_page2_obj, LV_OBJ_FLAG_HIDDEN);
+    if (s_setting_title_label)
+      lv_label_set_text(s_setting_title_label, "SETUP 1");
+
     update_setting_ui_labels(); // Refresh values
     lv_scr_load(s_setting_screen);
-    if (s_intro_image) lv_obj_add_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
+    if (s_intro_image)
+      lv_obj_add_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
     break;
 
   case DISPLAY_MODE_OTA:
     lv_scr_load_anim(s_ota_screen, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, false);
     break;
-  default: break;
+  default:
+    break;
   }
 
   // --- Centralized Circle Ring Visibility Control (Top Layer) ---
   if (s_circle_ring) {
     if (mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode != GUIDE_SUB_STANDBY) {
-      // Guide mode (Speedometer/NAVI) shows ring for GPS status (is_active_state)
-      if (is_active_state) lv_obj_clear_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
-      else lv_obj_add_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
+      // Guide mode (Speedometer/NAVI) shows ring for GPS status
+      // (is_active_state)
+      if (is_active_state)
+        lv_obj_clear_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
+      else
+        lv_obj_add_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
     } else {
-      // Standby, Clock, Album, Setting, etc: ONLY show ring if a safety alert (flashing) is active
-      if (s_safety_ring_timer != NULL) lv_obj_clear_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
-      else lv_obj_add_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
+      // Standby, Clock, Album, Setting, etc: ONLY show ring if a safety alert
+      // (flashing) is active
+      if (s_safety_ring_timer != NULL)
+        lv_obj_clear_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
+      else
+        lv_obj_add_flag(s_circle_ring, LV_OBJ_FLAG_HIDDEN);
     }
   }
 
@@ -6411,7 +6719,6 @@ void prepare_for_ota(void) {
 
 // === RF Certification Test Implementation ===
 
-
 // 모드 전환 함수
 static void switch_display_mode(display_mode_t new_mode) {
   if (new_mode >= DISPLAY_MODE_MAX) {
@@ -6419,21 +6726,27 @@ static void switch_display_mode(display_mode_t new_mode) {
     return;
   }
 
-  // [Fix] 부트 모드 재진입 차단: 최초 부팅 이후에는 다시는 로고/QR 화면으로 돌아갈 수 없음
+  // [Fix] 부트 모드 재진입 차단: 최초 부팅 이후에는 다시는 로고/QR 화면으로
+  // 돌아갈 수 없음
   if (new_mode == DISPLAY_MODE_BOOT && s_current_mode != DISPLAY_MODE_BOOT) {
-    ESP_LOGI(TAG, "BOOT mode entry blocked (One-time only). Redirecting to internal STANDBY.");
+    ESP_LOGI(TAG, "BOOT mode entry blocked (One-time only). Redirecting to "
+                  "internal STANDBY.");
     new_mode = DISPLAY_MODE_GUIDE;
     s_guide_sub_mode = GUIDE_SUB_STANDBY;
   }
 
   // == [User Request] Block ALL external switches while in specialized modes ==
-  // Only manual (touch) interaction is allowed to exit these modes once entered.
+  // Only manual (touch) interaction is allowed to exit these modes once
+  // entered.
   if (!s_is_manual_mode_switch && s_current_mode != DISPLAY_MODE_BOOT) {
-    if (s_current_mode == DISPLAY_MODE_CLOCK || 
+    if (s_current_mode == DISPLAY_MODE_CLOCK ||
         s_current_mode == DISPLAY_MODE_ALBUM ||
         s_current_mode == DISPLAY_MODE_SETTING) {
       if (new_mode != s_current_mode) {
-        ESP_LOGI(TAG, "Mode switch blocked: Current mode (%d) locked. Manual interaction required.", s_current_mode);
+        ESP_LOGI(TAG,
+                 "Mode switch blocked: Current mode (%d) locked. Manual "
+                 "interaction required.",
+                 s_current_mode);
         return;
       }
     }
@@ -6464,7 +6777,8 @@ static void switch_display_mode(display_mode_t new_mode) {
   lv_refr_now(NULL);
   LVGL_UNLOCK();
 
-  const char *mode_names[] = {"BOOT", "GUIDE", "CLOCK", "ALBUM", "SETTING", "OTA"};
+  const char *mode_names[] = {"BOOT",  "GUIDE",   "CLOCK",
+                              "ALBUM", "SETTING", "OTA"};
   if (new_mode < DISPLAY_MODE_MAX) {
     ESP_LOGI(TAG, "Display mode switched to: %s (%d)", mode_names[new_mode],
              new_mode);
@@ -6508,7 +6822,7 @@ static void update_auto_brightness(bool force) {
   } else if (current_min < sunrise + 30) {
     target_level = 3;
   } else if (current_min < sunset - 30) {
-    target_level = 5; // Day
+    target_level = 5;                // Day
   } else if (current_min < sunset) { // Between Sunset-30m and Sunset -> Level 3
     target_level = 3;
   } else if (current_min < sunset + 30) {
@@ -6519,14 +6833,14 @@ static void update_auto_brightness(bool force) {
 
   static uint8_t s_last_applied_auto = 0;
   ESP_LOGI(SYS_MON_TAG,
-             "Internal Free: %u KB, Min Free: %u KB | PSRAM Free: %u KB, Min "
-             "Free: %u KB",
-             (unsigned int)(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
-             (unsigned int)
-                 (heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL) / 1024),
-             (unsigned int)(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
-             (unsigned int)(heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM) /
-                            1024));
+           "Internal Free: %u KB, Min Free: %u KB | PSRAM Free: %u KB, Min "
+           "Free: %u KB",
+           (unsigned int)(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+           (unsigned int)(heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL) /
+                          1024),
+           (unsigned int)(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+           (unsigned int)(heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM) /
+                          1024));
   if (force || target_level != s_last_applied_auto) {
     apply_hw_brightness(target_level);
     s_last_applied_auto = target_level;
@@ -6559,18 +6873,21 @@ static void set_lcd_brightness(uint8_t level, bool notify) {
   update_setting_ui_labels();
   LVGL_UNLOCK();
 
-  ESP_LOGI(TAG, "Brightness level set to: %d (%s)", 
-           level, 
-           level == 0 ? "Auto" : (level == 5 ? "Max" : (level == 1 ? "Min" : "Manual")));
+  ESP_LOGI(TAG, "Brightness level set to: %d (%s)", level,
+           level == 0 ? "Auto"
+                      : (level == 5 ? "Max" : (level == 1 ? "Min" : "Manual")));
 }
 
 // 밝기 레벨을 다음 단계로 순환 (A->1->2->3->4->5->A)
 static void switch_to_next_brightness(void) {
   // Ordered sequence: A(0) -> 5 -> 4 -> 3 -> 2 -> 1 -> A(0)
-  if (s_brightness_level == 0) s_brightness_level = 5;
-  else if (s_brightness_level == 1) s_brightness_level = 0;
-  else s_brightness_level--;
-  
+  if (s_brightness_level == 0)
+    s_brightness_level = 5;
+  else if (s_brightness_level == 1)
+    s_brightness_level = 0;
+  else
+    s_brightness_level--;
+
   set_lcd_brightness(s_brightness_level, true);
 }
 
@@ -6581,25 +6898,28 @@ static uint32_t s_setting_btn_press_tick = 0;
 
 static void handle_safe_btn_event(lv_event_t *e, void (*action)(void)) {
   lv_event_code_t code = lv_event_get_code(e);
-  
+
   if (code == LV_EVENT_PRESSED) {
     s_setting_btn_press_tick = esp_log_timestamp();
-  } 
-  else if (code == LV_EVENT_RELEASED) {
+  } else if (code == LV_EVENT_RELEASED) {
     uint32_t duration = esp_log_timestamp() - s_setting_btn_press_tick;
     // 0.1초 이상 누르고 있다가 델 때만 동작 (스와이프 오인 방지 및 빠른 반응)
     if (duration >= 100) {
-      if (action) action();
+      if (action)
+        action();
     } else {
-      ESP_LOGI("TOUCH", "Button press ignored (duration: %d ms < 100ms)", duration);
+      ESP_LOGI("TOUCH", "Button press ignored (duration: %d ms < 100ms)",
+               duration);
     }
   }
 }
 
 static void do_brightness_up(void) {
   // Sequence: 1->2->3->4->5->A(0) (Stops at A)
-  if (s_brightness_level == 5) set_lcd_brightness(0, true);
-  else if (s_brightness_level != 0) set_lcd_brightness(s_brightness_level + 1, true);
+  if (s_brightness_level == 5)
+    set_lcd_brightness(0, true);
+  else if (s_brightness_level != 0)
+    set_lcd_brightness(s_brightness_level + 1, true);
 }
 static void brightness_up_event_cb(lv_event_t *e) {
   handle_safe_btn_event(e, do_brightness_up);
@@ -6607,8 +6927,10 @@ static void brightness_up_event_cb(lv_event_t *e) {
 
 static void do_brightness_down(void) {
   // Sequence: A(0)->5->4->3->2->1 (Stops at 1)
-  if (s_brightness_level == 0) set_lcd_brightness(5, true);
-  else if (s_brightness_level > 1) set_lcd_brightness(s_brightness_level - 1, true);
+  if (s_brightness_level == 0)
+    set_lcd_brightness(5, true);
+  else if (s_brightness_level > 1)
+    set_lcd_brightness(s_brightness_level - 1, true);
 }
 static void brightness_down_event_cb(lv_event_t *e) {
   handle_safe_btn_event(e, do_brightness_down);
@@ -6718,13 +7040,15 @@ void update_setting_ui_labels(void) {
     }
 
     if (s_album_option == 0) {
-      if (s_setting_album_btn_up) lv_obj_clear_flag(s_setting_album_btn_up, LV_OBJ_FLAG_CLICKABLE);
+      if (s_setting_album_btn_up)
+        lv_obj_clear_flag(s_setting_album_btn_up, LV_OBJ_FLAG_CLICKABLE);
       if (s_setting_line_album_up)
         lv_obj_add_flag(s_setting_line_album_up, LV_OBJ_FLAG_HIDDEN);
       if (s_setting_circ_album_up)
         lv_obj_clear_flag(s_setting_circ_album_up, LV_OBJ_FLAG_HIDDEN);
     } else {
-      if (s_setting_album_btn_up) lv_obj_add_flag(s_setting_album_btn_up, LV_OBJ_FLAG_CLICKABLE);
+      if (s_setting_album_btn_up)
+        lv_obj_add_flag(s_setting_album_btn_up, LV_OBJ_FLAG_CLICKABLE);
       if (s_setting_line_album_up)
         lv_obj_clear_flag(s_setting_line_album_up, LV_OBJ_FLAG_HIDDEN);
       if (s_setting_circ_album_up)
@@ -6732,13 +7056,15 @@ void update_setting_ui_labels(void) {
     }
 
     if (s_album_option == 1) {
-      if (s_setting_album_btn_down) lv_obj_clear_flag(s_setting_album_btn_down, LV_OBJ_FLAG_CLICKABLE);
+      if (s_setting_album_btn_down)
+        lv_obj_clear_flag(s_setting_album_btn_down, LV_OBJ_FLAG_CLICKABLE);
       if (s_setting_line_album_dn)
         lv_obj_add_flag(s_setting_line_album_dn, LV_OBJ_FLAG_HIDDEN);
       if (s_setting_circ_album_dn)
         lv_obj_clear_flag(s_setting_circ_album_dn, LV_OBJ_FLAG_HIDDEN);
     } else {
-      if (s_setting_album_btn_down) lv_obj_add_flag(s_setting_album_btn_down, LV_OBJ_FLAG_CLICKABLE);
+      if (s_setting_album_btn_down)
+        lv_obj_add_flag(s_setting_album_btn_down, LV_OBJ_FLAG_CLICKABLE);
       if (s_setting_line_album_dn)
         lv_obj_clear_flag(s_setting_line_album_dn, LV_OBJ_FLAG_HIDDEN);
       if (s_setting_circ_album_dn)
@@ -6802,10 +7128,12 @@ static void setting_page_cb(lv_event_t *e) {
 
   if (s_setting_page_index == 1) {
     lv_obj_clear_flag(s_setting_page1_obj, LV_OBJ_FLAG_HIDDEN);
-    if (s_setting_title_label) lv_label_set_text(s_setting_title_label, "SETUP 1");
+    if (s_setting_title_label)
+      lv_label_set_text(s_setting_title_label, "SETUP 1");
   } else {
     lv_obj_clear_flag(s_setting_page2_obj, LV_OBJ_FLAG_HIDDEN);
-    if (s_setting_title_label) lv_label_set_text(s_setting_title_label, "SETUP 2");
+    if (s_setting_title_label)
+      lv_label_set_text(s_setting_title_label, "SETUP 2");
   }
 }
 
@@ -7006,16 +7334,13 @@ static void monitor_system_health(void) {
   // BTC_TASK: BLE stack task. Size from Kconfig.
   TaskHandle_t btc_task_handle = xTaskGetHandle("BTC_TASK");
 
-  const char *task_names[] = {
-      "lvgl_handler", "button_task", "monitor_task", "ble_tx",
-      "lcd_task",    "BTC_TASK"};
-  TaskHandle_t task_handles[] = {
-      s_lvgl_task_handle, s_button_task_handle, s_monitor_task_handle,
-      s_ble_tx_task_handle, s_lcd_task_handle,
-      btc_task_handle};
+  const char *task_names[] = {"lvgl_handler", "button_task", "monitor_task",
+                              "ble_tx",       "lcd_task",    "BTC_TASK"};
+  TaskHandle_t task_handles[] = {s_lvgl_task_handle,    s_button_task_handle,
+                                 s_monitor_task_handle, s_ble_tx_task_handle,
+                                 s_lcd_task_handle,     btc_task_handle};
   // stack_sizes should match the values used in xTaskCreate
-  const UBaseType_t stack_sizes[] = {
-      9216, 4096, 4096, 6144, 4096, 4096};
+  const UBaseType_t stack_sizes[] = {9216, 4096, 4096, 6144, 4096, 4096};
 
   for (int i = 0; i < 6; i++) {
     if (task_handles[i] != NULL) {
@@ -7057,7 +7382,8 @@ static void monitor_system_health(void) {
                       100.0f;
       }
 
-      ESP_LOGI(SYS_MON_TAG, "태스크: %-16s | 상태: %-10s | 스택: %.1f%% (여유: %lu/%lu)",
+      ESP_LOGI(SYS_MON_TAG,
+               "태스크: %-16s | 상태: %-10s | 스택: %.1f%% (여유: %lu/%lu)",
                task_names[i], state_str, stack_usage,
                (unsigned long)stack_high_water, (unsigned long)stack_sizes[i]);
 
@@ -7081,10 +7407,8 @@ static void monitor_system_health(void) {
   size_t largest_internal_block =
       heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
 
-  ESP_LOGI(
-      SYS_MON_TAG,
-      "INTERNAL RAM: 여유=%zu, 최소여유=%zu, 최대블록=%zu",
-      free_internal, min_free_internal, largest_internal_block);
+  ESP_LOGI(SYS_MON_TAG, "INTERNAL RAM: 여유=%zu, 최소여유=%zu, 최대블록=%zu",
+           free_internal, min_free_internal, largest_internal_block);
 
   if (free_internal < 30720) { // 30KB
     ESP_LOGW(SYS_MON_TAG, "[Warning] Internal RAM Low! Free: %zu",
@@ -7176,7 +7500,6 @@ static void buffer_queue_monitor_task(void *arg) {
     // 하트비트 업데이트
     update_heartbeat_ble();
 
-
     // 버퍼/큐 모니터링
     monitor_buffers_and_queues();
 
@@ -7201,26 +7524,36 @@ static void lvgl_handler_task(void *arg) {
   bool boot_timeout_triggered = false;
 
   while (1) {
-    // [Fix] 20초 타임아웃 처리: 앱 응답이 없을 때 BOOT 모드 내에서 설치 안내 UI만 표시
+    // [Fix] 20초 타임아웃 처리: 앱 응답이 없을 때 BOOT 모드 내에서 설치 안내
+    // UI만 표시
     if (!boot_timeout_triggered && !s_app_communicated) {
       if ((xTaskGetTickCount() - boot_start_tick) > pdMS_TO_TICKS(10000)) {
-        ESP_LOGI(TAG, "BOOT Timeout: No app communication after 10s. Showing QR/Registration UI.");
+        ESP_LOGI(TAG, "BOOT Timeout: No app communication after 10s. Showing "
+                      "QR/Registration UI.");
         boot_timeout_triggered = true;
-        
-        // [Action] Show installation UI elements (Manual trigger within current BOOT mode)
+
+        // [Action] Show installation UI elements (Manual trigger within current
+        // BOOT mode)
         LVGL_LOCK();
-        if (s_intro_image) lv_obj_add_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
-        if (s_boot_reg_title_label) lv_obj_clear_flag(s_boot_reg_title_label, LV_OBJ_FLAG_HIDDEN);
-        if (s_boot_reg_val_label) lv_obj_clear_flag(s_boot_reg_val_label, LV_OBJ_FLAG_HIDDEN);
-        if (s_boot_install_title_label) lv_obj_clear_flag(s_boot_install_title_label, LV_OBJ_FLAG_HIDDEN);
-        if (s_boot_install_sub_label) lv_obj_clear_flag(s_boot_install_sub_label, LV_OBJ_FLAG_HIDDEN);
-        if (s_boot_install_qr) lv_obj_clear_flag(s_boot_install_qr, LV_OBJ_FLAG_HIDDEN);
+        if (s_intro_image)
+          lv_obj_add_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
+        if (s_boot_reg_title_label)
+          lv_obj_clear_flag(s_boot_reg_title_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_boot_reg_val_label)
+          lv_obj_clear_flag(s_boot_reg_val_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_boot_install_title_label)
+          lv_obj_clear_flag(s_boot_install_title_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_boot_install_sub_label)
+          lv_obj_clear_flag(s_boot_install_sub_label, LV_OBJ_FLAG_HIDDEN);
+        if (s_boot_install_qr)
+          lv_obj_clear_flag(s_boot_install_qr, LV_OBJ_FLAG_HIDDEN);
         LVGL_UNLOCK();
       }
     }
 
-    // [Fix] Removed redundant auto-switch logic that was conflicting with NVS mode restoration.
-    // The switch to s_nvs_restored_mode is now handled exclusively in process_app_command.
+    // [Fix] Removed redundant auto-switch logic that was conflicting with NVS
+    // mode restoration. The switch to s_nvs_restored_mode is now handled
+    // exclusively in process_app_command.
 
     // 하트비트 업데이트 (루프 시작 시)
     update_heartbeat_lvgl();
@@ -7351,8 +7684,6 @@ static void lvgl_handler_task(void *arg) {
       ESP_LOGD(TAG, "LVGL: Destination update queue processed");
     }
 
-
-
     // Check for circle update requests from
     // other tasks
     if (s_circle_update_queue != NULL) {
@@ -7428,90 +7759,135 @@ static void lcd_task(void *arg) {
 
 // Deleted legacy Bluedroid helper
 
-
 // ---------------------------------------------------------------------------
 // Utility Functions for BLE and UI Updates
 // ---------------------------------------------------------------------------
 
-// static uint32_t s_last_ble_activity_tick = 0; // Removed: duplicate of line 5056
+// static uint32_t s_last_ble_activity_tick = 0; // Removed: duplicate of line
+// 5056
 
-void note_ble_activity(void) {
-    s_last_ble_activity_tick = xTaskGetTickCount();
-}
+void note_ble_activity(void) { s_last_ble_activity_tick = xTaskGetTickCount(); }
 
 // void log_ble_packet(...) removed: duplicate of line 5064
 
 void hud_send_notify_bytes(const uint8_t *data, uint16_t len) {
-    if (!s_connected || s_conn_handle == BLE_HS_CONN_HANDLE_NONE || !s_hud_notify_enabled) return;
-    
-    // [User Request] Standardized PKT_LOG for all TX packets
-    if (len >= 5 && data[0] == 0x19) {
-        uint8_t id = data[1];
-        uint8_t cmd = data[2];
-        const char *desc = "기타";
-        bool silent_data = false;
+  if (!s_connected || s_conn_handle == BLE_HS_CONN_HANDLE_NONE ||
+      !s_hud_notify_enabled)
+    return;
 
-        if (id == 0x4F) {
-            switch(cmd) {
-                case 0x01: desc = "F/W 업데이트 정보(INFO)"; break;
-                case 0x02: desc = "F/W 업데이트 요청(REQ)"; break;
-                case 0x03: desc = "F/W 업데이트 데이터(DATA)"; silent_data = true; break;
-                case 0x04: desc = "F/W 업데이트 데이터 응답(ACK)"; break;
-                case 0x05: desc = "F/W 업데이트 완료 통보(COMPLETE)"; break;
-                case 0x06: desc = "F/W 업데이트 취소(CANCEL)"; break;
-                default: desc = "F/W 업데이트 관련"; break;
-            }
-        } else if (id == 0x50) {
-            switch(cmd) {
-                case 0x11: desc = "이미지 전송 정보 응답(INFO_RES)"; break;
-                case 0x03: desc = "이미지 데이터 응답(ACK)"; break;
-                case 0x04: desc = "이미지 전송 완료 통보(COMPLETE)"; break;
-                case 0x07: desc = "이미지 상태 요청(TX)"; break;
-                default: desc = "이미지 전송 관련"; break;
-            }
-        } else if (id == 0x00 && cmd == 0x00) {
-            silent_data = true; // FW Keep-alive (Null packet)
-        } else {
-            switch(cmd) {
-                case 0x0D: desc = "시간 업데이트 요청"; break;
-                case 0x11: desc = "현재 안내 모드 요청"; break;
-                case 0x12: desc = "GPS 상태 요청"; break;
-                case 0x0B: desc = "밝기 설정값 통보"; break;
-                case 0x0C: desc = "모델명/버전 통보"; break;
-                case 0x04: desc = "하트비트/링 상태"; break;
-                case 0x02: desc = "배터리 레벨 통보"; break;
-                case 0x50: desc = "이미지 데이터"; silent_data = true; break;
-            }
-        }
+  // [User Request] Standardized PKT_LOG for all TX packets
+  if (len >= 5 && data[0] == 0x19) {
+    uint8_t id = data[1];
+    uint8_t cmd = data[2];
+    const char *desc = "기타";
+    bool silent_data = false;
 
-        if (!silent_data) {
-            char hex_buf[128] = {0};
-            int pos = 0;
-            size_t show_len = (len > 11) ? 11 : len; 
-            
-            for (int i = 1; i < len && i < show_len; i++) {
-                pos += snprintf(hex_buf + pos, sizeof(hex_buf) - pos, "%02X ", data[i]);
-            }
-            if (len > 11) strcat(hex_buf, "... ");
-
-            ESP_LOGW(TAG, "PKT_LOG [TX] %s// %s", hex_buf, desc);
-        }
+    if (id == 0x4F) {
+      switch (cmd) {
+      case 0x01:
+        desc = "F/W 업데이트 정보(INFO)";
+        break;
+      case 0x02:
+        desc = "F/W 업데이트 요청(REQ)";
+        break;
+      case 0x03:
+        desc = "F/W 업데이트 데이터(DATA)";
+        silent_data = true;
+        break;
+      case 0x04:
+        desc = "F/W 업데이트 데이터 응답(ACK)";
+        break;
+      case 0x05:
+        desc = "F/W 업데이트 완료 통보(COMPLETE)";
+        break;
+      case 0x06:
+        desc = "F/W 업데이트 취소(CANCEL)";
+        break;
+      default:
+        desc = "F/W 업데이트 관련";
+        break;
+      }
+    } else if (id == 0x50) {
+      switch (cmd) {
+      case 0x11:
+        desc = "이미지 전송 정보 응답(INFO_RES)";
+        break;
+      case 0x03:
+        desc = "이미지 데이터 응답(ACK)";
+        break;
+      case 0x04:
+        desc = "이미지 전송 완료 통보(COMPLETE)";
+        break;
+      case 0x07:
+        desc = "이미지 상태 요청(TX)";
+        break;
+      default:
+        desc = "이미지 전송 관련";
+        break;
+      }
+    } else if (id == 0x00 && cmd == 0x00) {
+      silent_data = true; // FW Keep-alive (Null packet)
+    } else {
+      switch (cmd) {
+      case 0x0D:
+        desc = "시간 업데이트 요청";
+        break;
+      case 0x11:
+        desc = "현재 안내 모드 요청";
+        break;
+      case 0x12:
+        desc = "GPS 상태 요청";
+        break;
+      case 0x0B:
+        desc = "밝기 설정값 통보";
+        break;
+      case 0x0C:
+        desc = "모델명/버전 통보";
+        break;
+      case 0x04:
+        desc = "하트비트/링 상태";
+        break;
+      case 0x02:
+        desc = "배터리 레벨 통보";
+        break;
+      case 0x50:
+        desc = "이미지 데이터";
+        silent_data = true;
+        break;
+      }
     }
-    
-    
-    struct os_mbuf *om = ble_hs_mbuf_from_flat(data, len);
-    if (om) {
-        int rc = ble_gattc_notify_custom(s_conn_handle, s_hud_char_ready_handle, om);
-        if (rc == 0) {
-            note_ble_activity();
-            if (len == 10 && data[1] == PROTOCOL_ID) s_tx_ok++;
-        } else {
-            if (len == 10 && data[1] == PROTOCOL_ID) s_tx_fail++;
-        }
+
+    if (!silent_data) {
+      char hex_buf[128] = {0};
+      int pos = 0;
+      size_t show_len = (len > 11) ? 11 : len;
+
+      for (int i = 1; i < len && i < show_len; i++) {
+        pos += snprintf(hex_buf + pos, sizeof(hex_buf) - pos, "%02X ", data[i]);
+      }
+      if (len > 11)
+        strcat(hex_buf, "... ");
+
+      ESP_LOGW(TAG, "PKT_LOG [TX] %s// %s", hex_buf, desc);
     }
+  }
+
+  struct os_mbuf *om = ble_hs_mbuf_from_flat(data, len);
+  if (om) {
+    int rc =
+        ble_gattc_notify_custom(s_conn_handle, s_hud_char_ready_handle, om);
+    if (rc == 0) {
+      note_ble_activity();
+      if (len == 10 && data[1] == PROTOCOL_ID)
+        s_tx_ok++;
+    } else {
+      if (len == 10 && data[1] == PROTOCOL_ID)
+        s_tx_fail++;
+    }
+  }
 }
 
-// update_ui_progress is already defined around line 8764 now. 
+// update_ui_progress is already defined around line 8764 now.
 // We will ensure it stays there and remove duplicate here.
 // ---------------------------------------------------------------------------
 // NimBLE GATT Service Definitions (HID, HUD, Battery, DIS)
@@ -7521,272 +7897,313 @@ void hud_send_notify_bytes(const uint8_t *data, uint16_t len) {
 // HID Report Map (Minimal Keyboard/Consumer Control)
 // ---------------------------------------------------------------------------
 static const uint8_t s_hid_report_map[] = {
-    0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
-    0x09, 0x06,                    // USAGE (Keyboard)
-    0xa1, 0x01,                    // COLLECTION (Application)
-    0x85, 0x01,                    //   REPORT_ID (1)
-    0x05, 0x07,                    //   USAGE_PAGE (Keyboard)
-    0x19, 0xe0,                    //   USAGE_MINIMUM (Keyboard LeftControl)
-    0x29, 0xe7,                    //   USAGE_MAXIMUM (Keyboard Right GUI)
-    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-    0x25, 0x01,                    //   LOGICAL_MAXIMUM (1)
-    0x75, 0x01,                    //   REPORT_SIZE (1)
-    0x95, 0x08,                    //   REPORT_COUNT (8)
-    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-    0x95, 0x01,                    //   REPORT_COUNT (1)
-    0x75, 0x08,                    //   REPORT_SIZE (8)
-    0x81, 0x03,                    //   INPUT (Cnst,Var,Abs)
-    0x95, 0x06,                    //   REPORT_COUNT (6)
-    0x75, 0x08,                    //   REPORT_SIZE (8)
-    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-    0x25, 0x65,                    //   LOGICAL_MAXIMUM (101)
-    0x05, 0x07,                    //   USAGE_PAGE (Keyboard)
-    0x19, 0x00,                    //   USAGE_MINIMUM (Reserved)
-    0x29, 0x65,                    //   USAGE_MAXIMUM (Keyboard Application)
-    0x81, 0x00,                    //   INPUT (Data,Ary,Abs)
-    0xc0                           // END_COLLECTION
+    0x05, 0x01, // USAGE_PAGE (Generic Desktop)
+    0x09, 0x06, // USAGE (Keyboard)
+    0xa1, 0x01, // COLLECTION (Application)
+    0x85, 0x01, //   REPORT_ID (1)
+    0x05, 0x07, //   USAGE_PAGE (Keyboard)
+    0x19, 0xe0, //   USAGE_MINIMUM (Keyboard LeftControl)
+    0x29, 0xe7, //   USAGE_MAXIMUM (Keyboard Right GUI)
+    0x15, 0x00, //   LOGICAL_MINIMUM (0)
+    0x25, 0x01, //   LOGICAL_MAXIMUM (1)
+    0x75, 0x01, //   REPORT_SIZE (1)
+    0x95, 0x08, //   REPORT_COUNT (8)
+    0x81, 0x02, //   INPUT (Data,Var,Abs)
+    0x95, 0x01, //   REPORT_COUNT (1)
+    0x75, 0x08, //   REPORT_SIZE (8)
+    0x81, 0x03, //   INPUT (Cnst,Var,Abs)
+    0x95, 0x06, //   REPORT_COUNT (6)
+    0x75, 0x08, //   REPORT_SIZE (8)
+    0x15, 0x00, //   LOGICAL_MINIMUM (0)
+    0x25, 0x65, //   LOGICAL_MAXIMUM (101)
+    0x05, 0x07, //   USAGE_PAGE (Keyboard)
+    0x19, 0x00, //   USAGE_MINIMUM (Reserved)
+    0x29, 0x65, //   USAGE_MAXIMUM (Keyboard Application)
+    0x81, 0x00, //   INPUT (Data,Ary,Abs)
+    0xc0        // END_COLLECTION
 };
 
-static int
-hid_on_access(uint16_t conn_handle, uint16_t attr_handle,
-              struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    uint16_t uuid16 = ble_uuid_u16(ctxt->chr->uuid);
+static int hid_on_access(uint16_t conn_handle, uint16_t attr_handle,
+                         struct ble_gatt_access_ctxt *ctxt, void *arg) {
+  uint16_t uuid16 = ble_uuid_u16(ctxt->chr->uuid);
 
-    if (uuid16 == 0x2A4B) { // Report Map
-        os_mbuf_append(ctxt->om, s_hid_report_map, sizeof(s_hid_report_map));
-        return 0;
-    } else if (uuid16 == 0x2A4A) { // HID Info
-        uint8_t info[4] = {0x01, 0x01, 0x00, 0x03}; // bcdHID=1.1, country=0, flags=RemoteWake|NormallyConnectable
-        os_mbuf_append(ctxt->om, info, sizeof(info));
-        return 0;
-    } else if (uuid16 == 0x2A4E) { // Protocol Mode
-        uint8_t mode = 0x01; // Report Mode
-        os_mbuf_append(ctxt->om, &mode, 1);
-        return 0;
-    } else if (uuid16 == 0x2A4D) { // Report
-        os_mbuf_append(ctxt->om, s_hid_in_report, 8);
-        return 0;
-    }
-    return BLE_ATT_ERR_UNLIKELY;
+  if (uuid16 == 0x2A4B) { // Report Map
+    os_mbuf_append(ctxt->om, s_hid_report_map, sizeof(s_hid_report_map));
+    return 0;
+  } else if (uuid16 == 0x2A4A) { // HID Info
+    uint8_t info[4] = {
+        0x01, 0x01, 0x00,
+        0x03}; // bcdHID=1.1, country=0, flags=RemoteWake|NormallyConnectable
+    os_mbuf_append(ctxt->om, info, sizeof(info));
+    return 0;
+  } else if (uuid16 == 0x2A4E) { // Protocol Mode
+    uint8_t mode = 0x01;         // Report Mode
+    os_mbuf_append(ctxt->om, &mode, 1);
+    return 0;
+  } else if (uuid16 == 0x2A4D) { // Report
+    os_mbuf_append(ctxt->om, s_hid_in_report, 8);
+    return 0;
+  }
+  return BLE_ATT_ERR_UNLIKELY;
 }
 
-static int
-dis_on_access(uint16_t conn_handle, uint16_t attr_handle,
-              struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    uint16_t uuid16 = ble_uuid_u16(ctxt->chr->uuid);
-    if (uuid16 == 0x2A29) {
-        os_mbuf_append(ctxt->om, "MOVISION", 8);
-        return 0;
-    } else if (uuid16 == 0x2A24) {
-        os_mbuf_append(ctxt->om, "HUD1-PRO", 8);
-        return 0;
-    }
-    return BLE_ATT_ERR_UNLIKELY;
+static int dis_on_access(uint16_t conn_handle, uint16_t attr_handle,
+                         struct ble_gatt_access_ctxt *ctxt, void *arg) {
+  uint16_t uuid16 = ble_uuid_u16(ctxt->chr->uuid);
+  if (uuid16 == 0x2A29) {
+    os_mbuf_append(ctxt->om, "MOVISION", 8);
+    return 0;
+  } else if (uuid16 == 0x2A24) {
+    os_mbuf_append(ctxt->om, "HUD1-PRO", 8);
+    return 0;
+  }
+  return BLE_ATT_ERR_UNLIKELY;
 }
 
-static int
-hud_on_access(uint16_t conn_handle, uint16_t attr_handle,
-              struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    uint16_t uuid16 = ble_uuid_u16(ctxt->chr->uuid);
+static int hud_on_access(uint16_t conn_handle, uint16_t attr_handle,
+                         struct ble_gatt_access_ctxt *ctxt, void *arg) {
+  uint16_t uuid16 = ble_uuid_u16(ctxt->chr->uuid);
 
-    if (uuid16 == 0xFFF1 || uuid16 == 0xFFF2) { // HUD Command Channel (Primary or Secondary)
-        if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
-            // [Safety Removed] User requested to keep virtual drive running until power off.
-            // App packets will still be processed by process_app_command in background,
-            // but simulation will continue to inject data.
-            struct os_mbuf *om = ctxt->om;
-            while (om != NULL) {
-                const uint8_t *data = om->om_data;
-                uint16_t len = om->om_len;
-                
-                for (uint16_t i = 0; i < len; i++) {
-                    uint8_t byte = data[i];
-                    
-                    // New packet starts with 0x19 (only if idle or very start of fragment)
-                    if (byte == 0x19 && s_rx_expected_len == 0) {
-                        s_rx_pos = 0;
-                        s_rx_expected_len = 0;
-                    }
-                    
-                    if (s_rx_pos < sizeof(s_rx_buffer)) {
-                        s_rx_buffer[s_rx_pos++] = byte;
-                        
-                        // Determine expected length based on ID
-                        if (s_rx_expected_len == 0) {
-                            if (s_rx_pos == 4 && s_rx_buffer[0] == 0x19) {
-                                uint8_t id = s_rx_buffer[1];
-                                if (id == 0x4D) { // Standard format
-                                    s_rx_expected_len = s_rx_buffer[3] + 5;
-                                }
-                            } else if (s_rx_pos == 5 && s_rx_buffer[0] == 0x19) {
-                                uint8_t id = s_rx_buffer[1];
-                                if (id == 0x4F || id == 0x50) { // Large data format (FW/IMG)
-                                    uint16_t dlen = (s_rx_buffer[3] << 8) | s_rx_buffer[4];
-                                    s_rx_expected_len = dlen + 6;
-                                }
-                            }
-                        }
-                        
-                        // If we have a full packet, process it
-                        if (s_rx_expected_len > 0 && s_rx_pos == s_rx_expected_len) {
-                            s_app_communicated = true; // Mark as communicated on first valid packet
-                            if (s_rx_buffer[s_rx_pos - 1] == 0x2F) {
-                                // [Optimization] Fast-track for heavy data (ID 0x50, 0x4F)
-                                // [User Request] Ensure logging even in fast-track path
-                                if (s_rx_buffer[1] == 0x50 || s_rx_buffer[1] == 0x4F) {
-                                    log_ble_packet(s_rx_buffer, s_rx_pos, "RX");
-                                    LVGL_LOCK();
-                                    process_app_command(s_rx_buffer, s_rx_pos);
-                                    LVGL_UNLOCK();
-                                } else {
-                                    log_ble_packet(s_rx_buffer, s_rx_pos, "RX");
-                                    if (s_ble_cmd_queue) {
-                                        ble_cmd_t cmd;
-                                        cmd.len = (s_rx_pos > 256) ? 256 : s_rx_pos;
-                                        memcpy(cmd.data, s_rx_buffer, cmd.len);
-                                        xQueueSend(s_ble_cmd_queue, &cmd, 0);
-                                    } else {
-                                        process_app_command(s_rx_buffer, s_rx_pos);
-                                    }
-                                }
-                            } else {
-                                ESP_LOGW(TAG, "Full packet received but tail is not 0x2F (0x%02X)", s_rx_buffer[s_rx_pos-1]);
-                            }
-                            s_rx_pos = 0;
-                            s_rx_expected_len = 0;
-                        }
-                    } else {
-                        ESP_LOGE(TAG, "RX buffer overflow!");
-                        s_rx_pos = 0;
-                        s_rx_expected_len = 0;
-                    }
+  if (uuid16 == 0xFFF1 ||
+      uuid16 == 0xFFF2) { // HUD Command Channel (Primary or Secondary)
+    if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
+      // [Safety Removed] User requested to keep virtual drive running until
+      // power off. App packets will still be processed by process_app_command
+      // in background, but simulation will continue to inject data.
+      struct os_mbuf *om = ctxt->om;
+      while (om != NULL) {
+        const uint8_t *data = om->om_data;
+        uint16_t len = om->om_len;
+
+        for (uint16_t i = 0; i < len; i++) {
+          uint8_t byte = data[i];
+
+          // New packet starts with 0x19 (only if idle or very start of
+          // fragment)
+          if (byte == 0x19 && s_rx_expected_len == 0) {
+            s_rx_pos = 0;
+            s_rx_expected_len = 0;
+          }
+
+          if (s_rx_pos < sizeof(s_rx_buffer)) {
+            s_rx_buffer[s_rx_pos++] = byte;
+
+            // Determine expected length based on ID
+            if (s_rx_expected_len == 0) {
+              if (s_rx_pos == 4 && s_rx_buffer[0] == 0x19) {
+                uint8_t id = s_rx_buffer[1];
+                if (id == 0x4D) { // Standard format
+                  s_rx_expected_len = s_rx_buffer[3] + 5;
                 }
-                om = SLIST_NEXT(om, om_next);
+              } else if (s_rx_pos == 5 && s_rx_buffer[0] == 0x19) {
+                uint8_t id = s_rx_buffer[1];
+                if (id == 0x4F || id == 0x50) { // Large data format (FW/IMG)
+                  uint16_t dlen = (s_rx_buffer[3] << 8) | s_rx_buffer[4];
+                  s_rx_expected_len = dlen + 6;
+                }
+              }
             }
-            return 0;
-        } else if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
-            uint8_t dummy[1] = {0};
-            os_mbuf_append(ctxt->om, dummy, 1);
-            return 0;
+
+            // If we have a full packet, process it
+            if (s_rx_expected_len > 0 && s_rx_pos == s_rx_expected_len) {
+              s_app_communicated =
+                  true; // Mark as communicated on first valid packet
+              if (s_rx_buffer[s_rx_pos - 1] == 0x2F) {
+                // [Optimization] Fast-track for heavy data (ID 0x50, 0x4F)
+                // [User Request] Ensure logging even in fast-track path
+                if (s_rx_buffer[1] == 0x50 || s_rx_buffer[1] == 0x4F) {
+                  log_ble_packet(s_rx_buffer, s_rx_pos, "RX");
+                  LVGL_LOCK();
+                  process_app_command(s_rx_buffer, s_rx_pos);
+                  LVGL_UNLOCK();
+                } else {
+                  log_ble_packet(s_rx_buffer, s_rx_pos, "RX");
+                  if (s_ble_cmd_queue) {
+                    ble_cmd_t cmd;
+                    cmd.len = (s_rx_pos > 256) ? 256 : s_rx_pos;
+                    memcpy(cmd.data, s_rx_buffer, cmd.len);
+                    xQueueSend(s_ble_cmd_queue, &cmd, 0);
+                  } else {
+                    process_app_command(s_rx_buffer, s_rx_pos);
+                  }
+                }
+              } else {
+                ESP_LOGW(TAG,
+                         "Full packet received but tail is not 0x2F (0x%02X)",
+                         s_rx_buffer[s_rx_pos - 1]);
+              }
+              s_rx_pos = 0;
+              s_rx_expected_len = 0;
+            }
+          } else {
+            ESP_LOGE(TAG, "RX buffer overflow!");
+            s_rx_pos = 0;
+            s_rx_expected_len = 0;
+          }
         }
-    } else if (uuid16 == 0x2A19) { // Battery Level
-        if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
-            os_mbuf_append(ctxt->om, &s_batt_level, 1);
-            return 0;
-        }
+        om = SLIST_NEXT(om, om_next);
+      }
+      return 0;
+    } else if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+      uint8_t dummy[1] = {0};
+      os_mbuf_append(ctxt->om, dummy, 1);
+      return 0;
     }
-    return BLE_ATT_ERR_UNLIKELY;
+  } else if (uuid16 == 0x2A19) { // Battery Level
+    if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+      os_mbuf_append(ctxt->om, &s_batt_level, 1);
+      return 0;
+    }
+  }
+  return BLE_ATT_ERR_UNLIKELY;
 }
 
 // OTA Service UUIDs (128-bit)
-static const ble_uuid128_t s_ota_svc_uuid = 
-    BLE_UUID128_INIT(0x80, 0x32, 0x36, 0x36, 0x35, 0x37, 0x41, 0x0b, 0xab, 0x8c, 0xcc, 0x07, 0xfc, 0x96, 0x73, 0xce);
-static const ble_uuid128_t s_ota_ctrl_uuid = 
-    BLE_UUID128_INIT(0x80, 0x32, 0x36, 0x56, 0x35, 0x37, 0x41, 0x0b, 0xab, 0x8c, 0xcc, 0x07, 0xfc, 0x96, 0x73, 0xce);
-static const ble_uuid128_t s_ota_data_uuid = 
-    BLE_UUID128_INIT(0x80, 0x32, 0x36, 0x57, 0x35, 0x37, 0x41, 0x0b, 0xab, 0x8c, 0xcc, 0x07, 0xfc, 0x96, 0x73, 0xce);
+static const ble_uuid128_t s_ota_svc_uuid =
+    BLE_UUID128_INIT(0x80, 0x32, 0x36, 0x36, 0x35, 0x37, 0x41, 0x0b, 0xab, 0x8c,
+                     0xcc, 0x07, 0xfc, 0x96, 0x73, 0xce);
+static const ble_uuid128_t s_ota_ctrl_uuid =
+    BLE_UUID128_INIT(0x80, 0x32, 0x36, 0x56, 0x35, 0x37, 0x41, 0x0b, 0xab, 0x8c,
+                     0xcc, 0x07, 0xfc, 0x96, 0x73, 0xce);
+static const ble_uuid128_t s_ota_data_uuid =
+    BLE_UUID128_INIT(0x80, 0x32, 0x36, 0x57, 0x35, 0x37, 0x41, 0x0b, 0xab, 0x8c,
+                     0xcc, 0x07, 0xfc, 0x96, 0x73, 0xce);
 
 extern uint16_t s_ota_ctrl_handle;
 extern uint16_t s_ota_data_handle;
-extern int ota_on_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg);
+extern int ota_on_access(uint16_t conn_handle, uint16_t attr_handle,
+                         struct ble_gatt_access_ctxt *ctxt, void *arg);
 
 static const struct ble_gatt_svc_def s_nimble_svc_defs[] = {
     {
         // 1. HUD Service (FFEA)
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid = BLE_UUID16_DECLARE(HUD_SERVICE_UUID16),
-        .characteristics = (struct ble_gatt_chr_def[]) {{
-            .uuid = BLE_UUID16_DECLARE(0xFFF1), // Primary Data (Write/Notify)
-            .access_cb = hud_on_access,
-            .val_handle = &s_hud_char_ready_handle,
-            .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP | BLE_GATT_CHR_F_NOTIFY,
-        }, {
-            .uuid = BLE_UUID16_DECLARE(0xFFF2), // Secondary Command Channel (App Compatibility)
-            .access_cb = hud_on_access,
-            .val_handle = &s_hud_char_write_handle,
-            .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP,
-        }, {
-            0,
-        }},
+        .characteristics =
+            (struct ble_gatt_chr_def[]){
+                {
+                    .uuid = BLE_UUID16_DECLARE(
+                        0xFFF1), // Primary Data (Write/Notify)
+                    .access_cb = hud_on_access,
+                    .val_handle = &s_hud_char_ready_handle,
+                    .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE |
+                             BLE_GATT_CHR_F_WRITE_NO_RSP |
+                             BLE_GATT_CHR_F_NOTIFY,
+                },
+                {
+                    .uuid =
+                        BLE_UUID16_DECLARE(0xFFF2), // Secondary Command Channel
+                                                    // (App Compatibility)
+                    .access_cb = hud_on_access,
+                    .val_handle = &s_hud_char_write_handle,
+                    .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE |
+                             BLE_GATT_CHR_F_WRITE_NO_RSP,
+                },
+                {
+                    0,
+                }},
     },
     {
         // 2. Battery Service (180F)
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid = BLE_UUID16_DECLARE(0x180F),
-        .characteristics = (struct ble_gatt_chr_def[]) {{
-            .uuid = BLE_UUID16_DECLARE(0x2A19),
-            .access_cb = hud_on_access,
-            .val_handle = &s_batt_level_handle,
-            .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
-        }, {
-            0,
-        }},
+        .characteristics =
+            (struct ble_gatt_chr_def[]){
+                {
+                    .uuid = BLE_UUID16_DECLARE(0x2A19),
+                    .access_cb = hud_on_access,
+                    .val_handle = &s_batt_level_handle,
+                    .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+                },
+                {
+                    0,
+                }},
     },
     {
         // 3. OTA Service (Integrated)
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid = &s_ota_svc_uuid.u,
-        .characteristics = (struct ble_gatt_chr_def[]) {{
-            .uuid = &s_ota_ctrl_uuid.u,
-            .access_cb = ota_on_access,
-            .val_handle = &s_ota_ctrl_handle,
-            .flags = BLE_GATT_CHR_F_WRITE,
-        }, {
-            .uuid = &s_ota_data_uuid.u,
-            .access_cb = ota_on_access,
-            .val_handle = &s_ota_data_handle,
-            .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP,
-        }, {
-            0,
-        }},
+        .characteristics =
+            (struct ble_gatt_chr_def[]){
+                {
+                    .uuid = &s_ota_ctrl_uuid.u,
+                    .access_cb = ota_on_access,
+                    .val_handle = &s_ota_ctrl_handle,
+                    .flags = BLE_GATT_CHR_F_WRITE,
+                },
+                {
+                    .uuid = &s_ota_data_uuid.u,
+                    .access_cb = ota_on_access,
+                    .val_handle = &s_ota_data_handle,
+                    .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP,
+                },
+                {
+                    0,
+                }},
     },
     {
         // 4. DIS Service (0x180A)
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid = BLE_UUID16_DECLARE(0x180A),
-        .characteristics = (struct ble_gatt_chr_def[]) {{
-            .uuid = BLE_UUID16_DECLARE(0x2A29), // Manufacturer
-            .access_cb = dis_on_access,
-            .flags = BLE_GATT_CHR_F_READ,
-        }, {
-            .uuid = BLE_UUID16_DECLARE(0x2A24), // Model
-            .access_cb = dis_on_access,
-            .flags = BLE_GATT_CHR_F_READ,
-        }, {
-            0,
-        }},
+        .characteristics =
+            (struct ble_gatt_chr_def[]){
+                {
+                    .uuid = BLE_UUID16_DECLARE(0x2A29), // Manufacturer
+                    .access_cb = dis_on_access,
+                    .flags = BLE_GATT_CHR_F_READ,
+                },
+                {
+                    .uuid = BLE_UUID16_DECLARE(0x2A24), // Model
+                    .access_cb = dis_on_access,
+                    .flags = BLE_GATT_CHR_F_READ,
+                },
+                {
+                    0,
+                }},
     },
     {
         // 5. HID Service (0x1812)
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid = BLE_UUID16_DECLARE(0x1812),
-        .characteristics = (struct ble_gatt_chr_def[]) {{
-            .uuid = BLE_UUID16_DECLARE(0x2A4B), // Report Map
-            .access_cb = hid_on_access,
-            .flags = BLE_GATT_CHR_F_READ_ENC,
-        }, {
-            .uuid = BLE_UUID16_DECLARE(0x2A4A), // HID Info
-            .access_cb = hid_on_access,
-            .flags = BLE_GATT_CHR_F_READ,
-        }, {
-            .uuid = BLE_UUID16_DECLARE(0x2A4E), // Protocol Mode
-            .access_cb = hid_on_access,
-            .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE_NO_RSP,
-        }, {
-            .uuid = BLE_UUID16_DECLARE(0x2A4D), // Report
-            .access_cb = hid_on_access,
-            .val_handle = &s_hid_char_rpt_in_handle,
-            .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
-            .descriptors = (struct ble_gatt_dsc_def[]) {{
-                .uuid = BLE_UUID16_DECLARE(0x2908), // Report Reference
-                .access_cb = hid_on_access, // Not implemented but needed for some OS
-                .att_flags = BLE_ATT_F_READ,
-            }, {
-                0,
-            }},
-        }, {
-            0,
-        }},
+        .characteristics =
+            (struct ble_gatt_chr_def[]){
+                {
+                    .uuid = BLE_UUID16_DECLARE(0x2A4B), // Report Map
+                    .access_cb = hid_on_access,
+                    .flags = BLE_GATT_CHR_F_READ_ENC,
+                },
+                {
+                    .uuid = BLE_UUID16_DECLARE(0x2A4A), // HID Info
+                    .access_cb = hid_on_access,
+                    .flags = BLE_GATT_CHR_F_READ,
+                },
+                {
+                    .uuid = BLE_UUID16_DECLARE(0x2A4E), // Protocol Mode
+                    .access_cb = hid_on_access,
+                    .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE_NO_RSP,
+                },
+                {
+                    .uuid = BLE_UUID16_DECLARE(0x2A4D), // Report
+                    .access_cb = hid_on_access,
+                    .val_handle = &s_hid_char_rpt_in_handle,
+                    .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+                    .descriptors =
+                        (struct ble_gatt_dsc_def[]){
+                            {
+                                .uuid = BLE_UUID16_DECLARE(
+                                    0x2908), // Report Reference
+                                .access_cb =
+                                    hid_on_access, // Not implemented but needed
+                                                   // for some OS
+                                .att_flags = BLE_ATT_F_READ,
+                            },
+                            {
+                                0,
+                            }},
+                },
+                {
+                    0,
+                }},
     },
     {
         0, // No more services
@@ -7797,183 +8214,182 @@ static const struct ble_gatt_svc_def s_nimble_svc_defs[] = {
 // NimBLE GAP Event Handler
 // ---------------------------------------------------------------------------
 
-static int
-ble_mp_gap_event(struct ble_gap_event *event, void *arg) {
-    int rc;
-    switch (event->type) {
-    case BLE_GAP_EVENT_CONNECT:
-        {
-            struct ble_gap_conn_desc desc;
-            ble_gap_conn_find(event->connect.conn_handle, &desc);
-            char addr_str[18];
-            snprintf(addr_str, sizeof(addr_str), "%02x:%02x:%02x:%02x:%02x:%02x",
-                     desc.peer_id_addr.val[5], desc.peer_id_addr.val[4], desc.peer_id_addr.val[3],
-                     desc.peer_id_addr.val[2], desc.peer_id_addr.val[1], desc.peer_id_addr.val[0]);
-            
-            ESP_LOGI(TAG, "Connected: status=%d handle=%d peer=%s", 
-                     event->connect.status, event->connect.conn_handle, addr_str);
-        }
-        if (event->connect.status == 0) {
-            s_conn_handle = event->connect.conn_handle;
-            s_connected = true;
-            s_need_fast_conn = true;
-        } else {
-            ble_mp_advertise();
-        }
-        return 0;
+static int ble_mp_gap_event(struct ble_gap_event *event, void *arg) {
+  int rc;
+  switch (event->type) {
+  case BLE_GAP_EVENT_CONNECT: {
+    struct ble_gap_conn_desc desc;
+    ble_gap_conn_find(event->connect.conn_handle, &desc);
+    char addr_str[18];
+    snprintf(addr_str, sizeof(addr_str), "%02x:%02x:%02x:%02x:%02x:%02x",
+             desc.peer_id_addr.val[5], desc.peer_id_addr.val[4],
+             desc.peer_id_addr.val[3], desc.peer_id_addr.val[2],
+             desc.peer_id_addr.val[1], desc.peer_id_addr.val[0]);
 
-    case BLE_GAP_EVENT_DISCONNECT:
-        ESP_LOGI(TAG, "Disconnected: reason=0x%02x", event->disconnect.reason);
-        s_connected = false;
-        s_conn_handle = BLE_HS_CONN_HANDLE_NONE;
-        s_hud_notify_enabled = false;
-
-        // Fallback to Guidance Standby on disconnect
-        s_guide_sub_mode = GUIDE_SUB_STANDBY;
-        switch_display_mode(DISPLAY_MODE_GUIDE);
-
-        ble_mp_advertise();
-        return 0;
-
-    case BLE_GAP_EVENT_MTU:
-        s_mtu = event->mtu.value;
-        ESP_LOGI(TAG, "MTU updated: %d", s_mtu);
-        return 0;
-
-    case BLE_GAP_EVENT_SUBSCRIBE:
-        if (event->subscribe.attr_handle == s_hud_char_ready_handle) {
-            s_hud_notify_enabled = event->subscribe.cur_notify;
-            ESP_LOGI(TAG, "HUD CCCD updated: %d", s_hud_notify_enabled);
-        } else if (event->subscribe.attr_handle == s_hid_char_rpt_in_handle) {
-            s_hid_cccd = event->subscribe.cur_notify;
-            ESP_LOGI(TAG, "HID CCCD updated: %d", s_hid_cccd);
-        }
-        return 0;
-
-    case BLE_GAP_EVENT_REPEAT_PAIRING:
-        /* Android 16 Re-pairing Fix: If the phone asks to pair again, its 
-         * bond info is likely stale or invalid. Delete our side so we can 
-         * genuinely re-sync and stay bonded permanently. */
-        struct ble_gap_conn_desc repeat_desc;
-        rc = ble_gap_conn_find(event->repeat_pairing.conn_handle, &repeat_desc);
-        if (rc == 0) {
-            ble_store_util_delete_peer(&repeat_desc.peer_id_addr);
-            ESP_LOGW(TAG, "Stale bond detected. Deleted old peer info for re-sync.");
-        }
-        return BLE_GAP_REPEAT_PAIRING_RETRY;
-
-    case BLE_GAP_EVENT_ENC_CHANGE:
-        ESP_LOGI(TAG, "Encryption changed: status=%d (%s)", 
-                 event->enc_change.status,
-                 (event->enc_change.status == 13) ? "HCI_ERR_PIN_OR_KEY_MISSING - HUD forgot the phone!" : "OK");
-        
-        // Check bond count after encryption success
-        if (event->enc_change.status == 0) {
-            int count_p = 0;
-            ble_store_util_count(BLE_STORE_OBJ_TYPE_PEER_SEC, &count_p);
-            ESP_LOGI(TAG, "Security established. Total bonded peers now: %d", count_p);
-        }
-        return 0;
-
-    case BLE_GAP_EVENT_PASSKEY_ACTION:
-        ESP_LOGI(TAG, "Passkey Action: type=%d", event->passkey.params.action);
-        if (event->passkey.params.action == BLE_SM_IOACT_DISP) {
-            struct ble_sm_io pk;
-            pk.action = event->passkey.params.action;
-            pk.passkey = 123456; // Default or random
-            ESP_LOGI(TAG, "Display Passkey: %06ld", pk.passkey);
-            rc = ble_sm_inject_io(event->passkey.conn_handle, &pk);
-            if (rc != 0) ESP_LOGE(TAG, "Error injecting passkey; rc=%d", rc);
-        }
-        return 0;
+    ESP_LOGI(TAG, "Connected: status=%d handle=%d peer=%s",
+             event->connect.status, event->connect.conn_handle, addr_str);
+  }
+    if (event->connect.status == 0) {
+      s_conn_handle = event->connect.conn_handle;
+      s_connected = true;
+      s_need_fast_conn = true;
+    } else {
+      ble_mp_advertise();
     }
     return 0;
+
+  case BLE_GAP_EVENT_DISCONNECT:
+    ESP_LOGI(TAG, "Disconnected: reason=0x%02x", event->disconnect.reason);
+    s_connected = false;
+    s_conn_handle = BLE_HS_CONN_HANDLE_NONE;
+    s_hud_notify_enabled = false;
+
+    // Fallback to Guidance Standby on disconnect
+    s_guide_sub_mode = GUIDE_SUB_STANDBY;
+    switch_display_mode(DISPLAY_MODE_GUIDE);
+
+    ble_mp_advertise();
+    return 0;
+
+  case BLE_GAP_EVENT_MTU:
+    s_mtu = event->mtu.value;
+    ESP_LOGI(TAG, "MTU updated: %d", s_mtu);
+    return 0;
+
+  case BLE_GAP_EVENT_SUBSCRIBE:
+    if (event->subscribe.attr_handle == s_hud_char_ready_handle) {
+      s_hud_notify_enabled = event->subscribe.cur_notify;
+      ESP_LOGI(TAG, "HUD CCCD updated: %d", s_hud_notify_enabled);
+    } else if (event->subscribe.attr_handle == s_hid_char_rpt_in_handle) {
+      s_hid_cccd = event->subscribe.cur_notify;
+      ESP_LOGI(TAG, "HID CCCD updated: %d", s_hid_cccd);
+    }
+    return 0;
+
+  case BLE_GAP_EVENT_REPEAT_PAIRING:
+    /* Android 16 Re-pairing Fix: If the phone asks to pair again, its
+     * bond info is likely stale or invalid. Delete our side so we can
+     * genuinely re-sync and stay bonded permanently. */
+    struct ble_gap_conn_desc repeat_desc;
+    rc = ble_gap_conn_find(event->repeat_pairing.conn_handle, &repeat_desc);
+    if (rc == 0) {
+      ble_store_util_delete_peer(&repeat_desc.peer_id_addr);
+      ESP_LOGW(TAG, "Stale bond detected. Deleted old peer info for re-sync.");
+    }
+    return BLE_GAP_REPEAT_PAIRING_RETRY;
+
+  case BLE_GAP_EVENT_ENC_CHANGE:
+    ESP_LOGI(TAG, "Encryption changed: status=%d (%s)",
+             event->enc_change.status,
+             (event->enc_change.status == 13)
+                 ? "HCI_ERR_PIN_OR_KEY_MISSING - HUD forgot the phone!"
+                 : "OK");
+
+    // Check bond count after encryption success
+    if (event->enc_change.status == 0) {
+      int count_p = 0;
+      ble_store_util_count(BLE_STORE_OBJ_TYPE_PEER_SEC, &count_p);
+      ESP_LOGI(TAG, "Security established. Total bonded peers now: %d",
+               count_p);
+    }
+    return 0;
+
+  case BLE_GAP_EVENT_PASSKEY_ACTION:
+    ESP_LOGI(TAG, "Passkey Action: type=%d", event->passkey.params.action);
+    if (event->passkey.params.action == BLE_SM_IOACT_DISP) {
+      struct ble_sm_io pk;
+      pk.action = event->passkey.params.action;
+      pk.passkey = 123456; // Default or random
+      ESP_LOGI(TAG, "Display Passkey: %06ld", pk.passkey);
+      rc = ble_sm_inject_io(event->passkey.conn_handle, &pk);
+      if (rc != 0)
+        ESP_LOGE(TAG, "Error injecting passkey; rc=%d", rc);
+    }
+    return 0;
+  }
+  return 0;
 }
 
 static void ble_mp_advertise(void) {
-    struct ble_gap_adv_params adv_params;
-    struct ble_hs_adv_fields fields;
-    int rc;
+  struct ble_gap_adv_params adv_params;
+  struct ble_hs_adv_fields fields;
+  int rc;
 
-    // 1. Primary Advertising Data - HUD focused
-    memset(&fields, 0, sizeof fields);
-    
-    // Flags and Name
-    fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
-    fields.name = (uint8_t *)DEVICE_NAME;
-    fields.name_len = strlen(DEVICE_NAME);
-    fields.name_is_complete = 1;
-    
-    // CRITICAL: HUD Service UUID must be in the main packet for many Apps
-    fields.uuids16 = (ble_uuid16_t[]){
-        BLE_UUID16_INIT(HUD_SERVICE_UUID16)
-    };
-    fields.num_uuids16 = 1;
-    fields.uuids16_is_complete = 1;
+  // 1. Primary Advertising Data - HUD focused
+  memset(&fields, 0, sizeof fields);
 
-    // Appearance (Generic HID icon - avoids "Install Keyboard App" nag)
-    fields.appearance = 0x03C0; 
-    fields.appearance_is_present = 1;
+  // Flags and Name
+  fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
+  fields.name = (uint8_t *)DEVICE_NAME;
+  fields.name_len = strlen(DEVICE_NAME);
+  fields.name_is_complete = 1;
 
-    rc = ble_gap_adv_set_fields(&fields);
-    if (rc != 0) {
-        ESP_LOGE(TAG, "Error setting adv fields; rc=%d", rc);
-        return;
-    }
+  // CRITICAL: HUD Service UUID must be in the main packet for many Apps
+  fields.uuids16 = (ble_uuid16_t[]){BLE_UUID16_INIT(HUD_SERVICE_UUID16)};
+  fields.num_uuids16 = 1;
+  fields.uuids16_is_complete = 1;
 
-    // 2. Scan Response Data - HID Service ID for discovery
-    memset(&fields, 0, sizeof fields);
-    fields.uuids16 = (ble_uuid16_t[]){
-        BLE_UUID16_INIT(0x1812) 
-    };
-    fields.num_uuids16 = 1;
-    fields.uuids16_is_complete = 1;
+  // Appearance (Generic HID icon - avoids "Install Keyboard App" nag)
+  fields.appearance = 0x03C0;
+  fields.appearance_is_present = 1;
 
-    rc = ble_gap_adv_rsp_set_fields(&fields);
-    if (rc != 0) {
-        ESP_LOGE(TAG, "Error setting scan rsp fields; rc=%d", rc);
-        return;
-    }
+  rc = ble_gap_adv_set_fields(&fields);
+  if (rc != 0) {
+    ESP_LOGE(TAG, "Error setting adv fields; rc=%d", rc);
+    return;
+  }
 
-    // 3. Start Advertising with aggressive intervals (for faster App pickup)
-    memset(&adv_params, 0, sizeof adv_params);
-    adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
-    adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
-    adv_params.itvl_min = 32; // 20ms
-    adv_params.itvl_max = 48; // 30ms
+  // 2. Scan Response Data - HID Service ID for discovery
+  memset(&fields, 0, sizeof fields);
+  fields.uuids16 = (ble_uuid16_t[]){BLE_UUID16_INIT(0x1812)};
+  fields.num_uuids16 = 1;
+  fields.uuids16_is_complete = 1;
 
-    rc = ble_gap_adv_start(0, NULL, BLE_HS_FOREVER, &adv_params, ble_mp_gap_event, NULL);
-    if (rc != 0 && rc != BLE_HS_EALREADY) {
-        ESP_LOGE(TAG, "Error starting advertisement; rc=%d", rc);
-    } else if (rc == 0) {
-        ESP_LOGI(TAG, "Advertising started (HUD prioritized)");
-    }
+  rc = ble_gap_adv_rsp_set_fields(&fields);
+  if (rc != 0) {
+    ESP_LOGE(TAG, "Error setting scan rsp fields; rc=%d", rc);
+    return;
+  }
+
+  // 3. Start Advertising with aggressive intervals (for faster App pickup)
+  memset(&adv_params, 0, sizeof adv_params);
+  adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
+  adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
+  adv_params.itvl_min = 32; // 20ms
+  adv_params.itvl_max = 48; // 30ms
+
+  rc = ble_gap_adv_start(0, NULL, BLE_HS_FOREVER, &adv_params, ble_mp_gap_event,
+                         NULL);
+  if (rc != 0 && rc != BLE_HS_EALREADY) {
+    ESP_LOGE(TAG, "Error starting advertisement; rc=%d", rc);
+  } else if (rc == 0) {
+    ESP_LOGI(TAG, "Advertising started (HUD prioritized)");
+  }
 }
 
 void hud_request_fast_conn(uint16_t conn_handle) {
-    struct ble_gap_upd_params params = {
-        .itvl_min = 0x0018, // 30ms
-        .itvl_max = 0x0028, // 50ms
-        .latency = 2,
-        .supervision_timeout = 600, // 6s
-        .min_ce_len = 0,
-        .max_ce_len = 0,
-    };
-    ble_gap_update_params(conn_handle, &params);
+  struct ble_gap_upd_params params = {
+      .itvl_min = 0x0018, // 30ms
+      .itvl_max = 0x0028, // 50ms
+      .latency = 2,
+      .supervision_timeout = 600, // 6s
+      .min_ce_len = 0,
+      .max_ce_len = 0,
+  };
+  ble_gap_update_params(conn_handle, &params);
 }
 
 static void ble_tx_task(void *pvParameters) {
-    while (1) {
-        if (s_connected && s_conn_handle != BLE_HS_CONN_HANDLE_NONE) {
-            // Connection management
-            if (s_need_fast_conn) {
-                s_need_fast_conn = false;
-                hud_request_fast_conn(s_conn_handle);
-            }
-
-        }
-        vTaskDelay(pdMS_TO_TICKS(100));
+  while (1) {
+    if (s_connected && s_conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+      // Connection management
+      if (s_need_fast_conn) {
+        s_need_fast_conn = false;
+        hud_request_fast_conn(s_conn_handle);
+      }
     }
+    vTaskDelay(pdMS_TO_TICKS(100));
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -7981,102 +8397,107 @@ static void ble_tx_task(void *pvParameters) {
 // ---------------------------------------------------------------------------
 
 static void ble_mp_on_reset(int reason) {
-    ESP_LOGI(TAG, "NimBLE Reset: reason=%d", reason);
+  ESP_LOGI(TAG, "NimBLE Reset: reason=%d", reason);
 }
 
 static void ble_mp_on_sync(void) {
-    int rc;
+  int rc;
 
-    // Suggest 512 MTU to peers
-    ble_att_set_preferred_mtu(512);
+  // Suggest 512 MTU to peers
+  ble_att_set_preferred_mtu(512);
 
-    rc = ble_hs_util_ensure_addr(0);
-    if (rc != 0) return;
+  rc = ble_hs_util_ensure_addr(0);
+  if (rc != 0)
+    return;
 
-    ble_mp_advertise();
-    
-    // [Fix] Check existing bond count to verify NVS persistence
-    int count_o = 0, count_p = 0;
-    ble_store_util_count(BLE_STORE_OBJ_TYPE_OUR_SEC, &count_o);
-    ble_store_util_count(BLE_STORE_OBJ_TYPE_PEER_SEC, &count_p);
-    ESP_LOGI(TAG, "NimBLE Sync: Bonds found in NVS: Our=%d, Peer=%d", count_o, count_p);
-    
-    ESP_LOGI(TAG, "NimBLE Sync Complete. Advertising started.");
+  ble_mp_advertise();
+
+  // [Fix] Check existing bond count to verify NVS persistence
+  int count_o = 0, count_p = 0;
+  ble_store_util_count(BLE_STORE_OBJ_TYPE_OUR_SEC, &count_o);
+  ble_store_util_count(BLE_STORE_OBJ_TYPE_PEER_SEC, &count_p);
+  ESP_LOGI(TAG, "NimBLE Sync: Bonds found in NVS: Our=%d, Peer=%d", count_o,
+           count_p);
+
+  ESP_LOGI(TAG, "NimBLE Sync Complete. Advertising started.");
 }
 
 static void ble_mp_host_task(void *param) {
-    ESP_LOGI(TAG, "NimBLE Host Task Started");
-    nimble_port_run();
-    nimble_port_freertos_deinit();
+  ESP_LOGI(TAG, "NimBLE Host Task Started");
+  nimble_port_run();
+  nimble_port_freertos_deinit();
 }
 
 esp_err_t init_ble(void) {
-    esp_err_t ret;
+  esp_err_t ret;
 
-    // 1. Configure Host Global Settings BEFORE Init
-    ble_hs_cfg.sync_cb = ble_mp_on_sync;
-    ble_hs_cfg.reset_cb = ble_mp_on_reset;
-    ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
-    
-    // [Fix] Stable Identity + Modern Security (Android 16 Stability)
-    ble_hs_cfg.sm_io_cap = BLE_HS_IO_NO_INPUT_OUTPUT;
-    ble_hs_cfg.sm_bonding = 1;      
-    ble_hs_cfg.sm_mitm = 0;         // Just Works is more stable for HID without display
-    ble_hs_cfg.sm_sc = 1;           // Maintain Secure Connections for bond persistence
-    ble_hs_cfg.sm_our_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
-    ble_hs_cfg.sm_their_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
+  // 1. Configure Host Global Settings BEFORE Init
+  ble_hs_cfg.sync_cb = ble_mp_on_sync;
+  ble_hs_cfg.reset_cb = ble_mp_on_reset;
+  ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
 
-    // [New] Enforce Identity Stability: Using Public Address by default
-    // We ensure identity persists via SM_PAIR_KEY_DIST_ID below.
+  // [Fix] Stable Identity + Modern Security (Android 16 Stability)
+  ble_hs_cfg.sm_io_cap = BLE_HS_IO_NO_INPUT_OUTPUT;
+  ble_hs_cfg.sm_bonding = 1;
+  ble_hs_cfg.sm_mitm = 0; // Just Works is more stable for HID without display
+  ble_hs_cfg.sm_sc = 1;   // Maintain Secure Connections for bond persistence
+  ble_hs_cfg.sm_our_key_dist =
+      BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
+  ble_hs_cfg.sm_their_key_dist =
+      BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
 
-    // [Staleness Check] Ensure NimBLE is actually configured for persistence
-    // [Fix] Cleanup legacy Bluedroid namespace if it exists to avoid conflicts
-    nvs_handle_t h_clean;
-    if (nvs_open("bt_config.conf", NVS_READWRITE, &h_clean) == ESP_OK) {
-        nvs_erase_all(h_clean);
-        nvs_commit(h_clean);
-        nvs_close(h_clean);
-        ESP_LOGW(TAG, "Legacy Bluedroid NVS namespace cleaned.");
-    }
+  // [New] Enforce Identity Stability: Using Public Address by default
+  // We ensure identity persists via SM_PAIR_KEY_DIST_ID below.
 
-    // 3. Storage Init (Bonding)
-    ble_store_config_init();
+  // [Staleness Check] Ensure NimBLE is actually configured for persistence
+  // [Fix] Cleanup legacy Bluedroid namespace if it exists to avoid conflicts
+  nvs_handle_t h_clean;
+  if (nvs_open("bt_config.conf", NVS_READWRITE, &h_clean) == ESP_OK) {
+    nvs_erase_all(h_clean);
+    nvs_commit(h_clean);
+    nvs_close(h_clean);
+    ESP_LOGW(TAG, "Legacy Bluedroid NVS namespace cleaned.");
+  }
 
-    // 2. Core NimBLE Port Init
-    ret = nimble_port_init();
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to init nimble port: %d", ret);
-        return ret;
-    }
+  // 3. Storage Init (Bonding)
+  ble_store_config_init();
 
-    // [Fix] Log Static Identity based on MAC
-    uint8_t bt_addr[6];
-    esp_read_mac(bt_addr, ESP_MAC_BT);
-    ESP_LOGI(TAG, "Bluetooth Identity (MAC): %02X:%02X:%02X:%02X:%02X:%02X",
-             bt_addr[0], bt_addr[1], bt_addr[2], bt_addr[3], bt_addr[4], bt_addr[5]);
+  // 2. Core NimBLE Port Init
+  ret = nimble_port_init();
+  if (ret != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to init nimble port: %d", ret);
+    return ret;
+  }
 
-    // 4. Initialize Built-in Services
+  // [Fix] Log Static Identity based on MAC
+  uint8_t bt_addr[6];
+  esp_read_mac(bt_addr, ESP_MAC_BT);
+  ESP_LOGI(TAG, "Bluetooth Identity (MAC): %02X:%02X:%02X:%02X:%02X:%02X",
+           bt_addr[0], bt_addr[1], bt_addr[2], bt_addr[3], bt_addr[4],
+           bt_addr[5]);
 
-    // 4. Initialize Built-in Services
-    ble_svc_gap_init();
-    ble_svc_gatt_init();
+  // 4. Initialize Built-in Services
 
-    // 5. Unified User Service Registration
-    int rc;
-    rc = ble_gatts_count_cfg(s_nimble_svc_defs);
-    if (rc != 0) {
-        ESP_LOGE(TAG, "Failed to count GATT; rc=%d", rc);
-        return ESP_FAIL;
-    }
-    rc = ble_gatts_add_svcs(s_nimble_svc_defs);
-    if (rc != 0) {
-        ESP_LOGE(TAG, "Failed to add services; rc=%d", rc);
-        return ESP_FAIL;
-    }
+  // 4. Initialize Built-in Services
+  ble_svc_gap_init();
+  ble_svc_gatt_init();
 
-    // 6. Start Host Task
-    nimble_port_freertos_init(ble_mp_host_task);
-    return ESP_OK;
+  // 5. Unified User Service Registration
+  int rc;
+  rc = ble_gatts_count_cfg(s_nimble_svc_defs);
+  if (rc != 0) {
+    ESP_LOGE(TAG, "Failed to count GATT; rc=%d", rc);
+    return ESP_FAIL;
+  }
+  rc = ble_gatts_add_svcs(s_nimble_svc_defs);
+  if (rc != 0) {
+    ESP_LOGE(TAG, "Failed to add services; rc=%d", rc);
+    return ESP_FAIL;
+  }
+
+  // 6. Start Host Task
+  nimble_port_freertos_init(ble_mp_host_task);
+  return ESP_OK;
 }
 
 // ble_mp_host_task duplicate removed (original at line 7487)
@@ -8135,8 +8556,6 @@ static esp_err_t init_littlefs(void) {
   return ESP_OK;
 }
 
-
-
 // ---------------------------------------------------------------------------
 // New Mode UIs and Touch Driver
 // ---------------------------------------------------------------------------
@@ -8183,13 +8602,17 @@ static void clock_timer_cb(lv_timer_t *timer) {
   // Handle Boot Registration display logic
   // [Fix] iOS 자동 재연결 대응: 앱 명령 수신 전까지 설치 안내 타이머 유지
   // [Fix] Increase timeout to 60s and suppress if connected
-  if (s_current_mode == DISPLAY_MODE_BOOT && !s_hud_seen_first_cmd && !s_connected) {
+  if (s_current_mode == DISPLAY_MODE_BOOT && !s_hud_seen_first_cmd &&
+      !s_connected) {
     if (!s_boot_reg_shown) {
       s_boot_reg_timer_sec++;
       if (s_boot_reg_timer_sec >= 60) {
-        ESP_LOGI(TAG, "[DISPLAY] Step 5: 60s Timeout - Displaying Registration/QR UI");
-        if (s_intro_image) lv_obj_add_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
-        
+        ESP_LOGI(
+            TAG,
+            "[DISPLAY] Step 5: 60s Timeout - Displaying Registration/QR UI");
+        if (s_intro_image)
+          lv_obj_add_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
+
         if (s_boot_reg_title_label) {
           lv_obj_clear_flag(s_boot_reg_title_label, LV_OBJ_FLAG_HIDDEN);
           lv_obj_move_foreground(s_boot_reg_title_label);
@@ -8210,19 +8633,25 @@ static void clock_timer_cb(lv_timer_t *timer) {
           lv_obj_clear_flag(s_boot_install_qr, LV_OBJ_FLAG_HIDDEN);
           lv_obj_move_foreground(s_boot_install_qr);
         }
-        // [제거] 부팅 모드에서는 애초에 라벨이 뜨지 않으므로 수동으로 숨길 필요 없음
+        // [제거] 부팅 모드에서는 애초에 라벨이 뜨지 않으므로 수동으로 숨길 필요
+        // 없음
         s_boot_reg_shown = true;
       }
     }
   } else {
     s_boot_reg_timer_sec = 0;
     if (s_boot_reg_shown) {
-       if (s_boot_reg_title_label) lv_obj_add_flag(s_boot_reg_title_label, LV_OBJ_FLAG_HIDDEN);
-       if (s_boot_reg_val_label) lv_obj_add_flag(s_boot_reg_val_label, LV_OBJ_FLAG_HIDDEN);
-       if (s_boot_install_title_label) lv_obj_add_flag(s_boot_install_title_label, LV_OBJ_FLAG_HIDDEN);
-       if (s_boot_install_sub_label) lv_obj_add_flag(s_boot_install_sub_label, LV_OBJ_FLAG_HIDDEN);
-       if (s_boot_install_qr) lv_obj_add_flag(s_boot_install_qr, LV_OBJ_FLAG_HIDDEN);
-       s_boot_reg_shown = false;
+      if (s_boot_reg_title_label)
+        lv_obj_add_flag(s_boot_reg_title_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_reg_val_label)
+        lv_obj_add_flag(s_boot_reg_val_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_install_title_label)
+        lv_obj_add_flag(s_boot_install_title_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_install_sub_label)
+        lv_obj_add_flag(s_boot_install_sub_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_boot_install_qr)
+        lv_obj_add_flag(s_boot_install_qr, LV_OBJ_FLAG_HIDDEN);
+      s_boot_reg_shown = false;
     }
   }
 
@@ -8238,7 +8667,8 @@ static void clock_timer_cb(lv_timer_t *timer) {
   int wday = timeinfo.tm_wday;
   const char *week_days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
 
-  if (s_current_mode == DISPLAY_MODE_GUIDE && s_guide_sub_mode == GUIDE_SUB_STANDBY) {
+  if (s_current_mode == DISPLAY_MODE_GUIDE &&
+      s_guide_sub_mode == GUIDE_SUB_STANDBY) {
     if (s_boot_time_label && s_font_orb_100) {
       lv_label_set_text_fmt(s_boot_time_label, "%02d:%02d", hour, minute);
     }
@@ -8257,16 +8687,19 @@ static void clock_timer_cb(lv_timer_t *timer) {
       }
       use_clock2 = ((hour + s_auto_clock_offset) % 2 == 0);
     }
-    
-    if (!use_clock2) draw_analog_clock(hour, minute, second);
-    else draw_analog_clock2(hour, minute, second);
+
+    if (!use_clock2)
+      draw_analog_clock(hour, minute, second);
+    else
+      draw_analog_clock2(hour, minute, second);
   }
 }
 
-
 // 부팅 모드 전용 디지털 시계 UI 생성
 static void create_boot_ui(void) {
-  ESP_LOGI(TAG, "[UI] Step 3-1: Creating BOOT screen components (Hidden by default)...");
+  ESP_LOGI(
+      TAG,
+      "[UI] Step 3-1: Creating BOOT screen components (Hidden by default)...");
   if (s_boot_screen == NULL)
     return;
 
@@ -8288,19 +8721,22 @@ static void create_boot_ui(void) {
 
   // App Reg Info (Hidden by default)
   s_boot_reg_title_label = lv_label_create(s_boot_screen);
-  lv_obj_set_style_text_font(s_boot_reg_title_label, &font_addr_30, 0); 
-  lv_obj_set_style_text_color(s_boot_reg_title_label, lv_color_hex(0xAAAAAA), 0);
+  lv_obj_set_style_text_font(s_boot_reg_title_label, &font_addr_30, 0);
+  lv_obj_set_style_text_color(s_boot_reg_title_label, lv_color_hex(0xAAAAAA),
+                              0);
   lv_obj_align(s_boot_reg_title_label, LV_ALIGN_CENTER, 0, 135);
   lv_label_set_text(s_boot_reg_title_label, "MCon K 등록번호");
   lv_obj_add_flag(s_boot_reg_title_label, LV_OBJ_FLAG_HIDDEN);
 
   s_boot_reg_val_label = lv_label_create(s_boot_screen);
   if (strcmp(s_app_reg_num, "판매사에 문의하세요..") == 0) {
-    lv_obj_set_style_text_font(s_boot_reg_val_label, &font_addr_30, 0); 
-    lv_obj_set_style_text_color(s_boot_reg_val_label, lv_color_make(255, 100, 0), 0); // Orange
+    lv_obj_set_style_text_font(s_boot_reg_val_label, &font_addr_30, 0);
+    lv_obj_set_style_text_color(s_boot_reg_val_label,
+                                lv_color_make(255, 100, 0), 0); // Orange
   } else {
-    lv_obj_set_style_text_font(s_boot_reg_val_label, &font_kopub_40, 0); 
-    lv_obj_set_style_text_color(s_boot_reg_val_label, lv_color_hex(0xFFFF00), 0);
+    lv_obj_set_style_text_font(s_boot_reg_val_label, &font_kopub_40, 0);
+    lv_obj_set_style_text_color(s_boot_reg_val_label, lv_color_hex(0xFFFF00),
+                                0);
   }
   lv_obj_align(s_boot_reg_val_label, LV_ALIGN_CENTER, 0, 180);
   lv_label_set_text_fmt(s_boot_reg_val_label, "%s", s_app_reg_num);
@@ -8308,39 +8744,44 @@ static void create_boot_ui(void) {
 
   // App Installation Info (Top Side, Hidden by default)
   s_boot_install_title_label = lv_label_create(s_boot_screen);
-  lv_obj_set_style_text_font(s_boot_install_title_label, &font_addr_30, 0); 
+  lv_obj_set_style_text_font(s_boot_install_title_label, &font_addr_30, 0);
   lv_obj_set_style_text_color(s_boot_install_title_label, lv_color_white(), 0);
   lv_obj_align(s_boot_install_title_label, LV_ALIGN_CENTER, 0, -170);
   lv_label_set_text(s_boot_install_title_label, "MCon K 설치");
   lv_obj_add_flag(s_boot_install_title_label, LV_OBJ_FLAG_HIDDEN);
 
   s_boot_install_sub_label = lv_label_create(s_boot_screen);
-  lv_obj_set_style_text_font(s_boot_install_sub_label, &font_addr_30, 0); 
-  lv_obj_set_style_text_color(s_boot_install_sub_label, lv_color_hex(0xAAAAAA), 0);
+  lv_obj_set_style_text_font(s_boot_install_sub_label, &font_addr_30, 0);
+  lv_obj_set_style_text_color(s_boot_install_sub_label, lv_color_hex(0xAAAAAA),
+                              0);
   lv_obj_align(s_boot_install_sub_label, LV_ALIGN_CENTER, 0, -135);
   lv_label_set_text(s_boot_install_sub_label, "설치방법..");
   lv_obj_add_flag(s_boot_install_sub_label, LV_OBJ_FLAG_HIDDEN);
 
   // QR Code (Perfect Center)
-  s_boot_install_qr = lv_qrcode_create(s_boot_screen, 160, lv_color_make(180, 180, 180), lv_color_black());
+  s_boot_install_qr = lv_qrcode_create(
+      s_boot_screen, 160, lv_color_make(180, 180, 180), lv_color_black());
   if (s_boot_install_qr) {
-    const char *qr_data = "https://play.google.com/store/search?q=mcon+k&c=apps&hl=ko";
+    const char *qr_data =
+        "https://play.google.com/store/search?q=mcon+k&c=apps&hl=ko";
     lv_qrcode_update(s_boot_install_qr, qr_data, strlen(qr_data));
     lv_obj_align(s_boot_install_qr, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_style_border_color(s_boot_install_qr, lv_color_make(180, 180, 180), 0);
+    lv_obj_set_style_border_color(s_boot_install_qr,
+                                  lv_color_make(180, 180, 180), 0);
     lv_obj_set_style_border_width(s_boot_install_qr, 3, 0);
     lv_obj_set_style_border_side(s_boot_install_qr, LV_BORDER_SIDE_FULL, 0);
     lv_obj_add_flag(s_boot_install_qr, LV_OBJ_FLAG_HIDDEN);
   }
 }
 
-/* static void rotate_point(int px, int py, double angle_rad, int *ox, int *oy) {
-  *ox = (int)(px * cos(angle_rad) - py * sin(angle_rad));
-  *oy = (int)(px * sin(angle_rad) + py * cos(angle_rad));
+/* static void rotate_point(int px, int py, double angle_rad, int *ox, int *oy)
+{ *ox = (int)(px * cos(angle_rad) - py * sin(angle_rad)); *oy = (int)(px *
+sin(angle_rad) + py * cos(angle_rad));
 } */
 
 static void draw_analog_clock(int hour, int minute, int second) {
-  if (!s_clock1_hour_bg) return;
+  if (!s_clock1_hour_bg)
+    return;
   const int cx = LCD_H_RES / 2;
   const int cy = LCD_V_RES / 2;
   const int r = (LCD_H_RES < LCD_V_RES ? LCD_H_RES : LCD_V_RES) / 2 - 20;
@@ -8351,13 +8792,15 @@ static void draw_analog_clock(int hour, int minute, int second) {
   int h_off = 43;    // Increased to 43px
 
   // BG (Full length)
-  s_clock1_hour_points[0].x = cx; s_clock1_hour_points[0].y = cy;
+  s_clock1_hour_points[0].x = cx;
+  s_clock1_hour_points[0].y = cy;
   s_clock1_hour_points[1].x = cx + (int)(hl * cos(h_rad));
   s_clock1_hour_points[1].y = cy + (int)(hl * sin(h_rad));
   lv_line_set_points(s_clock1_hour_bg, s_clock1_hour_points, 2);
 
   // Hour Hand Shadow
-  s_clock1_hour_shadow_points[0].x = cx + 10; s_clock1_hour_shadow_points[0].y = cy + 10;
+  s_clock1_hour_shadow_points[0].x = cx + 10;
+  s_clock1_hour_shadow_points[0].y = cy + 10;
   s_clock1_hour_shadow_points[1].x = cx + (int)(hl * cos(h_rad)) + 10;
   s_clock1_hour_shadow_points[1].y = cy + (int)(hl * sin(h_rad)) + 10;
   lv_line_set_points(s_clock1_hour_shadow, s_clock1_hour_shadow_points, 2);
@@ -8375,13 +8818,15 @@ static void draw_analog_clock(int hour, int minute, int second) {
   int m_off = 43;    // Increased to 43px
 
   // BG (Full length)
-  s_clock1_minute_points[0].x = cx; s_clock1_minute_points[0].y = cy;
+  s_clock1_minute_points[0].x = cx;
+  s_clock1_minute_points[0].y = cy;
   s_clock1_minute_points[1].x = cx + (int)(ml * cos(m_rad));
   s_clock1_minute_points[1].y = cy + (int)(ml * sin(m_rad));
   lv_line_set_points(s_clock1_minute_bg, s_clock1_minute_points, 2);
 
   // Minute Hand Shadow
-  s_clock1_minute_shadow_points[0].x = cx + 10; s_clock1_minute_shadow_points[0].y = cy + 10;
+  s_clock1_minute_shadow_points[0].x = cx + 10;
+  s_clock1_minute_shadow_points[0].y = cy + 10;
   s_clock1_minute_shadow_points[1].x = cx + (int)(ml * cos(m_rad)) + 10;
   s_clock1_minute_shadow_points[1].y = cy + (int)(ml * sin(m_rad)) + 10;
   lv_line_set_points(s_clock1_minute_shadow, s_clock1_minute_shadow_points, 2);
@@ -8395,21 +8840,24 @@ static void draw_analog_clock(int hour, int minute, int second) {
 }
 
 static void draw_analog_clock2(int hour, int minute, int second) {
-  if (!s_clock2_hour_line) return;
+  if (!s_clock2_hour_line)
+    return;
   const int cx = LCD_H_RES / 2;
   const int cy = LCD_V_RES / 2;
   const int r = (LCD_H_RES < LCD_V_RES ? LCD_H_RES : LCD_V_RES) / 2 - 20;
 
   double h_rad = ((hour % 12) * 30 + minute * 0.5 - 90) * M_PI / 180.0;
   int hl = r * 0.55;
-  s_clock2_hour_points[0].x = cx; s_clock2_hour_points[0].y = cy;
+  s_clock2_hour_points[0].x = cx;
+  s_clock2_hour_points[0].y = cy;
   s_clock2_hour_points[1].x = cx + (int)(hl * cos(h_rad));
   s_clock2_hour_points[1].y = cy + (int)(hl * sin(h_rad));
   lv_line_set_points(s_clock2_hour_line, s_clock2_hour_points, 2);
 
   double m_rad = (minute * 6 + second * 0.1 - 90) * M_PI / 180.0;
   int ml = r * 0.8;
-  s_clock2_minute_points[0].x = cx; s_clock2_minute_points[0].y = cy;
+  s_clock2_minute_points[0].x = cx;
+  s_clock2_minute_points[0].y = cy;
   s_clock2_minute_points[1].x = cx + (int)(ml * cos(m_rad));
   s_clock2_minute_points[1].y = cy + (int)(ml * sin(m_rad));
   lv_line_set_points(s_clock2_minute_line, s_clock2_minute_points, 2);
@@ -8425,9 +8873,11 @@ static void draw_analog_clock2(int hour, int minute, int second) {
 }
 
 static void create_clock_ui(void) {
-  if (s_clock_screen == NULL) return;
-  ESP_LOGI(TAG, "[CLOCK UI] Loading background: S:/littlefs/clock_1/screen.jpg");
-  
+  if (s_clock_screen == NULL)
+    return;
+  ESP_LOGI(TAG,
+           "[CLOCK UI] Loading background: S:/littlefs/clock_1/screen.jpg");
+
   // Clean up image cache to ensure fresh loading from PSRAM
   lv_img_cache_invalidate_src(NULL);
 
@@ -8439,8 +8889,8 @@ static void create_clock_ui(void) {
   lv_obj_clear_flag(s_clock_screen, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_scrollbar_mode(s_clock_screen, LV_SCROLLBAR_MODE_OFF);
 
-  lv_color_t orange_fill = lv_color_make(255, 100, 0); 
-  lv_color_t dark_fill = lv_color_make(64, 64, 64);     
+  lv_color_t orange_fill = lv_color_make(255, 100, 0);
+  lv_color_t dark_fill = lv_color_make(64, 64, 64);
 
   // Shadow lines (Draw first to be at bottom)
   s_clock1_hour_shadow = lv_line_create(s_clock_screen);
@@ -8478,8 +8928,10 @@ static void create_clock_ui(void) {
   s_clock_center_dot = lv_obj_create(s_clock_screen);
   lv_obj_set_size(s_clock_center_dot, 46, 46); // Adjusted to 46px
   lv_obj_set_style_radius(s_clock_center_dot, LV_RADIUS_CIRCLE, 0);
-  lv_obj_set_style_bg_color(s_clock_center_dot, lv_color_hex(0x404040), 0); // Lighter Grey
-  lv_obj_set_style_border_width(s_clock_center_dot, 0, 0); // Removed white border
+  lv_obj_set_style_bg_color(s_clock_center_dot, lv_color_hex(0x404040),
+                            0); // Lighter Grey
+  lv_obj_set_style_border_width(s_clock_center_dot, 0,
+                                0); // Removed white border
   // Center dot shadow for 3D depth
   lv_obj_set_style_shadow_width(s_clock_center_dot, 15, 0);
   lv_obj_set_style_shadow_color(s_clock_center_dot, lv_color_black(), 0);
@@ -8488,15 +8940,19 @@ static void create_clock_ui(void) {
   lv_obj_set_style_shadow_ofs_y(s_clock_center_dot, 10, 0);
   lv_obj_center(s_clock_center_dot);
 
-  if (s_clock_timer == NULL) s_clock_timer = lv_timer_create(clock_timer_cb, 1000, NULL);
+  if (s_clock_timer == NULL)
+    s_clock_timer = lv_timer_create(clock_timer_cb, 1000, NULL);
 }
 
 static void create_clock2_ui(void) {
-  if (s_clock2_screen != NULL) return;
+  if (s_clock2_screen != NULL)
+    return;
   s_clock2_screen = lv_obj_create(NULL);
   lv_obj_set_style_bg_color(s_clock2_screen, lv_color_black(), 0);
-  lv_obj_set_style_bg_opa(s_clock2_screen, LV_OPA_COVER, 0); // Ensure background is opaque black
-  ESP_LOGI(TAG, "[CLOCK UI] Loading background: S:/littlefs/clock_2/screen.png");
+  lv_obj_set_style_bg_opa(s_clock2_screen, LV_OPA_COVER,
+                          0); // Ensure background is opaque black
+  ESP_LOGI(TAG,
+           "[CLOCK UI] Loading background: S:/littlefs/clock_2/screen.png");
   lv_obj_t *bg_img = lv_img_create(s_clock2_screen);
   lv_img_set_src(bg_img, "S:/littlefs/clock_2/screen.png");
   lv_obj_center(bg_img);
@@ -8531,9 +8987,11 @@ static void create_album_ui(void) {
   // 안내 문구 라벨 (사진 없을 때 표시)
   s_album_guide_label = lv_label_create(s_album_screen);
   lv_obj_set_style_text_font(s_album_guide_label, &font_addr_30, 0);
-  lv_obj_set_style_text_color(s_album_guide_label, lv_color_make(180, 160, 0), 0); // 어두운 노랑색 (Dark Yellow)
+  lv_obj_set_style_text_color(s_album_guide_label, lv_color_make(180, 160, 0),
+                              0); // 어두운 노랑색 (Dark Yellow)
   lv_label_set_text(s_album_guide_label, "앱에서 사진을 보내주세요!");
-  lv_obj_align(s_album_guide_label, LV_ALIGN_CENTER, 0, 150); // 중앙에서 아래로 150px
+  lv_obj_align(s_album_guide_label, LV_ALIGN_CENTER, 0,
+               150); // 중앙에서 아래로 150px
   lv_obj_add_flag(s_album_guide_label, LV_OBJ_FLAG_HIDDEN);
 
   // Scan and load default image (toy_car.jpg)
@@ -8553,8 +9011,10 @@ static void create_speedometer_ui(void) {
     lv_obj_center(s_speedometer_bg_img);
     lv_obj_clear_flag(s_speedometer_bg_img, LV_OBJ_FLAG_CLICKABLE);
   } else {
-    ESP_LOGE(TAG, "[UI] Error: Speedometer background NOT FOUND at /littlefs/speed/screen.png");
-    lv_obj_set_style_bg_color(s_speedometer_screen, lv_color_make(0, 0, 50), 0); // Dark Blue as fallback
+    ESP_LOGE(TAG, "[UI] Error: Speedometer background NOT FOUND at "
+                  "/littlefs/speed/screen.png");
+    lv_obj_set_style_bg_color(s_speedometer_screen, lv_color_make(0, 0, 50),
+                              0); // Dark Blue as fallback
   }
 
   // 2. Needle Line (Tapered shape)
@@ -8667,18 +9127,24 @@ static void create_speedometer_ui(void) {
   // Road Name Label for Speedometer Mode
   s_speedometer_road_name_label = lv_label_create(s_speedometer_screen);
   lv_obj_add_flag(s_speedometer_road_name_label, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_set_style_text_font(s_speedometer_road_name_label, &font_addr_30, 0); // Use address font
-  lv_obj_set_style_text_color(s_speedometer_road_name_label, lv_color_make(210, 210, 0), 0);
-  lv_obj_set_style_text_align(s_speedometer_road_name_label, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_set_style_text_font(s_speedometer_road_name_label, &font_addr_30,
+                             0); // Use address font
+  lv_obj_set_style_text_color(s_speedometer_road_name_label,
+                              lv_color_make(210, 210, 0), 0);
+  lv_obj_set_style_text_align(s_speedometer_road_name_label,
+                              LV_TEXT_ALIGN_CENTER, 0);
   // 위치를 HUD 모드와 동일하게 설정 (1행 중심 403pt 위치)
   lv_obj_align(s_speedometer_road_name_label, LV_ALIGN_TOP_MID, 0, 388);
   lv_label_set_text(s_speedometer_road_name_label, "");
 
   s_speedometer_road_name_sub_label = lv_label_create(s_speedometer_screen);
   lv_obj_add_flag(s_speedometer_road_name_sub_label, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_set_style_text_font(s_speedometer_road_name_sub_label, &font_addr_30, 0);
-  lv_obj_set_style_text_color(s_speedometer_road_name_sub_label, lv_color_make(210, 210, 0), 0);
-  lv_obj_set_style_text_align(s_speedometer_road_name_sub_label, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_set_style_text_font(s_speedometer_road_name_sub_label, &font_addr_30,
+                             0);
+  lv_obj_set_style_text_color(s_speedometer_road_name_sub_label,
+                              lv_color_make(210, 210, 0), 0);
+  lv_obj_set_style_text_align(s_speedometer_road_name_sub_label,
+                              LV_TEXT_ALIGN_CENTER, 0);
   // 2행 위치: 1행(388) + 폰트 높이 고려 (약 35pt 간격)
   lv_obj_align(s_speedometer_road_name_sub_label, LV_ALIGN_TOP_MID, 0, 423);
   lv_label_set_text(s_speedometer_road_name_sub_label, "");
@@ -8750,7 +9216,7 @@ static void create_setting_ui(void) {
   lv_obj_t *label1 = lv_label_create(s_setting_page1_obj);
   lv_obj_set_style_text_font(label1, &font_addr_30, 0);
   lv_obj_set_style_text_color(label1, lv_color_make(210, 210, 0), 0);
-  lv_label_set_text(label1, "밝기 옵션");
+  lv_label_set_text(label1, "밝기 선택");
   lv_obj_align(label1, LV_ALIGN_TOP_MID, -115, 10);
 
   s_setting_btn_down = lv_btn_create(s_setting_page1_obj);
@@ -8818,8 +9284,8 @@ static void create_setting_ui(void) {
   lv_obj_set_style_shadow_width(s_setting_btn_up, 0, LV_STATE_DISABLED);
   lv_obj_set_style_border_width(s_setting_btn_up, 0, 0);
   lv_obj_set_style_border_width(s_setting_btn_up, 0, LV_STATE_DISABLED);
-  lv_obj_add_event_cb(s_setting_btn_up, brightness_up_event_cb,
-                      LV_EVENT_ALL, NULL);
+  lv_obj_add_event_cb(s_setting_btn_up, brightness_up_event_cb, LV_EVENT_ALL,
+                      NULL);
 
   // Vector Arrow Up (Centered & Corrected)
   static lv_point_t points_up[3] = {{13, 36}, {28, 20}, {43, 36}};
@@ -8847,7 +9313,7 @@ static void create_setting_ui(void) {
   lv_obj_t *label2 = lv_label_create(s_setting_page1_obj);
   lv_obj_set_style_text_font(label2, &font_addr_30, 0);
   lv_obj_set_style_text_color(label2, lv_color_make(210, 210, 0), 0);
-  lv_label_set_text(label2, "앨범 옵션");
+  lv_label_set_text(label2, "앨범 선택");
   lv_obj_align(label2, LV_ALIGN_TOP_MID, -115, 90);
 
   s_setting_album_btn_down = lv_btn_create(s_setting_page1_obj);
@@ -8914,8 +9380,8 @@ static void create_setting_ui(void) {
   lv_obj_set_style_shadow_width(s_setting_album_btn_up, 0, LV_STATE_DISABLED);
   lv_obj_set_style_border_width(s_setting_album_btn_up, 0, 0);
   lv_obj_set_style_border_width(s_setting_album_btn_up, 0, LV_STATE_DISABLED);
-  lv_obj_add_event_cb(s_setting_album_btn_up, album_up_event_cb,
-                      LV_EVENT_ALL, NULL);
+  lv_obj_add_event_cb(s_setting_album_btn_up, album_up_event_cb, LV_EVENT_ALL,
+                      NULL);
 
   s_setting_line_album_up = lv_line_create(s_setting_album_btn_up);
   lv_obj_set_size(s_setting_line_album_up, 60, 60);
@@ -8941,7 +9407,7 @@ static void create_setting_ui(void) {
   lv_obj_t *label3 = lv_label_create(s_setting_page1_obj);
   lv_obj_set_style_text_font(label3, &font_addr_30, 0);
   lv_obj_set_style_text_color(label3, lv_color_make(210, 210, 0), 0);
-  lv_label_set_text(label3, "시계 옵션");
+  lv_label_set_text(label3, "시계 선택");
   lv_obj_align(label3, LV_ALIGN_TOP_MID, -115, 170);
 
   s_setting_clock_btn_down = lv_btn_create(s_setting_page1_obj);
@@ -9008,8 +9474,8 @@ static void create_setting_ui(void) {
   lv_obj_set_style_shadow_width(s_setting_clock_btn_up, 0, LV_STATE_DISABLED);
   lv_obj_set_style_border_width(s_setting_clock_btn_up, 0, 0);
   lv_obj_set_style_border_width(s_setting_clock_btn_up, 0, LV_STATE_DISABLED);
-  lv_obj_add_event_cb(s_setting_clock_btn_up, clock_up_event_cb,
-                      LV_EVENT_ALL, NULL);
+  lv_obj_add_event_cb(s_setting_clock_btn_up, clock_up_event_cb, LV_EVENT_ALL,
+                      NULL);
 
   s_setting_line_clock_up = lv_line_create(s_setting_clock_btn_up);
   lv_obj_set_size(s_setting_line_clock_up, 60, 60);
@@ -9046,14 +9512,15 @@ static void create_setting_ui(void) {
 
   s_setting_save_label = lv_label_create(s_setting_save_btn);
   lv_obj_set_style_text_font(s_setting_save_label, &font_addr_30, 0);
-  lv_obj_set_style_text_color(s_setting_save_label,
-                              lv_color_make(210, 210, 0), 0);
+  lv_obj_set_style_text_color(s_setting_save_label, lv_color_make(210, 210, 0),
+                              0);
   lv_label_set_text(s_setting_save_label, "저장");
   lv_obj_center(s_setting_save_label);
 
   // --- PAGE 2 CONTAINER ---
   s_setting_page2_obj = lv_obj_create(s_setting_screen);
-  lv_obj_set_size(s_setting_page2_obj, 460, 360); // Expanded height for lower QR
+  lv_obj_set_size(s_setting_page2_obj, 460,
+                  360); // Expanded height for lower QR
   lv_obj_align(s_setting_page2_obj, LV_ALIGN_TOP_MID, 0, 99);
   lv_obj_set_style_bg_opa(s_setting_page2_obj, 0, 0);
   lv_obj_set_style_border_width(s_setting_page2_obj, 0, 0);
@@ -9061,55 +9528,60 @@ static void create_setting_ui(void) {
   lv_obj_add_flag(s_setting_page2_obj, LV_OBJ_FLAG_HIDDEN);
 
   // --- 1. Info Texts Control (5 Rows, Centered Colon Alignment) ---
-  const char *keys[] = {"모델명", "S/W 버전", "시리얼 번호", "앱등록 번호", "제품 홈페이지"};
-  const char *values[] = {"MOVISION HUD1", FIRMWARE_VERSION, s_device_serial, s_app_reg_num, "https://m.smartstore.naver.com/b2broom"};
+  const char *keys[] = {"모델명", "S/W 버전", "시리얼 번호", "앱등록 번호",
+                        "제품 홈페이지"};
+  const char *values[] = {"MOVISION HUD1", FIRMWARE_VERSION, s_device_serial,
+                          s_app_reg_num,
+                          "https://m.smartstore.naver.com/b2broom"};
   int start_y = 5;
   int row_h = 34; // Spacing adjusted for 5 rows (+4pt total)
 
   for (int i = 0; i < 5; i++) {
     if (i < 4) {
-        // --- Rows 1-4: Label : Value ---
-        // Colon (Center Reference - Move Left by 60px)
-        lv_obj_t *colon_label = lv_label_create(s_setting_page2_obj);
-        lv_obj_set_style_text_font(colon_label, &font_addr_30, 0);
-        lv_obj_set_style_text_color(colon_label, lv_color_make(210, 210, 0), 0);
-        lv_label_set_text(colon_label, ":");
-        lv_obj_align(colon_label, LV_ALIGN_TOP_MID, -60, start_y + (i * row_h));
+      // --- Rows 1-4: Label : Value ---
+      // Colon (Center Reference - Move Left by 60px)
+      lv_obj_t *colon_label = lv_label_create(s_setting_page2_obj);
+      lv_obj_set_style_text_font(colon_label, &font_addr_30, 0);
+      lv_obj_set_style_text_color(colon_label, lv_color_make(210, 210, 0), 0);
+      lv_label_set_text(colon_label, ":");
+      lv_obj_align(colon_label, LV_ALIGN_TOP_MID, -60, start_y + (i * row_h));
 
-        // Key (To the left of colon)
-        lv_obj_t *key_label = lv_label_create(s_setting_page2_obj);
-        lv_obj_set_style_text_font(key_label, &font_addr_30, 0);
-        lv_obj_set_style_text_color(key_label, lv_color_make(210, 210, 0), 0);
-        lv_label_set_text(key_label, keys[i]);
-        lv_obj_align_to(key_label, colon_label, LV_ALIGN_OUT_LEFT_MID, -15, 0);
+      // Key (To the left of colon)
+      lv_obj_t *key_label = lv_label_create(s_setting_page2_obj);
+      lv_obj_set_style_text_font(key_label, &font_addr_30, 0);
+      lv_obj_set_style_text_color(key_label, lv_color_make(210, 210, 0), 0);
+      lv_label_set_text(key_label, keys[i]);
+      lv_obj_align_to(key_label, colon_label, LV_ALIGN_OUT_LEFT_MID, -15, 0);
 
-        // Value (To the right of colon)
-        lv_obj_t *val_label = lv_label_create(s_setting_page2_obj);
-        lv_obj_set_style_text_font(val_label, &font_addr_30, 0);
-        lv_obj_set_style_text_color(val_label, lv_color_make(210, 210, 0), 0);
-        lv_label_set_text(val_label, values[i]);
-        lv_obj_align_to(val_label, colon_label, LV_ALIGN_OUT_RIGHT_MID, 15, 0);
+      // Value (To the right of colon)
+      lv_obj_t *val_label = lv_label_create(s_setting_page2_obj);
+      lv_obj_set_style_text_font(val_label, &font_addr_30, 0);
+      lv_obj_set_style_text_color(val_label, lv_color_make(210, 210, 0), 0);
+      lv_label_set_text(val_label, values[i]);
+      lv_obj_align_to(val_label, colon_label, LV_ALIGN_OUT_RIGHT_MID, 15, 0);
     } else {
-        // --- Row 5: Website URL only (Centered) ---
-        lv_obj_t *url_label = lv_label_create(s_setting_page2_obj);
-        lv_obj_set_style_text_font(url_label, &lv_font_montserrat_20, 0); // Smaller font for long URL
-        lv_obj_set_style_text_color(url_label, lv_color_make(210, 210, 0), 0);
-        lv_label_set_text(url_label, values[i]);
-        lv_obj_align(url_label, LV_ALIGN_TOP_MID, 0, start_y + (i * row_h) + 5);
+      // --- Row 5: Website URL only (Centered) ---
+      lv_obj_t *url_label = lv_label_create(s_setting_page2_obj);
+      lv_obj_set_style_text_font(url_label, &lv_font_montserrat_20,
+                                 0); // Smaller font for long URL
+      lv_obj_set_style_text_color(url_label, lv_color_make(210, 210, 0), 0);
+      lv_label_set_text(url_label, values[i]);
+      lv_obj_align(url_label, LV_ALIGN_TOP_MID, 0, start_y + (i * row_h) + 5);
     }
   }
 
   // --- 2. QR Code (Grey on Black theme) ---
-  lv_obj_t *qr = lv_qrcode_create(s_setting_page2_obj, 120, lv_color_make(180, 180, 180), lv_color_black());
+  lv_obj_t *qr = lv_qrcode_create(
+      s_setting_page2_obj, 120, lv_color_make(180, 180, 180), lv_color_black());
   if (qr) {
     const char *qr_data = "https://m.smartstore.naver.com/b2broom";
     lv_qrcode_update(qr, qr_data, strlen(qr_data));
     // Adjusted position down to 180 to accommodate wider row spacing
-    lv_obj_align(qr, LV_ALIGN_TOP_MID, 0, 180); 
-    
+    lv_obj_align(qr, LV_ALIGN_TOP_MID, 0, 180);
+
     // Clean Grey border for the QR
     lv_obj_set_style_border_color(qr, lv_color_make(180, 180, 180), 0);
-    lv_obj_set_style_border_width(qr, 2, 0); 
+    lv_obj_set_style_border_width(qr, 2, 0);
     lv_obj_set_style_border_side(qr, LV_BORDER_SIDE_FULL, 0);
   }
 
@@ -9117,11 +9589,11 @@ static void create_setting_ui(void) {
   set_lcd_brightness(s_brightness_level, true);
   update_setting_ui_labels();
 
-
   // Title is no longer clickable
   lv_obj_clear_flag(s_setting_title_label, LV_OBJ_FLAG_CLICKABLE);
   // Removed click event to prevent accidental toggles during mode-switch swipes
-  // lv_obj_add_event_cb(s_setting_title_label, setting_page_cb, LV_EVENT_CLICKED, NULL);
+  // lv_obj_add_event_cb(s_setting_title_label, setting_page_cb,
+  // LV_EVENT_CLICKED, NULL);
 }
 
 // create_virtual_drive_ui removed
@@ -9186,13 +9658,14 @@ static void scan_intro_images(void) {
 
   for (int i = 1; i <= 5; i++) {
     const char *base_paths[] = {"/littlefs/Photo", "/littlefs/photo",
-                                "/littlefs/flash_data/Photo", "/littlefs/flash_data/photo"};
-    
+                                "/littlefs/flash_data/Photo",
+                                "/littlefs/flash_data/photo"};
+
     for (int p = 0; p < 4; p++) {
       char path1[64], path2[64];
       snprintf(path1, sizeof(path1), "%s/album%d.jpg", base_paths[p], i);
       snprintf(path2, sizeof(path2), "%s/album_%d.jpg", base_paths[p], i);
-      
+
       const char *to_check[] = {path1, path2};
       for (int c = 0; c < 2; c++) {
         struct stat st;
@@ -9200,10 +9673,13 @@ static void scan_intro_images(void) {
           if (s_image_count < MAX_IMAGE_FILES) {
             bool duplicate = false;
             for (int k = 0; k < s_image_count; k++) {
-              if (strstr(s_image_files[k], to_check[c])) { duplicate = true; break; }
+              if (strstr(s_image_files[k], to_check[c])) {
+                duplicate = true;
+                break;
+              }
             }
             if (!duplicate) {
-              snprintf(s_image_files[s_image_count], sizeof(s_image_files[0]), 
+              snprintf(s_image_files[s_image_count], sizeof(s_image_files[0]),
                        "S:%s", to_check[c]);
               s_image_count++;
               ESP_LOGI(TAG, "Album: Added (%d) %s", s_image_count, to_check[c]);
@@ -9237,11 +9713,14 @@ void update_ui_progress(int percent, const char *status) {
   last_percent = percent;
 
   LVGL_LOCK();
-  // 업데이트 시작 시(0%) 기존 앨범 이미지의 파일 핸들 및 캐시 해제를 통해 안정성 확보
+  // 업데이트 시작 시(0%) 기존 앨범 이미지의 파일 핸들 및 캐시 해제를 통해
+  // 안정성 확보
   if (percent == 0) {
-      if (s_album_img) lv_img_set_src(s_album_img, NULL);
-      if (s_album_gif) lv_gif_set_src(s_album_gif, NULL);
-      lv_img_cache_invalidate_src(NULL);
+    if (s_album_img)
+      lv_img_set_src(s_album_img, NULL);
+    if (s_album_gif)
+      lv_gif_set_src(s_album_gif, NULL);
+    lv_img_cache_invalidate_src(NULL);
   }
   if (!s_update_bg) {
     s_update_bg = lv_obj_create(lv_layer_top());
@@ -9254,13 +9733,15 @@ void update_ui_progress(int percent, const char *status) {
     lv_obj_align(s_update_label, LV_ALIGN_CENTER, 0, -30);
     lv_obj_set_style_text_color(s_update_label, lv_color_hex(0xFFFF00), 0);
     lv_obj_set_style_text_font(s_update_label, &font_addr_30, 0);
-    lv_label_set_text(s_update_label, status ? status : "OTA 업데이트 진행중..");
+    lv_label_set_text(s_update_label,
+                      status ? status : "OTA 업데이트 진행중..");
 
     s_update_bar = lv_bar_create(s_update_bg);
     lv_obj_set_size(s_update_bar, 300, 18);
     lv_obj_align(s_update_bar, LV_ALIGN_CENTER, 0, 20);
     lv_obj_set_style_bg_color(s_update_bar, lv_color_make(64, 64, 64), 0);
-    lv_obj_set_style_bg_color(s_update_bar, lv_color_hex(0xFFFF00), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(s_update_bar, lv_color_hex(0xFFFF00),
+                              LV_PART_INDICATOR);
     lv_bar_set_range(s_update_bar, 0, 100);
   }
 
@@ -9277,19 +9758,24 @@ void update_img_transfer_ui(int percent, bool finished) {
   LVGL_LOCK();
   if (finished) {
     if (s_img_update_bg) {
-        if (s_img_update_label) lv_obj_add_flag(s_img_update_label, LV_OBJ_FLAG_HIDDEN);
-        if (s_img_progress_bar) lv_obj_add_flag(s_img_progress_bar, LV_OBJ_FLAG_HIDDEN);
+      if (s_img_update_label)
+        lv_obj_add_flag(s_img_update_label, LV_OBJ_FLAG_HIDDEN);
+      if (s_img_progress_bar)
+        lv_obj_add_flag(s_img_progress_bar, LV_OBJ_FLAG_HIDDEN);
     }
     LVGL_UNLOCK();
     return;
   }
 
-  // [Fix] 이미지 전송 시작 시 기존 앨범 이미지의 파일 핸들을 명시적으로 해제하여
-  // 전송 완료 후 파일 교체(rename/unlink) 시 발생할 수 있는 EBUSY(Has open FD) 에러 방지
+  // [Fix] 이미지 전송 시작 시 기존 앨범 이미지의 파일 핸들을 명시적으로
+  // 해제하여 전송 완료 후 파일 교체(rename/unlink) 시 발생할 수 있는 EBUSY(Has
+  // open FD) 에러 방지
   if (percent == 0) {
-      if (s_album_img) lv_img_set_src(s_album_img, NULL);
-      if (s_album_gif) lv_gif_set_src(s_album_gif, NULL);
-      lv_img_cache_invalidate_src(NULL);
+    if (s_album_img)
+      lv_img_set_src(s_album_img, NULL);
+    if (s_album_gif)
+      lv_gif_set_src(s_album_gif, NULL);
+    lv_img_cache_invalidate_src(NULL);
   }
 
   if (!s_img_update_bg) {
@@ -9303,20 +9789,23 @@ void update_img_transfer_ui(int percent, bool finished) {
     lv_obj_align(s_img_update_label, LV_ALIGN_CENTER, 0, -30);
     lv_obj_set_style_text_color(s_img_update_label, lv_color_hex(0xFFFF00), 0);
     lv_obj_set_style_text_font(s_img_update_label, &font_addr_30, 0);
-    lv_label_set_text(s_img_update_label, "사진 전송 중...\n잠시만 기다려 주세요.");
+    lv_label_set_text(s_img_update_label,
+                      "사진 전송 중...\n잠시만 기다려 주세요.");
 
     s_img_progress_bar = lv_bar_create(s_img_update_bg);
     lv_obj_set_size(s_img_progress_bar, 300, 20);
     lv_obj_align(s_img_progress_bar, LV_ALIGN_CENTER, 0, 60);
     lv_obj_set_style_bg_color(s_img_progress_bar, lv_color_make(64, 64, 64), 0);
-    lv_obj_set_style_bg_color(s_img_progress_bar, lv_color_hex(0xFFFF00), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(s_img_progress_bar, lv_color_hex(0xFFFF00),
+                              LV_PART_INDICATOR);
     lv_bar_set_range(s_img_progress_bar, 0, 100);
   } else {
     // 연속 전송 시: 이전에 숨겨두었던 텍스트와 바를 다시 보이게 함
-    if (s_img_update_label) lv_obj_clear_flag(s_img_update_label, LV_OBJ_FLAG_HIDDEN);
-    if (s_img_progress_bar) lv_obj_clear_flag(s_img_progress_bar, LV_OBJ_FLAG_HIDDEN);
+    if (s_img_update_label)
+      lv_obj_clear_flag(s_img_update_label, LV_OBJ_FLAG_HIDDEN);
+    if (s_img_progress_bar)
+      lv_obj_clear_flag(s_img_progress_bar, LV_OBJ_FLAG_HIDDEN);
   }
-
 
   if (s_img_progress_bar) {
     lv_bar_set_value(s_img_progress_bar, percent, LV_ANIM_OFF);
@@ -9355,14 +9844,17 @@ static void reset_album_to_default_image(void) {
   // Fallback to toy_car.jpg if album_1.png not found
   if (!found) {
     for (int i = 0; i < s_image_count; i++) {
-        const char *fname = strrchr(s_image_files[i], '/');
-        if (fname) fname++; else fname = s_image_files[i];
-        if (strcasecmp(fname, "toy_car.jpg") == 0) {
-            s_current_image_index = i;
-            found = true;
-            ESP_LOGI(TAG, "Default image found: toy_car.jpg at index %d", i);
-            break;
-        }
+      const char *fname = strrchr(s_image_files[i], '/');
+      if (fname)
+        fname++;
+      else
+        fname = s_image_files[i];
+      if (strcasecmp(fname, "toy_car.jpg") == 0) {
+        s_current_image_index = i;
+        found = true;
+        ESP_LOGI(TAG, "Default image found: toy_car.jpg at index %d", i);
+        break;
+      }
     }
   }
 
@@ -9408,8 +9900,9 @@ void load_image_from_sd(int direction) {
   ESP_LOGI(TAG, "Album: Loading (%d/%d) %s", s_current_image_index + 1,
            s_image_count, filename);
 
-  // Invalidate image cache for this specific source to avoid stale/corrupted rendering
-  // (Using NULL invalidates everything, which is safer when files might have been updated)
+  // Invalidate image cache for this specific source to avoid stale/corrupted
+  // rendering (Using NULL invalidates everything, which is safer when files
+  // might have been updated)
   lv_img_cache_invalidate_src(NULL);
 
   // Check file extension
@@ -9442,7 +9935,7 @@ void load_image_from_sd(int direction) {
     if (s_album_img) {
       lv_img_set_src(s_album_img, filename);
       lv_obj_clear_flag(s_album_img, LV_OBJ_FLAG_HIDDEN);
-      
+
       // Optimization: if it's a big image, we might want to suggest a refresh
       // but lv_timer_handler will pick it up on next cycle.
     } else {
@@ -9574,60 +10067,83 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
         if (abs(dx) > abs(dy) && abs(dx) > 40) {
           // [User Request] Ignore ALL touch inputs in Virtual Drive mode
           if (s_virt_drive_active) {
-              ESP_LOGI("TOUCH", "Horizontal touch ignored in Virtual Drive mode");
-              swiped = true;
+            ESP_LOGI("TOUCH", "Horizontal touch ignored in Virtual Drive mode");
+            swiped = true;
           } else {
             ESP_LOGI("TOUCH", "HORIZONTAL SWIPE: dx=%d dy=%d", dx, dy);
             // OTA 모드에서는 가로 스와이프 무시 (실수 방지)
             if (s_current_mode == DISPLAY_MODE_OTA) {
-            swiped = true; // 다산, 메세지만 더이상 발생 안 함
-            // nothing
-          } else {
-            // OTA는 실수 방지를 위해 스와이프 순환에서 제외
-            // 우→좌(Next):
-            // Horizontal Swipe Loop: GUIDE <-> CLOCK <-> ALBUM <-> SETTING
-            int next_mode;
-            if (dx > 0) { // Right to Left (Next)
-              switch (s_current_mode) {
-              case DISPLAY_MODE_GUIDE:   next_mode = DISPLAY_MODE_CLOCK; break;
-              case DISPLAY_MODE_CLOCK:   next_mode = DISPLAY_MODE_ALBUM; break;
-              case DISPLAY_MODE_ALBUM:   next_mode = DISPLAY_MODE_SETTING; break;
-              case DISPLAY_MODE_SETTING: next_mode = DISPLAY_MODE_GUIDE; break;
-              default:                   next_mode = DISPLAY_MODE_GUIDE; break;
+              swiped = true; // 다산, 메세지만 더이상 발생 안 함
+              // nothing
+            } else {
+              // OTA는 실수 방지를 위해 스와이프 순환에서 제외
+              // 우→좌(Next):
+              // Horizontal Swipe Loop: GUIDE <-> CLOCK <-> ALBUM <-> SETTING
+              int next_mode;
+              if (dx > 0) { // Right to Left (Next)
+                switch (s_current_mode) {
+                case DISPLAY_MODE_GUIDE:
+                  next_mode = DISPLAY_MODE_CLOCK;
+                  break;
+                case DISPLAY_MODE_CLOCK:
+                  next_mode = DISPLAY_MODE_ALBUM;
+                  break;
+                case DISPLAY_MODE_ALBUM:
+                  next_mode = DISPLAY_MODE_SETTING;
+                  break;
+                case DISPLAY_MODE_SETTING:
+                  next_mode = DISPLAY_MODE_GUIDE;
+                  break;
+                default:
+                  next_mode = DISPLAY_MODE_GUIDE;
+                  break;
+                }
+              } else { // Left to Right (Prev)
+                switch (s_current_mode) {
+                case DISPLAY_MODE_GUIDE:
+                  next_mode = DISPLAY_MODE_SETTING;
+                  break;
+                case DISPLAY_MODE_SETTING:
+                  next_mode = DISPLAY_MODE_ALBUM;
+                  break;
+                case DISPLAY_MODE_ALBUM:
+                  next_mode = DISPLAY_MODE_CLOCK;
+                  break;
+                case DISPLAY_MODE_CLOCK:
+                  next_mode = DISPLAY_MODE_GUIDE;
+                  break;
+                default:
+                  next_mode = DISPLAY_MODE_GUIDE;
+                  break;
+                }
               }
-            } else { // Left to Right (Prev)
-              switch (s_current_mode) {
-              case DISPLAY_MODE_GUIDE:   next_mode = DISPLAY_MODE_SETTING; break;
-              case DISPLAY_MODE_SETTING: next_mode = DISPLAY_MODE_ALBUM; break;
-              case DISPLAY_MODE_ALBUM:   next_mode = DISPLAY_MODE_CLOCK; break;
-              case DISPLAY_MODE_CLOCK:   next_mode = DISPLAY_MODE_GUIDE; break;
-              default:                   next_mode = DISPLAY_MODE_GUIDE; break;
-              }
-            }
 
-            if (next_mode == DISPLAY_MODE_ALBUM && s_current_mode != DISPLAY_MODE_ALBUM) {
-              reset_album_to_default_image();
-            }
-            s_is_manual_mode_switch = true;
-            switch_display_mode(next_mode);
-            s_is_manual_mode_switch = false;
-            swiped = true;
-          } // end else (not OTA)
+              if (next_mode == DISPLAY_MODE_ALBUM &&
+                  s_current_mode != DISPLAY_MODE_ALBUM) {
+                reset_album_to_default_image();
+              }
+              s_is_manual_mode_switch = true;
+              switch_display_mode(next_mode);
+              s_is_manual_mode_switch = false;
+              swiped = true;
+            } // end else (not OTA)
           }
         }
         // Vertical Swipe
         else if (abs(dy) > abs(dx) && abs(dy) > 60) {
           // [User Request] Ignore touch inputs in Virtual Drive mode
           if (s_virt_drive_active) {
-              ESP_LOGI("TOUCH", "Vertical touch ignored in Virtual Drive mode");
-              swiped = true;
+            ESP_LOGI("TOUCH", "Vertical touch ignored in Virtual Drive mode");
+            swiped = true;
           } else if (s_current_mode == DISPLAY_MODE_GUIDE) {
-            // [Integrated] Disable vertical swipe in Guide Mode to prevent accidental changes while driving
+            // [Integrated] Disable vertical swipe in Guide Mode to prevent
+            // accidental changes while driving
             ESP_LOGI("TOUCH", "Vertical swipe disabled in GUIDE mode");
-            swiped = true; 
+            swiped = true;
           } else if (s_current_mode == DISPLAY_MODE_ALBUM) {
             // Album Image Change
-            if (dy < 0) load_image_from_sd(1);
+            if (dy < 0)
+              load_image_from_sd(1);
             else {
               load_image_from_sd(-1);
             }
@@ -9635,7 +10151,8 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
           } else if (s_current_mode == DISPLAY_MODE_CLOCK) {
             // Toggle between Clock 1 and Clock 2
             s_clock_option = (s_clock_option == 0) ? 1 : 0;
-            ESP_LOGI("TOUCH", "Clock option toggled via vertical swipe: %d", s_clock_option);
+            ESP_LOGI("TOUCH", "Clock option toggled via vertical swipe: %d",
+                     s_clock_option);
             s_is_manual_mode_switch = true;
             switch_display_mode(DISPLAY_MODE_CLOCK);
             s_is_manual_mode_switch = false;
@@ -9643,18 +10160,23 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
           } else if (s_current_mode == DISPLAY_MODE_BOOT) {
             // [Secret Trigger] 5 vertical swipes in 10s enters Virtual Drive
             uint32_t now = xTaskGetTickCount();
-            if (s_secret_swipe_count == 0 || (now - s_secret_swipe_start_tick) > pdMS_TO_TICKS(10000)) {
-                s_secret_swipe_count = 1;
-                s_secret_swipe_start_tick = now;
-                ESP_LOGI("TOUCH", "Secret Trigger: Swipe 1/5 detected (10s timer started)");
+            if (s_secret_swipe_count == 0 ||
+                (now - s_secret_swipe_start_tick) > pdMS_TO_TICKS(10000)) {
+              s_secret_swipe_count = 1;
+              s_secret_swipe_start_tick = now;
+              ESP_LOGI(
+                  "TOUCH",
+                  "Secret Trigger: Swipe 1/5 detected (10s timer started)");
             } else {
-                s_secret_swipe_count++;
-                ESP_LOGI("TOUCH", "Secret Trigger: Swipe %d/5 detected", s_secret_swipe_count);
-                if (s_secret_swipe_count >= 5) {
-                    ESP_LOGW("TOUCH", "SECRET TRIGGER ACTIVATED! Entering Virtual Drive...");
-                    toggle_virtual_drive(true);
-                    s_secret_swipe_count = 0;
-                }
+              s_secret_swipe_count++;
+              ESP_LOGI("TOUCH", "Secret Trigger: Swipe %d/5 detected",
+                       s_secret_swipe_count);
+              if (s_secret_swipe_count >= 5) {
+                ESP_LOGW("TOUCH",
+                         "SECRET TRIGGER ACTIVATED! Entering Virtual Drive...");
+                toggle_virtual_drive(true);
+                s_secret_swipe_count = 0;
+              }
             }
             swiped = true;
           } else if (s_current_mode == DISPLAY_MODE_SETTING) {
@@ -9679,7 +10201,6 @@ static void touch_read_cb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
   swiped = false;
 }
 
-
 static void show_restart_msg(void) {
   LVGL_LOCK();
   lv_obj_t *scr = lv_obj_create(lv_layer_top());
@@ -9698,27 +10219,30 @@ static void show_restart_msg(void) {
 
 static void delayed_reboot_task(void *pvParameter) {
   ESP_LOGI(TAG, "Reboot task started: Waiting for 2.0s of BLE inactivity...");
-  
+
   while (1) {
-      uint32_t current_tick = xTaskGetTickCount();
-      // note_ble_activity()가 업데이트하는 마지막 수신 시간을 기준으로 2초(2000ms) 경과 확인
-      uint32_t elapsed_ms = (current_tick - s_last_ble_activity_tick) * portTICK_PERIOD_MS;
-      
-      // 이미지 전송 중에는 2초 비활성 체크를 skip하지만, 타이머 값은 여기서 보지 않고 
-      // note_ble_activity()가 호출되는 한 안전함.
-      if (!s_img_transfer_active && elapsed_ms >= 2000) {
-          ESP_LOGW(TAG, "No activity for 2.0s. Showing restart message...");
-          show_restart_msg();
-          
-          // 시스템을 시원하게 재부팅하기 전에 문자열이 화면에 그려지는 것을 보장(1초 여유)
-          vTaskDelay(pdMS_TO_TICKS(1000));
-          
-          ESP_LOGW(TAG, "Executing scheduled restart NOW.");
-          esp_restart();
-      }
-      
-      // 0.1초마다 대기하며 갱신 여부 체크
-      vTaskDelay(pdMS_TO_TICKS(100));
+    uint32_t current_tick = xTaskGetTickCount();
+    // note_ble_activity()가 업데이트하는 마지막 수신 시간을 기준으로
+    // 2초(2000ms) 경과 확인
+    uint32_t elapsed_ms =
+        (current_tick - s_last_ble_activity_tick) * portTICK_PERIOD_MS;
+
+    // 이미지 전송 중에는 2초 비활성 체크를 skip하지만, 타이머 값은 여기서 보지
+    // 않고 note_ble_activity()가 호출되는 한 안전함.
+    if (!s_img_transfer_active && elapsed_ms >= 2000) {
+      ESP_LOGW(TAG, "No activity for 2.0s. Showing restart message...");
+      show_restart_msg();
+
+      // 시스템을 시원하게 재부팅하기 전에 문자열이 화면에 그려지는 것을
+      // 보장(1초 여유)
+      vTaskDelay(pdMS_TO_TICKS(1000));
+
+      ESP_LOGW(TAG, "Executing scheduled restart NOW.");
+      esp_restart();
+    }
+
+    // 0.1초마다 대기하며 갱신 여부 체크
+    vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
 
@@ -9762,7 +10286,8 @@ void app_main(void) {
   esp_log_level_set("WIFI_OTA", ESP_LOG_INFO);
   esp_log_level_set("OTA_SD", ESP_LOG_INFO); // Enable OTA logs
   esp_log_level_set("TOUCH", ESP_LOG_INFO);
-  esp_log_level_set("IMG_TRANSFER", ESP_LOG_INFO); // 이미지 전송 디버그 로그 활성화
+  esp_log_level_set("IMG_TRANSFER",
+                    ESP_LOG_INFO); // 이미지 전송 디버그 로그 활성화
   esp_log_level_set(
       "i2c.master",
       ESP_LOG_NONE); // Suppress I2C driver error logs (touch polling nack)
@@ -9807,9 +10332,9 @@ void app_main(void) {
     break;
   }
   ESP_LOGI(TAG, "Reset reason: %s (%d)", reset_reason_str, reset_reason);
-  
+
   s_boot_tick = xTaskGetTickCount(); // Record boot time for 20s monitor
-  
+
   // [Fix] 전력 관리 비활성화 (클럭 지터 및 절전으로 인한 BLE 타임아웃 방지)
 #if CONFIG_PM_ENABLE
   esp_pm_config_esp32s3_t pm_config = {
@@ -9821,7 +10346,8 @@ void app_main(void) {
   ESP_LOGI(TAG, "Power Management set to High-Performance (Fixed 240MHz)");
 #endif
 
-  // [Fix] NVS 초기화 및 설정을 UI 생성보다 먼저 수행하여 시리얼 번호(s_device_serial) 등이 올바르게 표시되도록 합니다.
+  // [Fix] NVS 초기화 및 설정을 UI 생성보다 먼저 수행하여 시리얼
+  // 번호(s_device_serial) 등이 올바르게 표시되도록 합니다.
   esp_err_t ret_nvs = nvs_flash_init();
   if (ret_nvs == ESP_ERR_NVS_NO_FREE_PAGES ||
       ret_nvs == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -9830,7 +10356,7 @@ void app_main(void) {
   } else {
     ESP_ERROR_CHECK(ret_nvs);
   }
-  load_nvs_settings(); 
+  load_nvs_settings();
 
   const esp_app_desc_t *app_desc = esp_app_get_description();
   ESP_LOGI(TAG, "Firmware Version (Base): %s", app_desc->version);
@@ -9866,14 +10392,16 @@ void app_main(void) {
 
   // Start LittleFS UART console (ls / cat / stat / df commands in monitor)
 
-  // [Fix] NVS에서 불러온 모드를 잠시 백업하고, 부팅 과정(인트로/설치안내)을 위해 강제로 BOOT 모드로 시작합니다.
-  // 이 설정을 lcd_init_panel 이전에 함으로써 초기 UI 타이머가 대기화면 라벨을 띄우는 것을 방지합니다.
+  // [Fix] NVS에서 불러온 모드를 잠시 백업하고, 부팅 과정(인트로/설치안내)을
+  // 위해 강제로 BOOT 모드로 시작합니다. 이 설정을 lcd_init_panel 이전에
+  // 함으로써 초기 UI 타이머가 대기화면 라벨을 띄우는 것을 방지합니다.
   s_current_mode = DISPLAY_MODE_BOOT;
 
   // 2. Initialize LCD & LVGL (Moved before SD for Update UI)
   ESP_LOGI(TAG, "[LCD] Step 1: Initializing hardware panel...");
   esp_err_t ret = lcd_init_panel();
-  set_lcd_brightness(s_brightness_level, true); // [User Request] Use restored NVS level
+  set_lcd_brightness(s_brightness_level,
+                     true); // [User Request] Use restored NVS level
 
   if (ret != ESP_OK) {
     ESP_LOGE(TAG, "[LCD] Error: Failed to initialize panel");
@@ -9923,29 +10451,37 @@ void app_main(void) {
                   &s_lvgl_task_handle);
 
       if (s_intro_image) {
-        const char *intro_gif_paths[] = {"/littlefs/intro.gif", "/littlefs/flash_data/intro.gif"};
-        const char *intro_lv_paths[] = {"S:/littlefs/intro.gif", "S:/littlefs/flash_data/intro.gif"};
+        const char *intro_gif_paths[] = {"/littlefs/intro.gif",
+                                         "/littlefs/flash_data/intro.gif"};
+        const char *intro_lv_paths[] = {"S:/littlefs/intro.gif",
+                                        "S:/littlefs/flash_data/intro.gif"};
         for (int i = 0; i < 2; i++) {
           struct stat st;
           if (stat(intro_gif_paths[i], &st) == 0) {
-            ESP_LOGI(TAG, "System Boot: Intro GIF found at %s. Playing early...", intro_gif_paths[i]);
+            ESP_LOGI(TAG,
+                     "System Boot: Intro GIF found at %s. Playing early...",
+                     intro_gif_paths[i]);
             LVGL_LOCK();
-            if (s_intro_image) lv_obj_del(s_intro_image);
+            if (s_intro_image)
+              lv_obj_del(s_intro_image);
 #ifndef LV_USE_GIF
 #define LV_USE_GIF 1
 #endif
 #if LV_USE_GIF
             s_intro_image = lv_gif_create(s_boot_screen);
             if (s_intro_image) {
-              ESP_LOGI(TAG, "[DISPLAY] Step 4: Loading Intro GIF and switching to BOOT screen");
+              ESP_LOGI(TAG, "[DISPLAY] Step 4: Loading Intro GIF and switching "
+                            "to BOOT screen");
               lv_gif_set_src(s_intro_image, intro_lv_paths[i]);
               lv_obj_clear_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
               lv_obj_center(s_intro_image);
               lv_obj_move_foreground(s_intro_image);
               lv_gif_set_loop_count(s_intro_image, 1);
-              lv_scr_load(s_boot_screen); // Ensure boot screen is active for intro
+              lv_scr_load(
+                  s_boot_screen); // Ensure boot screen is active for intro
               LVGL_UNLOCK();
-              // [User Request] 설정 메뉴의 밝기 값을 보존하기 위해 하드웨어 밝기만 직접 올립니다.
+              // [User Request] 설정 메뉴의 밝기 값을 보존하기 위해 하드웨어
+              // 밝기만 직접 올립니다.
               apply_hw_brightness(5); // Turn on backlight for intro only
               ESP_LOGI(TAG, "[DISPLAY] Backlight ON (Level 5)");
               intro_start_time = (uint32_t)(esp_timer_get_time() / 1000);
@@ -9990,7 +10526,8 @@ void app_main(void) {
 
   // Initialize BLE Command Queue and Handler Task
   s_ble_cmd_queue = xQueueCreate(20, sizeof(ble_cmd_t));
-  xTaskCreate(ble_cmd_handler_task, "ble_cmd_h", 8192, NULL, 4, &s_ble_cmd_task_handle);
+  xTaskCreate(ble_cmd_handler_task, "ble_cmd_h", 8192, NULL, 4,
+              &s_ble_cmd_task_handle);
 
   ESP_ERROR_CHECK(init_ble());
 
@@ -10002,7 +10539,7 @@ void app_main(void) {
   // LittleFS is already mounted at the beginning of app_main.
   // Check if it was successful before loading CSV files.
   if (lfs_ret == ESP_OK) {
-    // esp_littlefs_info block removed to avoid locking the filesystem 
+    // esp_littlefs_info block removed to avoid locking the filesystem
     // and causing the LVGL intro GIF to freeze.
 
     // Load image data CSV file
@@ -10075,10 +10612,14 @@ void app_main(void) {
       if (current_time > intro_start_time) {
         elapsed_ms = current_time - intro_start_time;
       }
-      if (elapsed_ms >= max_ms) break;
+      if (elapsed_ms >= max_ms)
+        break;
 
       if (s_hud_seen_first_cmd) {
-        ESP_LOGI(TAG, "System Boot: App command received, skipping remaining intro (%u ms elapsed)", (unsigned)elapsed_ms);
+        ESP_LOGI(TAG,
+                 "System Boot: App command received, skipping remaining intro "
+                 "(%u ms elapsed)",
+                 (unsigned)elapsed_ms);
         break;
       }
       vTaskDelay(pdMS_TO_TICKS(check_ms));
@@ -10090,16 +10631,18 @@ void app_main(void) {
   // [User Request] 인트로 재생 완료 후 NVS 설정값으로 밝기 복구
   set_lcd_brightness(s_brightness_level, true);
 
-
-  // [Fix] 앱 연결 대기 전 부팅 화면(s_boot_screen)을 활성화하여 10초 후 설치 안내가 보이도록 함
+  // [Fix] 앱 연결 대기 전 부팅 화면(s_boot_screen)을 활성화하여 10초 후 설치
+  // 안내가 보이도록 함
   LVGL_LOCK();
   update_display_mode_ui(s_current_mode);
   LVGL_UNLOCK();
 
   // 1.5. 앱 연결 대기 루프 (최대 10초 타임아웃은 lvgl_handler_task에서 처리됨)
-  // [Fix] iOS 자동 재연결 대응: BLE 연결이 아닌 실제 앱 명령(0x4D) 수신까지 대기
+  // [Fix] iOS 자동 재연결 대응: BLE 연결이 아닌 실제 앱 명령(0x4D) 수신까지
+  // 대기
   if (!s_hud_seen_first_cmd) {
-    ESP_LOGI(TAG, "Intro playback finished. Waiting for App command before moving from BOOT mode...");
+    ESP_LOGI(TAG, "Intro playback finished. Waiting for App command before "
+                  "moving from BOOT mode...");
     while (!s_hud_seen_first_cmd) {
       vTaskDelay(pdMS_TO_TICKS(100));
     }
@@ -10107,9 +10650,12 @@ void app_main(void) {
 
   // [Fix] 앱 연결 직후 상태 업데이트 (패킷에 의해 이미 모드가 바뀌었을 수 있음)
   if (s_current_mode == DISPLAY_MODE_BOOT) {
-    ESP_LOGI(TAG, "App connection detected. Staying in BOOT mode until command received.");
+    ESP_LOGI(TAG, "App connection detected. Staying in BOOT mode until command "
+                  "received.");
   } else {
-    ESP_LOGI(TAG, "App connection detected. Maintaining current active mode (%d).", s_current_mode);
+    ESP_LOGI(TAG,
+             "App connection detected. Maintaining current active mode (%d).",
+             s_current_mode);
   }
   update_display_mode_ui(s_current_mode);
   LVGL_UNLOCK();
@@ -10184,7 +10730,8 @@ void app_main(void) {
     ESP_LOGW(TAG, "Recovery conditions met. Starting OTA mode...");
     switch_display_mode(DISPLAY_MODE_OTA);
   } else {
-    // [Fix] 상단에서 이미 대기 및 모드 적용이 완료되었으므로 여기서는 중복 처리를 하지 않습니다.
+    // [Fix] 상단에서 이미 대기 및 모드 적용이 완료되었으므로 여기서는 중복
+    // 처리를 하지 않습니다.
     ESP_LOGI(TAG, "System Boot: Normal boot path verification.");
   }
   LVGL_UNLOCK();
@@ -10203,15 +10750,18 @@ void app_main(void) {
 
   // keep app_main alive (so monitor doesn't
   // show "Returned from app_main()")
-    while (1) {
-        static uint32_t s_clock_auto_timer = 0;
+  while (1) {
+    static uint32_t s_clock_auto_timer = 0;
 
-        // 부팅 시 시계 화면 전환 트리거 처리 (이전에는 대기모드로 자동 전환했으나 
-        // 사용자 요청으로 자동 전환 로직 제거, 플래그만 초기화함)
-        if (s_boot_clock_trigger) {
-            s_boot_clock_trigger = false;
-            ESP_LOGI(TAG, "Main Task: First clock update received, maintaining current mode %d", s_current_mode);
-        }
+    // 부팅 시 시계 화면 전환 트리거 처리 (이전에는 대기모드로 자동 전환했으나
+    // 사용자 요청으로 자동 전환 로직 제거, 플래그만 초기화함)
+    if (s_boot_clock_trigger) {
+      s_boot_clock_trigger = false;
+      ESP_LOGI(
+          TAG,
+          "Main Task: First clock update received, maintaining current mode %d",
+          s_current_mode);
+    }
 
     // 이미지 전송 완료 비동기 처리 (BLE 태스크 블로킹 방지)
     if (s_img_transfer_finished_flag) {
@@ -10220,25 +10770,23 @@ void app_main(void) {
       update_img_transfer_ui(100, true);
     }
 
-
-
-
-
     // 시스템 진단 로그 (5초마다)
     static uint32_t s_diag_timer = 0;
     if (++s_diag_timer >= 50) { // 100ms * 50 = 5s
       s_diag_timer = 0;
-      ESP_LOGI("DIAG", "Heap: %lu, PSRAM: %lu, Connected: %d", 
+      ESP_LOGI("DIAG", "Heap: %lu, PSRAM: %lu, Connected: %d",
                (unsigned long)esp_get_free_heap_size(),
                (unsigned long)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
                s_connected);
     }
 
-    // 1. 앨범 자동 갱신 (10초) - 이미지 전송이나 펌웨어 업데이트 중에는 동작하지 않도록 엄격히 제한
+    // 1. 앨범 자동 갱신 (10초) - 이미지 전송이나 펌웨어 업데이트 중에는
+    // 동작하지 않도록 엄격히 제한
     extern bool s_fw_update_active;
-    if (s_album_option == 0 && s_current_mode == DISPLAY_MODE_ALBUM && !s_img_transfer_active && !s_fw_update_active) {
+    if (s_album_option == 0 && s_current_mode == DISPLAY_MODE_ALBUM &&
+        !s_img_transfer_active && !s_fw_update_active) {
       if (++s_album_auto_timer >= 100) { // 100ms * 100 = 10s
-        load_image_from_sd(1); // Next
+        load_image_from_sd(1);           // Next
       }
     } else {
       s_album_auto_timer = 0; // 전송 중이거나 모드가 다르면 항상 0으로 초기화
@@ -10258,8 +10806,7 @@ void app_main(void) {
     }
 
     update_auto_brightness(false);
-    img_transfer_check_timeout(); // 이미지 전송 데드락 체크
+    img_transfer_check_timeout();   // 이미지 전송 데드락 체크
     vTaskDelay(pdMS_TO_TICKS(100)); // 0.1초 반응성
   }
 }
-
