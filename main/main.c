@@ -3322,10 +3322,13 @@ static void align_avr_speed_labels(void);
 static void update_clear_display(uint8_t data1) {
   ESP_LOGI(TAG, "clear_display called: data1=0x%02X", data1);
 
-  // Speedometer sub-mode ignore 0x07 (Full Black)
+  // Speedometer or NAVI sub-mode ignore 0x07 (Full Black) and 0x08 (Clear Dest)
   if (s_current_mode == DISPLAY_MODE_GUIDE &&
-      s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER && data1 == 0x07) {
-    ESP_LOGI(TAG, "clear_display: Speedometer mode - ignoring data1=0x07");
+      (s_guide_sub_mode == GUIDE_SUB_SPEEDOMETER ||
+       s_guide_sub_mode == GUIDE_SUB_NAVI) &&
+      (data1 == 0x07 || data1 == 0x08)) {
+    ESP_LOGI(TAG, "clear_display: Navigation active - ignoring data1=0x%02X",
+             data1);
     return;
   }
 
@@ -4506,6 +4509,9 @@ static void update_road_name_label(const char *road_name) {
     return;
   }
 
+  // [Fix] 도로명 업데이트 시 블랙 오버레이를 숨김
+  hide_black_screen_overlay();
+
   LVGL_LOCK(); // Ensure thread safety
 
   // Reset long modes and widths for fresh update
@@ -5207,14 +5213,17 @@ static void update_hud_image_for_data(const image_data_entry_t *entry,
   // Use LVGL VFS path (S: drive) for consistency with Safety images
   snprintf(img_path, sizeof(img_path), "S:/littlefs/image/%s", img_filename);
 
+  // [Fix] 이미지가 같더라도, Clear(0x07) 명령 이후라면 블랙 오버레이를 숨겨야
+  // 함
+  hide_black_screen_overlay();
+
   // Early exit if the image is already
   // displayed and no force update is
   // requested This is the most common case
   // during high-frequency TBT updates
   // (distance changes only)
   if (strcmp(img_path, s_current_image_path) == 0 && !force_update) {
-    // BUG FIX: Even if path is same, if image is hidden (e.g. by clear
-    // command), we must unhide it to show it again with the distance update.
+    // 이미지가 같아도 혹시 숨겨져 있다면 다시 보이게 함
     if (s_hud_image != NULL &&
         lv_obj_has_flag(s_hud_image, LV_OBJ_FLAG_HIDDEN)) {
       lv_obj_clear_flag(s_hud_image, LV_OBJ_FLAG_HIDDEN);
@@ -5222,9 +5231,6 @@ static void update_hud_image_for_data(const image_data_entry_t *entry,
     }
     return;
   }
-
-  // Hide black screen overlay if visible
-  hide_black_screen_overlay();
 
   if (s_hud_image == NULL) {
     ESP_LOGW(TAG, "s_hud_image is NULL, "
@@ -5765,7 +5771,8 @@ static esp_err_t lcd_init_panel(void) {
           PIN_NUM_LCD_CS, lvgl_on_flush_ready_cb, NULL);
   // Increase SPI queue depth to prevent "spi
   // transmit (queue) color failed" errors
-  // Default is 10, increase to 30 for better performance during mode switching
+  // Default is 10, increase to 30 for better performance during mode
+  // switching
   io_config.trans_queue_depth = 30;
   io_config.pclk_hz = 20 * 1000 * 1000;
 
@@ -6494,9 +6501,29 @@ static void update_display_mode_ui(display_mode_t mode) {
 
     if (s_guide_sub_mode == GUIDE_SUB_NAVI) {
       ESP_LOGI(TAG, "[DISPLAY] Switching to NAVI (HUD) Screen");
-      // [User Request] 진입 시 속도 데이터를 받기 전까지 0으로 표시
-      if (s_normal_speed_value_label)
-        lv_label_set_text(s_normal_speed_value_label, "0");
+      // [Fix] 진입 시 속도 데이터를 받기 전까지 0으로 표시하고, 숨김 해제
+      if (s_speed_mark_value_label) {
+        lv_label_set_text(s_speed_mark_value_label, "0");
+        lv_obj_clear_flag(s_speed_mark_value_label, LV_OBJ_FLAG_HIDDEN);
+      }
+      if (s_speed_mark_unit_label) {
+        lv_obj_clear_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
+      }
+
+      // [Fix] 진입 시 목적지 소요시간 라벨들도 초기화 및 표시
+      if (s_dest_label) {
+        lv_label_set_text(s_dest_label, "소요시간");
+        lv_obj_clear_flag(s_dest_label, LV_OBJ_FLAG_HIDDEN);
+      }
+      if (s_dest_time_value_label) {
+        lv_label_set_text(s_dest_time_value_label, "0");
+        lv_obj_clear_flag(s_dest_time_value_label, LV_OBJ_FLAG_HIDDEN);
+      }
+      if (s_dest_time_unit_label) {
+        lv_label_set_text(s_dest_time_unit_label, "분");
+        lv_obj_clear_flag(s_dest_time_unit_label, LV_OBJ_FLAG_HIDDEN);
+      }
+
       if (s_road_name_label) {
         lv_obj_set_parent(s_road_name_label, s_hud_screen);
         lv_obj_move_foreground(s_road_name_label);
@@ -6699,9 +6726,9 @@ void prepare_for_ota(void) {
   ESP_LOGI(TAG, "Preparing for OTA: cleaning up states (but keeping tasks for "
                 "stability)...");
 
-  // vTaskDelete is dangerous because if a task is killed while holding a mutex
-  // (like LVGL_LOCK), it causes a permanent deadlock. Since we have ~100KB RAM,
-  // keeping tasks is safer.
+  // vTaskDelete is dangerous because if a task is killed while holding a
+  // mutex (like LVGL_LOCK), it causes a permanent deadlock. Since we have
+  // ~100KB RAM, keeping tasks is safer.
 
   /*
   if (s_ble_tx_task_handle) { vTaskDelete(s_ble_tx_task_handle);
@@ -6735,8 +6762,8 @@ static void switch_display_mode(display_mode_t new_mode) {
     s_guide_sub_mode = GUIDE_SUB_STANDBY;
   }
 
-  // == [User Request] Block ALL external switches while in specialized modes ==
-  // Only manual (touch) interaction is allowed to exit these modes once
+  // == [User Request] Block ALL external switches while in specialized modes
+  // == Only manual (touch) interaction is allowed to exit these modes once
   // entered.
   if (!s_is_manual_mode_switch && s_current_mode != DISPLAY_MODE_BOOT) {
     if (s_current_mode == DISPLAY_MODE_CLOCK ||
@@ -7532,8 +7559,8 @@ static void lvgl_handler_task(void *arg) {
                       "QR/Registration UI.");
         boot_timeout_triggered = true;
 
-        // [Action] Show installation UI elements (Manual trigger within current
-        // BOOT mode)
+        // [Action] Show installation UI elements (Manual trigger within
+        // current BOOT mode)
         LVGL_LOCK();
         if (s_intro_image)
           lv_obj_add_flag(s_intro_image, LV_OBJ_FLAG_HIDDEN);
@@ -7574,6 +7601,19 @@ static void lvgl_handler_task(void *arg) {
       update_time_display();
       LVGL_UNLOCK();
       update_heartbeat_lvgl();
+    }
+
+    // [Fix] 화면 클리어 요청을 가장 먼저 처리하여,
+    // 동일 루프 내에서 뒤따르는 데이터(속도, TBT 등)가 지워지는 현상 방지
+    if (s_clear_display_queue != NULL) {
+      clear_display_request_t clear_req;
+      if (xQueueReceive(s_clear_display_queue, &clear_req, 0) == pdTRUE) {
+        update_heartbeat_lvgl();
+        LVGL_LOCK();
+        update_clear_display(clear_req.data1);
+        LVGL_UNLOCK();
+        update_heartbeat_lvgl();
+      }
     }
 
     // Check for image update requests from
@@ -7694,19 +7734,6 @@ static void lvgl_handler_task(void *arg) {
         update_circle_display(circle_req.start, circle_req.id,
                               circle_req.commend, circle_req.data_length,
                               circle_req.data1);
-        LVGL_UNLOCK();
-        update_heartbeat_lvgl();
-      }
-    }
-
-    // Check for clear display requests from
-    // other tasks
-    if (s_clear_display_queue != NULL) {
-      clear_display_request_t clear_req;
-      if (xQueueReceive(s_clear_display_queue, &clear_req, 0) == pdTRUE) {
-        update_heartbeat_lvgl();
-        LVGL_LOCK();
-        update_clear_display(clear_req.data1);
         LVGL_UNLOCK();
         update_heartbeat_lvgl();
       }
@@ -7868,7 +7895,7 @@ void hud_send_notify_bytes(const uint8_t *data, uint16_t len) {
       if (len > 11)
         strcat(hex_buf, "... ");
 
-      ESP_LOGW(TAG, "PKT_LOG [TX] %s// %s", hex_buf, desc);
+      ESP_LOGI(TAG, "\033[0;36m---> [TX] %s// %s\033[0m", hex_buf, desc);
     }
   }
 
@@ -7942,6 +7969,15 @@ static int hid_on_access(uint16_t conn_handle, uint16_t attr_handle,
     return 0;
   } else if (uuid16 == 0x2A4D) { // Report
     os_mbuf_append(ctxt->om, s_hid_in_report, 8);
+    return 0;
+  } else if (uuid16 == 0x2A4C) { // HID Control Point
+    // 0x00 = Suspend, 0x01 = Exit Suspend
+    // Just accept the write and return success (no power management needed)
+    return 0;
+  } else if (uuid16 == 0x2908) { // Report Reference Descriptor
+    // Report ID=1, Report Type=1 (Input)
+    uint8_t ref[2] = {0x01, 0x01};
+    os_mbuf_append(ctxt->om, ref, sizeof(ref));
     return 0;
   }
   return BLE_ATT_ERR_UNLIKELY;
@@ -8087,8 +8123,17 @@ static const struct ble_gatt_svc_def s_nimble_svc_defs[] = {
                     .access_cb = hud_on_access,
                     .val_handle = &s_hud_char_ready_handle,
                     .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE |
+                             BLE_GATT_CHR_F_READ_ENC | BLE_GATT_CHR_F_WRITE_ENC |
                              BLE_GATT_CHR_F_WRITE_NO_RSP |
                              BLE_GATT_CHR_F_NOTIFY,
+                    .descriptors = (struct ble_gatt_dsc_def[]) { {
+                        .uuid = BLE_UUID16_DECLARE(0x2902), // CCCD
+                        .att_flags = BLE_ATT_F_READ | BLE_ATT_F_WRITE | 
+                                     BLE_ATT_F_READ_ENC | BLE_ATT_F_WRITE_ENC,
+                        .access_cb = hud_on_access,
+                    }, {
+                        0,
+                    } },
                 },
                 {
                     .uuid =
@@ -8097,6 +8142,7 @@ static const struct ble_gatt_svc_def s_nimble_svc_defs[] = {
                     .access_cb = hud_on_access,
                     .val_handle = &s_hud_char_write_handle,
                     .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE |
+                             BLE_GATT_CHR_F_READ_ENC | BLE_GATT_CHR_F_WRITE_ENC |
                              BLE_GATT_CHR_F_WRITE_NO_RSP,
                 },
                 {
@@ -8170,7 +8216,9 @@ static const struct ble_gatt_svc_def s_nimble_svc_defs[] = {
                 {
                     .uuid = BLE_UUID16_DECLARE(0x2A4B), // Report Map
                     .access_cb = hid_on_access,
-                    .flags = BLE_GATT_CHR_F_READ_ENC,
+                    // NO encryption: iOS reads Report Map BEFORE pairing
+                    // to classify this device as a keyboard for system auto-reconnect
+                    .flags = BLE_GATT_CHR_F_READ,
                 },
                 {
                     .uuid = BLE_UUID16_DECLARE(0x2A4A), // HID Info
@@ -8183,18 +8231,22 @@ static const struct ble_gatt_svc_def s_nimble_svc_defs[] = {
                     .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE_NO_RSP,
                 },
                 {
-                    .uuid = BLE_UUID16_DECLARE(0x2A4D), // Report
+                    .uuid = BLE_UUID16_DECLARE(0x2A4C), // HID Control Point
+                    .access_cb = hid_on_access,         // Required by HOGP spec
+                    .flags = BLE_GATT_CHR_F_WRITE_NO_RSP,
+                },
+                {
+                    .uuid = BLE_UUID16_DECLARE(0x2A4D), // Report (Input)
                     .access_cb = hid_on_access,
                     .val_handle = &s_hid_char_rpt_in_handle,
-                    .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+                    .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_READ_ENC |
+                             BLE_GATT_CHR_F_NOTIFY,
                     .descriptors =
                         (struct ble_gatt_dsc_def[]){
                             {
                                 .uuid = BLE_UUID16_DECLARE(
                                     0x2908), // Report Reference
-                                .access_cb =
-                                    hid_on_access, // Not implemented but needed
-                                                   // for some OS
+                                .access_cb = hid_on_access,
                                 .att_flags = BLE_ATT_F_READ,
                             },
                             {
@@ -8233,6 +8285,17 @@ static int ble_mp_gap_event(struct ble_gap_event *event, void *arg) {
       s_conn_handle = event->connect.conn_handle;
       s_connected = true;
       s_need_fast_conn = true;
+
+      // Proactively request security so iOS bonds immediately.
+      // Without this, iOS connects for HID but never initiates pairing -> no 'i' mark.
+      // If already bonded, NimBLE will use the stored LTK (fast encryption).
+      // If not bonded, iOS will show a pairing dialog and create a new bond.
+      int sec_rc = ble_gap_security_initiate(event->connect.conn_handle);
+      if (sec_rc != 0) {
+        ESP_LOGW(TAG, "Security initiate failed: rc=%d (will pair on first enc request)", sec_rc);
+      } else {
+        ESP_LOGI(TAG, "Security initiate requested -> waiting for Encryption changed event");
+      }
     } else {
       ble_mp_advertise();
     }
@@ -8266,15 +8329,24 @@ static int ble_mp_gap_event(struct ble_gap_event *event, void *arg) {
     }
     return 0;
 
+  case BLE_GAP_EVENT_ADV_COMPLETE:
+    // Directed advertising timed out (iOS didn't respond) → fall back to undirected
+    ESP_LOGI(TAG, "Advertising complete (reason=%d). Restarting undirected adv.",
+             event->adv_complete.reason);
+    ble_mp_advertise();
+    return 0;
+
   case BLE_GAP_EVENT_REPEAT_PAIRING:
-    /* Android 16 Re-pairing Fix: If the phone asks to pair again, its
-     * bond info is likely stale or invalid. Delete our side so we can
-     * genuinely re-sync and stay bonded permanently. */
+    /* Re-pairing Fix: Delete only the connecting device's stale bond,
+     * NOT all bonds. This preserves the iPhone bond while re-syncing Android. */
     struct ble_gap_conn_desc repeat_desc;
     rc = ble_gap_conn_find(event->repeat_pairing.conn_handle, &repeat_desc);
     if (rc == 0) {
+      ESP_LOGW(TAG, "Stale bond: deleting peer %02X:%02X:%02X:%02X:%02X:%02X only",
+               repeat_desc.peer_id_addr.val[5], repeat_desc.peer_id_addr.val[4],
+               repeat_desc.peer_id_addr.val[3], repeat_desc.peer_id_addr.val[2],
+               repeat_desc.peer_id_addr.val[1], repeat_desc.peer_id_addr.val[0]);
       ble_store_util_delete_peer(&repeat_desc.peer_id_addr);
-      ESP_LOGW(TAG, "Stale bond detected. Deleted old peer info for re-sync.");
     }
     return BLE_GAP_REPEAT_PAIRING_RETRY;
 
@@ -8324,13 +8396,16 @@ static void ble_mp_advertise(void) {
   fields.name_len = strlen(DEVICE_NAME);
   fields.name_is_complete = 1;
 
-  // CRITICAL: HUD Service UUID must be in the main packet for many Apps
-  fields.uuids16 = (ble_uuid16_t[]){BLE_UUID16_INIT(HUD_SERVICE_UUID16)};
-  fields.num_uuids16 = 1;
+  // CRITICAL: Both HUD and HID Service UUIDs in main packet for iOS system bonding
+  fields.uuids16 = (ble_uuid16_t[]){
+      BLE_UUID16_INIT(HUD_SERVICE_UUID16),
+      BLE_UUID16_INIT(0x1812) // HID Service
+  };
+  fields.num_uuids16 = 2;
   fields.uuids16_is_complete = 1;
 
-  // Appearance (Generic HID icon - avoids "Install Keyboard App" nag)
-  fields.appearance = 0x03C0;
+  // Appearance: 0x03C1 (Keyboard) - Stronger signal to iOS for auto-reconnection
+  fields.appearance = 0x03C1;
   fields.appearance_is_present = 1;
 
   rc = ble_gap_adv_set_fields(&fields);
@@ -8341,7 +8416,7 @@ static void ble_mp_advertise(void) {
 
   // 2. Scan Response Data - HID Service ID for discovery
   memset(&fields, 0, sizeof fields);
-  fields.uuids16 = (ble_uuid16_t[]){BLE_UUID16_INIT(0x1812)};
+  fields.uuids16 = (ble_uuid16_t[]){BLE_UUID16_INIT(HUD_SERVICE_UUID16)};
   fields.num_uuids16 = 1;
   fields.uuids16_is_complete = 1;
 
@@ -8410,17 +8485,76 @@ static void ble_mp_on_sync(void) {
   if (rc != 0)
     return;
 
-  ble_mp_advertise();
-
-  // [Fix] Check existing bond count to verify NVS persistence
+  // [iOS Auto-Reconnect] Check for bonded peers and try directed advertising
   int count_o = 0, count_p = 0;
   ble_store_util_count(BLE_STORE_OBJ_TYPE_OUR_SEC, &count_o);
   ble_store_util_count(BLE_STORE_OBJ_TYPE_PEER_SEC, &count_p);
-  ESP_LOGI(TAG, "NimBLE Sync: Bonds found in NVS: Our=%d, Peer=%d", count_o,
-           count_p);
+  ESP_LOGI(TAG, "NimBLE Sync: Bonds found in NVS: Our=%d, Peer=%d", count_o, count_p);
+
+  if (count_p > 0) {
+    ble_addr_t peer_id_addrs[5];
+    int num_peers = 0;
+    rc = ble_store_util_bonded_peers(peer_id_addrs, &num_peers, 5);
+
+    if (rc != 0 || num_peers == 0) {
+      ESP_LOGW(TAG, "Could not retrieve bonded peer addresses (rc=%d). Undirected adv.", rc);
+      ble_mp_advertise();
+    } else {
+      bool directed_started = false;
+      for (int i = 0; i < num_peers && !directed_started; i++) {
+        uint8_t first_byte = peer_id_addrs[i].val[5]; // MSB of BLE address
+        // RPA: addr_type=RANDOM, top 2 bits = '10'
+        // iOS Public Identity: addr_type=PUBLIC (type=0), but iOS background scanning
+        // is too slow (30+ seconds) to respond to 1.28s directed advertising window.
+        // Skip directed for ALL iOS addresses (public OUI B4:70:64 = Apple).
+        bool is_apple_public = (peer_id_addrs[i].type == BLE_ADDR_PUBLIC) &&
+                               (peer_id_addrs[i].val[5] == 0xB4) &&
+                               (peer_id_addrs[i].val[4] == 0x70) &&
+                               (peer_id_addrs[i].val[3] == 0x64);
+        bool is_rpa = (peer_id_addrs[i].type == BLE_ADDR_RANDOM) &&
+                      ((first_byte & 0xC0) == 0x80);
+        bool skip_directed = is_rpa || is_apple_public;
+
+        ESP_LOGI(TAG, "Bonded peer [%d]: %02X:%02X:%02X:%02X:%02X:%02X type=%d %s",
+                 i,
+                 peer_id_addrs[i].val[5], peer_id_addrs[i].val[4],
+                 peer_id_addrs[i].val[3], peer_id_addrs[i].val[2],
+                 peer_id_addrs[i].val[1], peer_id_addrs[i].val[0],
+                 peer_id_addrs[i].type,
+                 skip_directed ? "[iOS-skip directed, use undirected]" : "[Static-try directed]");
+
+        if (skip_directed) {
+          // iOS: skip directed adv (too slow to respond), use undirected
+          continue;
+        }
+
+        // Non-iOS: try directed advertising (Android public/static devices)
+        struct ble_gap_adv_params dir_params = {0};
+        dir_params.conn_mode = BLE_GAP_CONN_MODE_DIR;
+        dir_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
+
+        int dir_rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, &peer_id_addrs[i],
+                                        1280, &dir_params, ble_mp_gap_event, NULL);
+        if (dir_rc == 0) {
+          ESP_LOGI(TAG, "[Reconnect] Directed adv started to peer[%d]", i);
+          directed_started = true;
+        } else {
+          ESP_LOGW(TAG, "Directed adv to peer[%d] failed (rc=%d)", i, dir_rc);
+        }
+      }
+
+      if (!directed_started) {
+        ble_mp_advertise(); // iOS will connect via undirected advertising
+      }
+    }
+  } else {
+    // No bonded peers -> normal undirected advertising
+    ble_mp_advertise();
+  }
 
   ESP_LOGI(TAG, "NimBLE Sync Complete. Advertising started.");
 }
+
 
 static void ble_mp_host_task(void *param) {
   ESP_LOGI(TAG, "NimBLE Host Task Started");
@@ -8633,8 +8767,8 @@ static void clock_timer_cb(lv_timer_t *timer) {
           lv_obj_clear_flag(s_boot_install_qr, LV_OBJ_FLAG_HIDDEN);
           lv_obj_move_foreground(s_boot_install_qr);
         }
-        // [제거] 부팅 모드에서는 애초에 라벨이 뜨지 않으므로 수동으로 숨길 필요
-        // 없음
+        // [제거] 부팅 모드에서는 애초에 라벨이 뜨지 않으므로 수동으로 숨길
+        // 필요 없음
         s_boot_reg_shown = true;
       }
     }
@@ -8697,9 +8831,8 @@ static void clock_timer_cb(lv_timer_t *timer) {
 
 // 부팅 모드 전용 디지털 시계 UI 생성
 static void create_boot_ui(void) {
-  ESP_LOGI(
-      TAG,
-      "[UI] Step 3-1: Creating BOOT screen components (Hidden by default)...");
+  ESP_LOGI(TAG, "[UI] Step 3-1: Creating BOOT screen components (Hidden by "
+                "default)...");
   if (s_boot_screen == NULL)
     return;
 
@@ -8707,7 +8840,8 @@ static void create_boot_ui(void) {
   s_boot_time_label = lv_label_create(s_boot_screen);
   lv_obj_set_style_text_font(s_boot_time_label, &font_ORB_100, 0);
   lv_obj_set_style_text_color(s_boot_time_label, lv_color_white(), 0);
-  lv_obj_align(s_boot_time_label, LV_ALIGN_CENTER, 0, 0); // Perfectly centered
+  lv_obj_align(s_boot_time_label, LV_ALIGN_CENTER, 0,
+               0); // Perfectly centered
   lv_label_set_text(s_boot_time_label, "12:00");
   lv_obj_add_flag(s_boot_time_label, LV_OBJ_FLAG_HIDDEN);
 
@@ -8774,9 +8908,9 @@ static void create_boot_ui(void) {
   }
 }
 
-/* static void rotate_point(int px, int py, double angle_rad, int *ox, int *oy)
-{ *ox = (int)(px * cos(angle_rad) - py * sin(angle_rad)); *oy = (int)(px *
-sin(angle_rad) + py * cos(angle_rad));
+/* static void rotate_point(int px, int py, double angle_rad, int *ox, int
+*oy) { *ox = (int)(px * cos(angle_rad) - py * sin(angle_rad)); *oy = (int)(px
+* sin(angle_rad) + py * cos(angle_rad));
 } */
 
 static void draw_analog_clock(int hour, int minute, int second) {
@@ -8916,12 +9050,14 @@ static void create_clock_ui(void) {
   lv_obj_set_style_line_rounded(s_clock1_hour_fg, true, 0);
 
   s_clock1_minute_bg = lv_line_create(s_clock_screen);
-  lv_obj_set_style_line_width(s_clock1_minute_bg, 32, 0); // Thicker (was 26px)
+  lv_obj_set_style_line_width(s_clock1_minute_bg, 32,
+                              0); // Thicker (was 26px)
   lv_obj_set_style_line_color(s_clock1_minute_bg, lv_color_white(), 0);
   lv_obj_set_style_line_rounded(s_clock1_minute_bg, true, 0);
 
   s_clock1_minute_fg = lv_line_create(s_clock_screen);
-  lv_obj_set_style_line_width(s_clock1_minute_fg, 22, 0); // Thicker (was 26px)
+  lv_obj_set_style_line_width(s_clock1_minute_fg, 22,
+                              0); // Thicker (was 26px)
   lv_obj_set_style_line_color(s_clock1_minute_fg, orange_fill, 0);
   lv_obj_set_style_line_rounded(s_clock1_minute_fg, true, 0);
 
@@ -9591,8 +9727,8 @@ static void create_setting_ui(void) {
 
   // Title is no longer clickable
   lv_obj_clear_flag(s_setting_title_label, LV_OBJ_FLAG_CLICKABLE);
-  // Removed click event to prevent accidental toggles during mode-switch swipes
-  // lv_obj_add_event_cb(s_setting_title_label, setting_page_cb,
+  // Removed click event to prevent accidental toggles during mode-switch
+  // swipes lv_obj_add_event_cb(s_setting_title_label, setting_page_cb,
   // LV_EVENT_CLICKED, NULL);
 }
 
@@ -9768,8 +9904,8 @@ void update_img_transfer_ui(int percent, bool finished) {
   }
 
   // [Fix] 이미지 전송 시작 시 기존 앨범 이미지의 파일 핸들을 명시적으로
-  // 해제하여 전송 완료 후 파일 교체(rename/unlink) 시 발생할 수 있는 EBUSY(Has
-  // open FD) 에러 방지
+  // 해제하여 전송 완료 후 파일 교체(rename/unlink) 시 발생할 수 있는
+  // EBUSY(Has open FD) 에러 방지
   if (percent == 0) {
     if (s_album_img)
       lv_img_set_src(s_album_img, NULL);
@@ -9926,6 +10062,9 @@ void load_image_from_sd(int direction) {
     if (s_album_gif) {
       lv_gif_set_src(s_album_gif, filename);
       lv_obj_center(s_album_gif);
+
+      // [Removed Effect] GIF displayed immediately
+      lv_obj_set_style_opa(s_album_gif, LV_OPA_COVER, 0);
     } else {
       ESP_LOGE(TAG, "Album: Failed to create GIF object for %s", filename);
     }
@@ -9936,8 +10075,8 @@ void load_image_from_sd(int direction) {
       lv_img_set_src(s_album_img, filename);
       lv_obj_clear_flag(s_album_img, LV_OBJ_FLAG_HIDDEN);
 
-      // Optimization: if it's a big image, we might want to suggest a refresh
-      // but lv_timer_handler will pick it up on next cycle.
+      // [Removed Effect] Image displayed immediately
+      lv_obj_set_style_opa(s_album_img, LV_OPA_COVER, 0);
     } else {
       ESP_LOGE(TAG, "Album: s_album_img is NULL!");
     }
@@ -10227,8 +10366,8 @@ static void delayed_reboot_task(void *pvParameter) {
     uint32_t elapsed_ms =
         (current_tick - s_last_ble_activity_tick) * portTICK_PERIOD_MS;
 
-    // 이미지 전송 중에는 2초 비활성 체크를 skip하지만, 타이머 값은 여기서 보지
-    // 않고 note_ble_activity()가 호출되는 한 안전함.
+    // 이미지 전송 중에는 2초 비활성 체크를 skip하지만, 타이머 값은 여기서
+    // 보지 않고 note_ble_activity()가 호출되는 한 안전함.
     if (!s_img_transfer_active && elapsed_ms >= 2000) {
       ESP_LOGW(TAG, "No activity for 2.0s. Showing restart message...");
       show_restart_msg();
@@ -10637,9 +10776,9 @@ void app_main(void) {
   update_display_mode_ui(s_current_mode);
   LVGL_UNLOCK();
 
-  // 1.5. 앱 연결 대기 루프 (최대 10초 타임아웃은 lvgl_handler_task에서 처리됨)
-  // [Fix] iOS 자동 재연결 대응: BLE 연결이 아닌 실제 앱 명령(0x4D) 수신까지
-  // 대기
+  // 1.5. 앱 연결 대기 루프 (최대 10초 타임아웃은 lvgl_handler_task에서
+  // 처리됨) [Fix] iOS 자동 재연결 대응: BLE 연결이 아닌 실제 앱 명령(0x4D)
+  // 수신까지 대기
   if (!s_hud_seen_first_cmd) {
     ESP_LOGI(TAG, "Intro playback finished. Waiting for App command before "
                   "moving from BOOT mode...");
@@ -10648,7 +10787,8 @@ void app_main(void) {
     }
   }
 
-  // [Fix] 앱 연결 직후 상태 업데이트 (패킷에 의해 이미 모드가 바뀌었을 수 있음)
+  // [Fix] 앱 연결 직후 상태 업데이트 (패킷에 의해 이미 모드가 바뀌었을 수
+  // 있음)
   if (s_current_mode == DISPLAY_MODE_BOOT) {
     ESP_LOGI(TAG, "App connection detected. Staying in BOOT mode until command "
                   "received.");
@@ -10757,10 +10897,10 @@ void app_main(void) {
     // 사용자 요청으로 자동 전환 로직 제거, 플래그만 초기화함)
     if (s_boot_clock_trigger) {
       s_boot_clock_trigger = false;
-      ESP_LOGI(
-          TAG,
-          "Main Task: First clock update received, maintaining current mode %d",
-          s_current_mode);
+      ESP_LOGI(TAG,
+               "Main Task: First clock update received, maintaining current "
+               "mode %d",
+               s_current_mode);
     }
 
     // 이미지 전송 완료 비동기 처리 (BLE 태스크 블로킹 방지)
@@ -10785,8 +10925,8 @@ void app_main(void) {
     extern bool s_fw_update_active;
     if (s_album_option == 0 && s_current_mode == DISPLAY_MODE_ALBUM &&
         !s_img_transfer_active && !s_fw_update_active) {
-      if (++s_album_auto_timer >= 100) { // 100ms * 100 = 10s
-        load_image_from_sd(1);           // Next
+      if (++s_album_auto_timer >= 50) { // 100ms * 50 = 5s
+        load_image_from_sd(1);          // Next
       }
     } else {
       s_album_auto_timer = 0; // 전송 중이거나 모드가 다르면 항상 0으로 초기화
