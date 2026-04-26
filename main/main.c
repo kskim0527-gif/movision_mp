@@ -1,4 +1,4 @@
-#define LV_USE_GIF 1
+﻿#define LV_USE_GIF 1
 // #define FACTORY_RESCUE_MODE // Factory(1MB) 빌드 시 이 주석을 해제하세요.
 #include <stdbool.h>
 #include <stdint.h>
@@ -4900,7 +4900,7 @@ static void update_destination_info(uint8_t data1, uint8_t data2, uint8_t data3,
   // Position: 문자 첫글자 기준으로 중앙에서 위로 50pt, 좌로 190pt
   // Color: 회색 (Gray)
   if (s_dest_label) {
-    lv_label_set_text(s_dest_label, "소요시간");
+    lv_label_set_text(s_dest_label, "도착시간");
     lv_obj_set_style_text_color(s_dest_label, lv_color_make(180, 160, 0),
                                 0); // 어두운 노랑색 (Dark Yellow)
     // Use 30pt font as requested
@@ -4908,7 +4908,7 @@ static void update_destination_info(uint8_t data1, uint8_t data2, uint8_t data3,
 
     // Calculate width with 30pt font
     lv_coord_t label_width = lv_txt_get_width(
-        "소요시간", strlen("소요시간"), &font_addr_30, 0, LV_TEXT_FLAG_NONE);
+        "도착시간", strlen("도착시간"), &font_addr_30, 0, LV_TEXT_FLAG_NONE);
 
     // Align Left edge at -190
     // Center X = TargetLeftX + Width/2 = -190 + Width/2
@@ -6367,13 +6367,13 @@ static esp_err_t lvgl_init(void) {
                               LV_TEXT_ALIGN_LEFT, 0);
   lv_obj_add_flag(s_dest_time_minute_value_label, LV_OBJ_FLAG_HIDDEN);
 
-  // Create "소요시간" label
+  // Create "도착시간" label
   s_dest_label = lv_label_create(s_hud_screen);
   lv_obj_set_style_text_color(s_dest_label, lv_color_make(180, 160, 0),
                               0); // 어두운 노랑색 (Dark Yellow)
   lv_obj_set_style_text_font(s_dest_label, &font_addr_30, 0);
   lv_obj_align(s_dest_label, LV_ALIGN_CENTER, -100, -53);
-  lv_label_set_text(s_dest_label, "소요시간");
+  lv_label_set_text(s_dest_label, "도착시간");
   lv_obj_add_flag(s_dest_label, LV_OBJ_FLAG_HIDDEN);
 
   // Road Name Labels (Yellow)
@@ -6510,9 +6510,9 @@ static void update_display_mode_ui(display_mode_t mode) {
         lv_obj_clear_flag(s_speed_mark_unit_label, LV_OBJ_FLAG_HIDDEN);
       }
 
-      // [Fix] 진입 시 목적지 소요시간 라벨들도 초기화 및 표시
+      // [Fix] 진입 시 목적지 도착시간 라벨들도 초기화 및 표시
       if (s_dest_label) {
-        lv_label_set_text(s_dest_label, "소요시간");
+        lv_label_set_text(s_dest_label, "도착시간");
         lv_obj_clear_flag(s_dest_label, LV_OBJ_FLAG_HIDDEN);
       }
       if (s_dest_time_value_label) {
