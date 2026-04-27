@@ -294,8 +294,15 @@
     let isPaused = false;
     let logLines = [];
 
-    const HUD_SERVICE_UUID = "0000ffea-0000-1000-8000-00805f9b34fb";
-    const HUD_CHAR_WRITE_UUID = "0000fff1-0000-1000-8000-00805f9b34fb";
+    // Supported UUIDs (Support both legacy FFEA and new FFF0)
+    const SERVICE_UUIDS = [
+        "0000ffea-0000-1000-8000-00805f9b34fb",
+        "0000fff0-0000-1000-8000-00805f9b34fb"
+    ];
+    const CHAR_UUIDS = [
+        "0000fff1-0000-1000-8000-00805f9b34fb",
+        "0000fff2-0000-1000-8000-00805f9b34fb"
+    ];
 
     const logPanel = document.getElementById('logPanel');
     const startLineInput = document.getElementById('startLine');
@@ -321,42 +328,96 @@
         logPanel.scrollTop = logPanel.scrollHeight;
     }
 
+    // Check if running in a secure context
+    window.onload = () => {
+        if (window.location.protocol === 'file:') {
+            addLog("⚠️ 주의: 현재 '파일'로 실행 중입니다. Web Bluetooth는 보안 정책상 HTTPS 또는 Localhost에서만 작동할 수 있습니다.", 'error');
+            addLog("해결방법: VS Code의 'Live Server' 확장프로그램을 사용하거나, 'npx serve' 등을 이용해 실행하세요.", 'info');
+        }
+    };
+
     fileInput.onchange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (event) => {
-            logLines = event.target.result.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-            addLog(`파일 로드됨: 총 ${logLines.length}개 데이터 확보`, 'info');
+            const content = event.target.result;
+            if (file.name.toLowerCase().endsWith('.csv')) {
+                // CSV Parsing Logic (Extract hex data from columns)
+                const rows = content.split('\n').filter(r => r.trim().length > 0);
+                logLines = rows.map((row, idx) => {
+                    if (idx === 0 && row.toLowerCase().includes('start')) return null; // Skip header
+                    const parts = row.split(',');
+                    // Try to find hex-looking parts starting with 0x and join them
+                    return parts.map(p => p.trim()).filter(p => p.startsWith('0x')).join(' ');
+                }).filter(l => l !== null && l.length > 0);
+            } else {
+                logLines = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            }
+            addLog(`파일 로드됨 (${file.name}): 총 ${logLines.length}개 데이터 확보`, 'info');
         };
         reader.readAsText(file);
     };
 
     async function onConnect() {
-        if (logLines.length === 0) { alert("먼저 로그 파일을 선택해 주세요!"); return; }
+        if (logLines.length === 0 && !manualInput.value) { 
+            alert("먼저 로그 파일을 선택하거나 수동 명령을 입력해 주세요!"); 
+            return; 
+        }
+        
         try {
-            addLog("디바이스 스캔 시작...");
+            addLog("디바이스 스캔 시작 (MOVISION/Mando)...");
             bluetoothDevice = await navigator.bluetooth.requestDevice({
                 filters: [{ namePrefix: 'MOVISION' }, { namePrefix: 'Mando' }],
-                optionalServices: [HUD_SERVICE_UUID]
+                optionalServices: SERVICE_UUIDS
             });
 
             addLog(`GATT 서버 연결 중...`, 'info');
             const server = await bluetoothDevice.gatt.connect();
-            const service = await server.getPrimaryService(HUD_SERVICE_UUID);
-            characteristic = await service.getCharacteristic(HUD_CHAR_WRITE_UUID);
+            
+            // Try to find any of the supported services
+            let service = null;
+            for (const uuid of SERVICE_UUIDS) {
+                try {
+                    service = await server.getPrimaryService(uuid);
+                    if (service) {
+                        addLog(`서비스 발견: ${uuid.slice(4, 8).toUpperCase()}`, 'info');
+                        break;
+                    }
+                } catch (e) { continue; }
+            }
 
-            addLog("연결 성공! 로그 전송을 시작합니다.", 'success');
+            if (!service) throw new Error("적절한 HUD 서비스를 찾을 수 없습니다.");
+
+            // Try to find write characteristic
+            for (const uuid of CHAR_UUIDS) {
+                try {
+                    characteristic = await service.getCharacteristic(uuid);
+                    if (characteristic) {
+                        addLog(`캐릭터리스틱 발견: ${uuid.slice(4, 8).toUpperCase()}`, 'info');
+                        break;
+                    }
+                } catch (e) { continue; }
+            }
+
+            if (!characteristic) throw new Error("쓰기 가능한 채널을 찾을 수 없습니다.");
+
+            addLog("연결 성공! 로그 전송 준비 완료.", 'success');
             connectedState.textContent = "Connected";
             connectedState.style.color = "#39d353";
             
             isRunning = true;
             isPaused = false;
             updateUIState();
-            startSimulation();
+            
+            if (logLines.length > 0) {
+                startSimulation();
+            }
 
             bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
-        } catch (error) { addLog(`연결 중 오류 발생: ${error}`, 'error'); }
+        } catch (error) { 
+            addLog(`연결 실패: ${error.message}`, 'error'); 
+        }
     }
 
     function onDisconnected() {
@@ -391,15 +452,17 @@
 
     async function startSimulation() {
         const totalLines = logLines.length;
+        const startLine = parseInt(startLineInput.value) || 1;
+        
+        addLog(`시뮬레이션 시작: ${startLine}번 행부터 전송`, 'info');
+
         while (isRunning) {
-            const startLine = parseInt(startLineInput.value) || 1;
             const slice = logLines.slice(startLine - 1);
             if (slice.length === 0) break;
 
             for (let i = 0; i < slice.length; i++) {
                 if (!isRunning) break;
 
-                // 일시정지 대기
                 while (isPaused && isRunning) {
                     await new Promise(r => setTimeout(r, 100));
                 }
@@ -411,7 +474,7 @@
                     try {
                         const hexStr = Array.from(bytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
                         addLog(`TX -> ${hexStr}`, 'tx');
-                        // Use writeValueWithoutResponse for better Windows/PC compatibility
+                        
                         if (characteristic.writeValueWithoutResponse) {
                             await characteristic.writeValueWithoutResponse(bytes);
                         } else {
@@ -423,16 +486,17 @@
                         progressInner.style.width = ((currentLine / totalLines) * 100) + '%';
                     } catch (e) {
                         addLog(`전송 실패: ${e.message}`, 'error');
-                        if (!bluetoothDevice.gatt.connected) { onDisconnected(); break; }
+                        if (!bluetoothDevice.gatt.connected) { onDisconnected(); return; }
                     }
                 }
-                const interval = parseInt(intervalInput.value) || 50;
+                const interval = parseInt(intervalInput.value) || 200;
                 await new Promise(resolve => setTimeout(resolve, interval));
             }
 
             if (isRunning && !isPaused) {
-                addLog("모든 로그 전송 완료. 2초 후 재시작합니다.", 'success');
+                addLog("모든 데이터 전송 완료. 2초 후 처음부터 재시작합니다.", 'success');
                 await new Promise(resolve => setTimeout(resolve, 2000));
+                startLineInput.value = 1; 
             } else {
                 break;
             }
@@ -461,7 +525,7 @@
                 addLog(`수동 전송 실패: ${e.message}`, 'error');
             }
         } else {
-            alert("유효한 HEX 형식이 아닙니다. (예: 1A 2B 3C)");
+            alert("유효한 HEX 형식이 아닙니다. (예: 19 4D 02 ...)");
         }
     }
 
@@ -493,7 +557,6 @@
         if (bluetoothDevice && bluetoothDevice.gatt.connected) {
             try {
                 await bluetoothDevice.gatt.disconnect();
-                // onDisconnected() will be called automatically by the listener
             } catch (e) {
                 addLog(`연결 해제 시 오류: ${e.message}`, 'error');
             }

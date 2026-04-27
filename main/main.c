@@ -1,4 +1,4 @@
-﻿#define LV_USE_GIF 1
+#define LV_USE_GIF 1
 // #define FACTORY_RESCUE_MODE // Factory(1MB) 빌드 시 이 주석을 해제하세요.
 #include <stdbool.h>
 #include <stdint.h>
@@ -764,6 +764,7 @@ typedef struct {
   char image_filename[64]; // CSV: image (e.g., "camera_tt.bmp")
   uint8_t sector;          // CSV: sector (LCD 위치)
   char size[32];           // CSV: size (e.g., "150pt x 150pt")
+  uint8_t priority;        // CSV: priority (우선순위)
 } safety_data_entry_t;
 
 static image_data_entry_t *s_image_data_entries = NULL;
@@ -2058,9 +2059,9 @@ static esp_err_t load_safety_data_csv(void) {
 
     // Extract: start(0), id(1), commend(2),
     // data_length(3), data1(4), image(11),
-    // sector(12) Safety_DRV.CSV has 13 fields
-    // (indices 0-12), no size field
-    if (field_idx < 13) {
+    // sector(12), priority(13) Safety_DRV.CSV has 14 fields
+    // (indices 0-13), no size field
+    if (field_idx < 14) {
       ESP_LOGW(TAG,
                "Safety_DRV CSV line %zu has "
                "insufficient fields (%d), "
@@ -2076,9 +2077,10 @@ static esp_err_t load_safety_data_csv(void) {
     char *data1_str = fields[4];
     char *filename_str = fields[11]; // image is at index 11
     char *sector_str = fields[12];   // sector is at index 12
+    char *priority_str = fields[13]; // priority is at index 13
 
     if (!start_str || !id_str || !commend_str || !data_length_str ||
-        !data1_str || !filename_str || !sector_str) {
+        !data1_str || !filename_str || !sector_str || !priority_str) {
       ESP_LOGW(TAG,
                "Safety_DRV CSV line %zu has "
                "NULL fields, skipping",
@@ -2101,6 +2103,8 @@ static esp_err_t load_safety_data_csv(void) {
       filename_str++;
     while (*sector_str == ' ' || *sector_str == '\t')
       sector_str++;
+    while (*priority_str == ' ' || *priority_str == '\t')
+      priority_str++;
 
     // Remove surrounding quotes from filename
     // if present
@@ -2118,8 +2122,8 @@ static esp_err_t load_safety_data_csv(void) {
     uint32_t commend = strtoul(commend_str, NULL, 16);
     uint32_t data_length = strtoul(data_length_str, NULL, 16);
     uint32_t data1 = strtoul(data1_str, NULL, 16);
-    uint32_t sector = strtoul(sector_str, NULL,
-                              10); // sector is decimal
+    uint32_t sector = strtoul(sector_str, NULL, 10); // sector is decimal
+    uint32_t priority = strtoul(priority_str, NULL, 10); // priority is decimal
 
     if (start > 255 || id > 255 || commend > 255 || data_length > 255 ||
         data1 > 255) {
@@ -2136,6 +2140,7 @@ static esp_err_t load_safety_data_csv(void) {
     s_safety_data_entries[idx].data_length = (uint8_t)data_length;
     s_safety_data_entries[idx].data1 = (uint8_t)data1;
     s_safety_data_entries[idx].sector = (uint8_t)sector;
+    s_safety_data_entries[idx].priority = (uint8_t)priority;
 
     // Copy filename
     size_t copy_len = filename_len;
@@ -2163,14 +2168,14 @@ static esp_err_t load_safety_data_csv(void) {
              "Safety_DRV CSV parsed entry %zu: "
              "start=0x%02X id=0x%02X "
              "commend=0x%02X dlen=0x%02X "
-             "data1=0x%02X -> %s (sector=%u)",
+             "data1=0x%02X -> %s (sector=%u, priority=%u)",
              idx, s_safety_data_entries[idx].start,
              s_safety_data_entries[idx].id, s_safety_data_entries[idx].commend,
              s_safety_data_entries[idx].data_length,
              s_safety_data_entries[idx].data1,
              s_safety_data_entries[idx].image_filename,
              s_safety_data_entries[idx].sector,
-             s_safety_data_entries[idx].size);
+             s_safety_data_entries[idx].priority);
 
     idx++;
   }
@@ -3015,41 +3020,57 @@ static void safety_drive(uint8_t start, uint8_t id, uint8_t commend,
      data1, data2, data3, data4, data5,
            data6); */
 
-  // data1 == 2: 외곽링을 제외한 LCD 에 표기한
-  // 모든것을 화면에 표기하지 않는다
   ESP_LOGI(TAG,
            "Safety_DRV Packet: start=0x%02X id=0x%02X cmd=0x%02X d1=0x%02X "
            "d2=0x%02X d3=0x%02X",
            start, id, commend, data1, data2, data3);
 
-  if (data1 == 0x02) {
-    ESP_LOGI(TAG, "Safety_DRV: data1=2 received, "
-                  "requesting global clear");
+  // data1 == 0: 모든 안전운행 정보를 화면에서 지운다
+  if (data1 == 0x00) {
+    ESP_LOGI(TAG, "Safety_DRV: data1=0 received, requesting clear");
     request_clear_display(0x02);
     return;
   }
 
-  // Find matching Safety_DRV entry
-  const safety_data_entry_t *entry =
-      find_safety_image_entry(start, id, commend, data_length, data1);
-  if (entry == NULL) {
-    ESP_LOGW(TAG,
-             "Safety_DRV: No matching entry for "
-             "start=0x%02X id=0x%02X "
-             "cmd=0x%02X dlen=0x%02X data1=0x%02X",
-             start, id, commend, data_length, data1);
-    return;
+  const safety_data_entry_t *best_entry = NULL;
+  uint8_t highest_priority = 255;
+
+  // data1에 포함된 비트 중 가장 우선순위가 높은 항목을 찾는다
+  for (int i = 0; i < 8; i++) {
+    uint8_t bit = (1 << i);
+    if (data1 & bit) {
+      const safety_data_entry_t *entry =
+          find_safety_image_entry(start, id, commend, data_length, bit);
+      if (entry != NULL) {
+        if (entry->priority < highest_priority) {
+          highest_priority = entry->priority;
+          best_entry = entry;
+        }
+      }
+    }
+  }
+
+  if (best_entry == NULL) {
+    // 매칭되는 비트가 없으면 기존 방식(전체 일치)으로 시도
+    best_entry = find_safety_image_entry(start, id, commend, data_length, data1);
+    if (best_entry == NULL) {
+      ESP_LOGW(TAG,
+               "Safety_DRV: No matching entry for "
+               "start=0x%02X id=0x%02X "
+               "cmd=0x%02X dlen=0x%02X data1=0x%02X",
+               start, id, commend, data_length, data1);
+      return;
+    }
   }
 
   ESP_LOGD(TAG,
-           "Safety_DRV: Found matching "
-           "entry, image=%s sector=%u",
-           entry->image_filename, entry->sector);
+           "Safety_DRV: Found best entry, image=%s sector=%u priority=%u",
+           best_entry->image_filename, best_entry->sector, best_entry->priority);
 
   // Request all updates via queue (to avoid
   // LVGL crash in BLE callback) Image, ring
-  request_safety_update(start, id, commend, data_length, data1, data2, data3,
-                        data4, data5, data6);
+  request_safety_update(start, id, commend, data_length, best_entry->data1,
+                        data2, data3, data4, data5, data6);
 }
 
 // Circle drawing function (외곽 링 GPS 상태
